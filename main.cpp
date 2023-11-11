@@ -125,14 +125,6 @@ int *Matrix::operator[](int num) {
     return values[num];
 }
 
-// Взятие столбца
-int *Matrix::operator()(int num) {
-    int res[rows];
-    for (int i = 0; i < rows; i++) {
-        res[i] = values[i][num];
-    }
-    return res;
-}
 
 // Транспонирование матрицы
 Matrix Matrix::operator~() {
@@ -164,7 +156,8 @@ double ReliabilityDiamConstr(kGraph &G, unsigned short d) {
 // встроенная ф-я проверки на расстояния}
     unsigned short Nconst;
     Nconst = (G.KAO.size()) * (G.KAO.size());
-    return Factoring(G, 0, 0, d, Nconst);
+    double t = Factoring(G, 0, 0, d, Nconst);
+    return t;
 }
 
 //Зачем NumberofRec? чтобы знать какой шаг ветвеления?
@@ -172,7 +165,7 @@ double Factoring(kGraph &G, unsigned short variant, int NumberOfRec, unsigned sh
 //Ветвление, variant=0 - после удаления, variant=1 - после обнадеживания ребра
     double p;
     int i, j, k;
-    NumberOfRec++;
+    int numberOfRec = NumberOfRec + 1;
     if (variant == 0) {
         if (!KComponent(G))
             return 0;
@@ -193,13 +186,18 @@ double Factoring(kGraph &G, unsigned short variant, int NumberOfRec, unsigned sh
         for (j = 1; j <= G.KAO.size() - 1; j++)
             if (G.KAO[j] > i)
                 break;
-        for (k = G.KAO[G.FO[i] - 1]; k <= G.KAO[G.FO[i]] - 1; j++)
+//        int g = G.KAO[G.FO[i] - 1];
+//        int g_top = G.KAO[G.FO[i]] - 1;
+        for (k = G.KAO[G.FO[i] - 1]; k <= G.KAO[G.FO[i]] - 1; k++)
             if (G.FO[k] == j)
                 break;
         G.PArray[k] = 1;
         kGraph T = DeleteEdgeK(G, G.FO[i], j);
-        return p * Factoring(G, 1, NumberOfRec, d, Nconst) +
-               (1 - p) * Factoring(T, 0, NumberOfRec, d, Nconst);
+        double a1 = p * Factoring(G, 1, numberOfRec, d, Nconst), a2 = (1 - p) * Factoring(T, 0, numberOfRec, d, Nconst);
+        if (a1 + a2 != 1) {
+            std::cout <<"a";
+        }
+        return a1 + a2;
     }
 }
 
@@ -233,7 +231,7 @@ bool CheckDistance(kGraph &G, unsigned short d, unsigned short Nconst) {
     bool Result = true;
     for (int i = 1; i <= N - 1; i++)
         if (G.Targets[i] == 1)
-            for (int j = i + 1; j <= N; j++)
+            for (int j = i + 1; j < N; j++)
                 if ((G.Targets[j] == 1) && (M[i][j] > d))
                     Result = false;
     return Result;
@@ -250,12 +248,12 @@ bool CheckEdge(kGraph& G, int i, int j) {
 
 int main() {
     std::vector<unsigned short> KAO, FO, Targets;
-    std::vector<double> Parray;
     int d = 4;
-    KAO = {0,3,6,8,9,10,11,13,16,18,20};
-    FO = {2,8,7,10,5,1,7,9,8,2,9,1,3,1,4,10,3,6,8,2};
-    Targets = {1,1,0,0,0,0,0,0,0,0};
-    Parray = {0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9};
+    KAO = {0,1,3,4};
+    FO = {2,1,3,2};
+    std::vector<double> Parray(FO.size(), 0.9);
+    Targets = {1,0,1};
+//    Parray = {0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9};
     kGraph G(KAO,FO,Parray, Targets);
-    ReliabilityDiamConstr(G,d);
+    std::cout<< ReliabilityDiamConstr(G,d);
 }

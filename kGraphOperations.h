@@ -50,7 +50,7 @@ kGraph DeleteEdgeK(const kGraph& G, unsigned short u, unsigned short v) {
     f = SearchEdge(G, v, u);
     kGraph Result;
     Result.Targets.resize(G.Targets.size());
-    if ((e < G.FO.size()) and (f < G.FO.size())) {
+    if ((e < G.FO.size()) && (f < G.FO.size())) {
         Result.KAO.resize(G.KAO.size());
         Result.FO.resize(G.FO.size() - 2);
         Result.PArray.resize(G.PArray.size() - 2);
@@ -59,7 +59,7 @@ kGraph DeleteEdgeK(const kGraph& G, unsigned short u, unsigned short v) {
                 Result.KAO[i] = G.KAO[i];
             for (i = u; i <= v - 1; i++)
                 Result.KAO[i] = G.KAO[i] - 1;
-            for (i = v; i < G.KAO.size() - 1; i++)
+            for (i = v; i <= G.KAO.size() - 1; i++)
                 Result.KAO[i] = G.KAO[i] - 2;
             if (e > 0)
                 for (i = 0; i <= e - 1; i++) {
@@ -67,12 +67,12 @@ kGraph DeleteEdgeK(const kGraph& G, unsigned short u, unsigned short v) {
                     Result.PArray[i] = G.PArray[i];
                 }
             if (f > e + 1)
-                for (i = e; i < f - 2; i++) {
+                for (i = e; i <= f - 2; i++) {
                     Result.FO[i] = G.FO[i + 1];
                     Result.PArray[i] = G.PArray[i + 1];
                 }
             if (G.FO.size() > f + 1)
-                for (i = f - 1; i < G.FO.size() - 3; i++) {
+                for (i = f - 1; i < G.FO.size() - 2; i++) {
                     Result.FO[i] = G.FO[i + 2];
                     Result.PArray[i] = G.PArray[i + 2];
                 }
@@ -167,7 +167,7 @@ bool KComponent(kGraph G) {
             Result = true;
         else
             Result = false;
-        if (Result and (SumAll < (G.KAO.size() - 1)))
+        if (Result && (SumAll < (G.KAO.size() - 1)))
             G = InducedKGraph(G, Spot, 1);
     }
     return Result;
@@ -176,7 +176,7 @@ bool KComponent(kGraph G) {
 bool Boolka(kGraph &G, std::vector<unsigned short> spisok, unsigned short Number, unsigned short i, unsigned short j) {
     if (Number == 1)
         return true;
-    else if ((spisok[i] == 0) and (spisok[G.FO[j]] == 0))
+    else if ((spisok[i] == 0) && (spisok[G.FO[j]] == 0))
         return false;
     else
         return true;
@@ -190,7 +190,7 @@ kGraph InducedKGraph(kGraph &G, std::vector<unsigned short> spisok, unsigned sho
     S.resize(spisok.size());
     j = 0;
     for (i = 1; i <= spisok.size() - 1; i++)
-        if ((spisok[i] = Number) or (spisok[i] = 0)) {
+        if ((spisok[i] = Number) || (spisok[i] = 0)) {
             j++;
             S[i] = j;
         } else
