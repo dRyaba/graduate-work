@@ -1,0 +1,86 @@
+function ReliabilityDiamConstr(G: kGraph; d: word): real;
+{Расчет вероятности связности с ограничением на диаметр d методом ветвления.
+ Используется выделение комп-ты связности с целевыми в-ми, разделение ветвей,
+ встроенная ф-я проверки на расстояния}
+var M      : matrix;
+    Nconst : word;
+
+ function Factoring(G: kGraph; variant: word): real;
+ {Ветвление, variant=0 - после удаления, variant=1 - после обнадеживания ребра}
+ var p    : real;
+     i,j,k: word;
+
+   function CheckDistance: boolean;
+   {Методом Флойда строит матрицу расстояний и проверяет нужные}
+   var N,i,j,k: word;
+
+     function CheckEdge(i,j: integer): boolean;
+     {вычисляет номер ребра из i в j в массиве FO}
+     var k:integer;
+     begin
+       Result:=false;
+       for k:=G.KAO[i-1] to G.KAO[i]-1 do
+       if G.FO[k]=j then Result:=true;
+     end;
+
+   begin
+     N:=length(G.KAO)-1;
+     SetLength(M,N+1,N+1);
+     for i:=1 to N do
+     for j:=i+1 to N do
+     if CheckEdge(i,j)=true then M[i,j]:=1 else M[i,j]:=Nconst;
+     for k:=1 to N do
+     begin
+      for i:=1 to k-1 do
+      begin
+        for j:=i+1 to k-1 do
+        if M[i,j]>M[i,k]+M[j,k] then M[i,j]:=M[i,k]+M[j,k];
+        for j:=k+1 to N do
+        if M[i,j]>M[i,k]+M[k,j] then M[i,j]:=M[i,k]+M[k,j];
+      end;
+      for i:=k+1 to N do
+      for j:=i+1 to N do
+      if M[i,j]>M[k,i]+M[k,j] then M[i,j]:=M[k,i]+M[k,j];
+     end;
+     Result:=true;
+     for i:=1 to N-1 do
+     if G.Targets[i]=1 then
+     for j:=i+1 to N do
+     if (G.Targets[j]=1) and (M[i,j]>d) then Result:=false;
+   end;
+
+ begin
+   Inc(NumberOfRec);
+   if variant=0 then
+   if KComponent(G)=false then begin
+                                 Result:=0;
+                                 exit;
+                               end else if CheckDistance=false then
+                               begin
+                                 Result:=0;
+                                 exit;
+                               end;
+
+    i:=length(G.PArray);
+    for j:=length(G.PArray)-1 downto 0 do
+    if G.PArray[j]<1 then begin
+                             i:=j;
+                             Break;
+                          end;
+    if i=length(G.FO) then Result:=1 else
+    begin
+     p:=G.PArray[i];
+     G.PArray[i]:=1;
+     for j:=1 to length(G.KAO)-1 do
+     if G.KAO[j]>i then break;
+     for k:=G.KAO[G.FO[i]-1] to G.KAO[G.FO[i]]-1 do
+     if G.FO[k]=j then break;
+     G.PArray[k]:=1;
+     Result:=p*Factoring(G,1)+(1-p)*Factoring(DeleteEdgeK(G,G.FO[i],j),0);
+   end;
+ end;
+
+begin
+ Nconst:=length(G.KAO)*length(G.KAO);
+ Result:=Factoring(G,0);
+end;
