@@ -1,9 +1,39 @@
 #include <vector>
 #include "GraphOperations.h"
 
+int Nconst;
+
+std::vector<int> cutPoints(0);
+
+void Graph::CutPointsSearch(int v, int p) {
+    static std::vector<bool> used(this->KAO.size(), false);
+    static std::vector<int> tin(this->KAO.size()), fup(this->KAO.size());
+    static int timer = 0;
+    used[v] = true;
+    tin[v] = fup[v] = timer++;
+    int children = 0;
+    int cutpointFlag = 0;
+
+    for (size_t i = this->KAO[v - 1]; i < this->KAO[v]; ++i) {
+        int to = this->FO[i];
+        //if (to == p)  continue;
+        if (used[to])
+            fup[v] = std::min(fup[v], tin[to]);
+        else {
+            this->CutPointsSearch(to, v);
+            fup[v] = std::min(fup[v], fup[to]);
+            if (fup[to] >= tin[v] && p != -1)
+                cutpointFlag = 1;
+            ++children;
+        }
+    }
+    if ((p == -1 && children > 1) || cutpointFlag)
+        cutPoints.push_back(v);
+}
 
 int Graph::SearchEdge(const int i, const int j) {
     //вычисляет номер ребра из i в j в массиве FO
+    //не допускаются мультирёбра, если ребро не найдено то возвращает невозможную в графе константу
     int res = this->FO.size();
     for (int k = this->KAO[i - 1]; k < this->KAO[i]; k++)
         if (this->FO[k] == j)

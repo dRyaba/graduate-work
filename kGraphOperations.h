@@ -2,7 +2,7 @@
 
 #include "GraphOperations.h"
 
-extern std::ofstream output("C:/Users/User/source/repos/graduate work/graduate work/output.txt", std::ofstream::trunc);
+extern std::ofstream output;
 extern int NumberOfRec;
 extern std::vector<double> sumReliab;
 extern double globsumReliab;
@@ -31,10 +31,9 @@ struct kGraph : public Graph {
 	// Используется разделение ветвей, встроенная ф-я проверки на расстояния;
 	// не используется выделение компонентв с двумя в-ми (так быстрее)}
 
-	void ReliabilityDiamConstr2VertM(int x, int y, int d);
+	void ReliabilityDiamConstr2VertM(int x, int y, const int& LowerBound, const int& UpperBound);
 
-	void ReliabilityDiamConstr2VertDecompose(int x, int y, int d);
-
+	void ReliabilityDiamConstr2VertDecompose(int x, int y, const int& LowerBound, const int& UpperBound);
 	
 	bool CheckDistanceFloyd(const int d);
 
@@ -43,6 +42,25 @@ struct kGraph : public Graph {
 	std::vector<int> DecomposeOnBlocks();
 		//Result[i] - номер блока в котрый попало ребро с номером i(номер ребра по массиву FO)
 		//Result[Result.size() - 1] - кол - во блоков
+
+	std::vector<int> DecomposeOnBlocksK();
+	//{Разложение K - графа на блоки.
+	//Result[i] - номер блока в котрый попало ребро с номером i(номер ребра по массиву FO)
+	//Result[length(Result) - 1] - кол - во блоков, которые содержат цел.в - ны или являются связующими
+	//Ребра, входящие в блоки, которые не содержат цел.в - н и не являются связующими входят блок с номером 0
+	//Точки сочленения в связующих блоках заносятся в цлевые вершины графа G
+	//Если в графе одна цел.в - на, то Result[i] = 0 для всех i
+	//Если в графе нет ребер, то Result состоит из одного элемента, Result[0] = 0
+	//Применение функции некорректно к несвязому графу и графу без целевых вершин}
+
+	kGraph RestoreBlockK(int Number, const std::vector<int>& spisok);
+	//{Восстанавливает блок K - графа G с номером Number,
+	// используя spisok предварительно сформированный процедурой DecopmoseOnBlocksK
+	// Эта же процедура уже пополнила спсиок цел.в - н необходимыми точками сочленения}
+
+	kGraph RestoreBlock(int Number, const std::vector<int>& spisok);
+
+	bool ConnectivityWithoutBlock(int Block, std::vector<int> S);
 
 	kGraph DeleteEdgeK(const int u, const int v);
 	//    Удаляет из графа ребро(u, v)
@@ -72,3 +90,6 @@ void Factoring2Vert(kGraph G, const int x, const int y, const int variant, const
 void Factoring2VertM(kGraph G, const int x, const int y, const int variant, const int d, double Reliab, int LowerBound, int UpperBound);
 //Заполняет вектор надежностей с соответствующим ограничением на диаметр
 //Ветвление, variant=0 - после удаления, variant=1 - после обнадеживания ребра
+
+kGraph UnionGraphs(kGraph G1, kGraph G2, int k);
+//{Формирует граф, полученный объединением G1 и G2 по их первым k вершинам}

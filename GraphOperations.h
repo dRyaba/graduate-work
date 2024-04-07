@@ -1,6 +1,7 @@
 #pragma once
 
-static int Nconst;
+extern int Nconst;
+extern std::vector<int> cutPoints;
 
 struct Graph {
 	std::vector<int> KAO, FO;
@@ -14,6 +15,9 @@ struct Graph {
 		this->PArray = std::move(PArray);
 	}
 	//    ~Graph()= default;
+
+	void CutPointsSearch(int v, int p);
+	// Ќаходит точки сочленени€ и записывает их в cutPoints
 
 	int SearchEdge(const int i, const int j);
 	//вычисл€ет номер ребра из i в j в массиве FO
