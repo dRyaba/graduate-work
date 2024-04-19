@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 
 extern int Nconst;
 extern std::vector<int> cutPoints;
@@ -42,4 +43,7 @@ struct Graph {
 	std::vector<int> CutSearch();
 
 	std::vector<int> CutDecomposeOnTwo();
+
+	Graph ChangVertex(int u, int v);
+	//Меняет в графе вершины u и v местами(перенумеровывает)
 };

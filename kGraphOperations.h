@@ -1,5 +1,5 @@
 #pragma once
-
+#include <fstream>
 #include "GraphOperations.h"
 
 extern std::ofstream output;
@@ -32,6 +32,8 @@ struct kGraph : public Graph {
 	// не используется выделение компонентв с двумя в-ми (так быстрее)}
 
 	void ReliabilityDiamConstr2VertM(int x, int y, const int& LowerBound, const int& UpperBound);
+
+	void ReliabilityDiamConstr2Vert2Blocks(int x, int y, const int& LowerBound, const int& UpperBound);
 
 	void ReliabilityDiamConstr2VertDecompose(int x, int y, const int& LowerBound, const int& UpperBound);
 	
@@ -77,6 +79,10 @@ struct kGraph : public Graph {
 	//Применение функции к пустому графу некорректно}
 
 	bool Boolka(std::vector<int> spisok, int Number, int i, int j);
+
+	void kGraphFileOutput(std::ofstream& fout);
+
+	void ChangVertex(int u, int v);
 };
 
 void Factoring(kGraph G, const int variant, const int d, double Reliab);
@@ -93,3 +99,5 @@ void Factoring2VertM(kGraph G, const int x, const int y, const int variant, cons
 
 kGraph UnionGraphs(kGraph G1, kGraph G2, int k);
 //{Формирует граф, полученный объединением G1 и G2 по их первым k вершинам}
+
+kGraph kGraphFileInput(std::ifstream& fin);

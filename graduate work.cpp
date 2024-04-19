@@ -1,6 +1,6 @@
 ﻿#include <iostream>
 #include <fstream>
-#include <sstream>
+//#include <sstream>
 #include <vector>
 #include <iomanip>
 #include <chrono>
@@ -8,41 +8,7 @@
 #include "kGraphOperations.h"
 
 
-kGraph kGraphFileInput(std::ifstream& fin) {
 
-    if (!fin) {
-        std::cout << "Error!\n";
-        throw std::runtime_error("OPEN_ERROR");
-    }
-    std::string line;
-    std::getline(fin, line, '\n');
-    std::istringstream skao(line);
-    std::string temp;
-    std::vector<int> KAO;
-    while (std::getline(skao, temp, ','))
-        KAO.push_back(std::stoi(temp));
-
-    std::getline(fin, line, '\n');
-    std::istringstream sfo(line);
-    std::vector<int> FO;
-    while (std::getline(sfo, temp, ','))
-        FO.push_back(std::stoi(temp));
-
-    std::getline(fin, line, '\n');
-    std::istringstream stargets(line);
-    std::vector<int> Targets;
-    while (std::getline(stargets, temp, ','))
-        Targets.push_back(std::stoi(temp));
-    std::getline(fin, line);
-    
-    size_t found = line.find(',');
-    if (found != std::string::npos)
-        line[found] = '.';
-    double p = std::stod(line);
-    std::vector<double> Parray(FO.size(), p);
-    kGraph G(KAO, FO, Parray, Targets);
-    return G;
-}
 
 void GraphMerging(int k) {
     std::ifstream fin("C:/Users/User/source/repos/graduate work/graduate work/GraphsToMerge.txt");
@@ -54,23 +20,31 @@ void GraphMerging(int k) {
     kGraph G2 = kGraphFileInput(fin);
     fin.close();
     kGraph G = UnionGraphs(G1, G2, k);
-
+    for (int i = 1; i < G1.KAO.size() / 2; i++)
+        G.ChangVertex(i, G1.KAO.size() - 1);
     std::ofstream fout("C:/Users/User/source/repos/graduate work/graduate work/MergedGraphs.txt", std::ofstream::trunc);
+    if (!fout) {
+        std::cout << "Error!\n";
+        throw std::runtime_error("OPEN_ERROR");
+    }
+    G.kGraphFileOutput(fout);
 }
 
 
 int main() {
     std::cout << "Program is running\n";
     
+    if (0) {
+        GraphMerging(1);
+        return 0;
+    }
     clock_t total_start_time = clock();
     std::ifstream fin;
     fin.open("C:/Users/User/source/repos/graduate work/graduate work/input.txt", std::ios::in);
     kGraph G = kGraphFileInput(fin);
     fin.close();
-    //GraphMerging(1);
 
-
-    int x, y;
+    int x = 0, y = 0;
     for (int i = 0; i < G.Targets.size(); i++)
         if (G.Targets[i]) {
             x = i;

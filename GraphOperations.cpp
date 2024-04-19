@@ -1,4 +1,3 @@
-#include <vector>
 #include "GraphOperations.h"
 
 int Nconst;
@@ -264,4 +263,61 @@ std::vector<int> Graph::CutDecomposeOnTwo() {
             boolean = false;
     }
     return Spot;
+}
+
+Graph Graph::ChangVertex(int u, int v) {
+    //Меняет в графе вершины u и v местами (перенумеровывает)
+    if (u > this->KAO.size() - 1 || v > this->KAO.size() - 1 || u == v)
+        return *this;
+    if (u > v)
+        std::swap(u, v);
+    std::vector<int> KAO(this->KAO.size()), FO(this->FO.size());
+    std::vector<double> PArray(this->PArray.size());
+    for (int i = 0; i < u; i++)
+        KAO[i] = this->KAO[i];
+    KAO[u] = this->KAO[u - 1] + this->KAO[v] - this->KAO[v - 1];
+    for (int i = u + 1; i < v; i++)
+        KAO[i] = KAO[i - 1] + this->KAO[i] - this->KAO[i - 1];
+    KAO[v] = KAO[v - 1] + this->KAO[u] - this->KAO[u - 1];
+    for (int i = v + 1; i < this->KAO.size(); i++)
+        KAO[i] = this->KAO[i];
+
+    int j = 0;
+    for (int i = this->KAO[v - 1]; i < this->KAO[v]; i++) {
+        FO[KAO[u - 1] + j] = this->FO[i];
+        PArray[KAO[u - 1] + j] = this->PArray[i];
+        j++;
+    }
+    j = 0;
+    for (int i = this->KAO[u - 1]; i < this->KAO[u]; i++) {
+        FO[KAO[v - 1] + j] = this->FO[i];
+        PArray[KAO[v - 1] + j] = this->PArray[i];
+        j++;
+    }
+    for (int ver = u + 1; ver < v; ver++) {
+        j = 0;
+        for (int i = this->KAO[ver - 1]; i < this->KAO[ver]; i++) {
+            FO[KAO[ver - 1] + j] = this->FO[i];
+            PArray[KAO[ver - 1] + j] = this->PArray[i];
+            j++;
+        }
+    }
+        
+    for (int ver = 1; ver < u; ver++)
+        for (int i = this->KAO[ver - 1]; i < this->KAO[ver]; i++) {
+            FO[i] = this->FO[i];
+            PArray[i] = this->PArray[i];
+        }
+    for (int ver = v + 1; ver < this->KAO.size(); ver++)
+        for (int i = this->KAO[ver - 1]; i < this->KAO[ver]; i++) {
+            FO[i] = this->FO[i];
+            PArray[i] = this->PArray[i];
+        }
+    for (int i = 0; i < this->FO.size(); i++)
+        if (FO[i] == u)
+            FO[i] = v;
+        else if (FO[i] == v)
+            FO[i] = u;
+    Graph Result(KAO, FO, PArray);
+    return Result;
 }
