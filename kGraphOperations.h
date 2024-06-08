@@ -2,7 +2,7 @@
 #include <fstream>
 #include "GraphOperations.h"
 
-extern std::ofstream output;
+extern std::ofstream output, output1;
 extern int NumberOfRec;
 extern std::vector<double> sumReliab;
 extern double globsumReliab;
@@ -30,13 +30,16 @@ struct kGraph : public Graph {
 	//{Расчет в-ти св-ти двух вершин x,y с огр-м на диаметр d методом ветвления.
 	// Используется разделение ветвей, встроенная ф-я проверки на расстояния;
 	// не используется выделение компонентв с двумя в-ми (так быстрее)}
+	void ReliabilityDiamConstr2VertDecomposeSimpleFacto(int x, int y, const int& UpperBound);
 
-	void ReliabilityDiamConstr2VertM(int x, int y, const int& LowerBound, const int& UpperBound);
+	void ReliabilityDiamConstr2VertM(int x, int y,/* const int& LowerBound,*/ const int& UpperBound);
 
 	void ReliabilityDiamConstr2Vert2Blocks(int x, int y, const int& LowerBound, const int& UpperBound);
 
-	void ReliabilityDiamConstr2VertDecompose(int x, int y, const int& LowerBound, const int& UpperBound);
+	void ReliabilityDiamConstr2VertMDecompose(int x, int y, const int& UpperBound);
 	
+	void ReliabilityDiamConstr2VertMDecomposeParallel(int x, int y, const int& UpperBound);
+
 	bool CheckDistanceFloyd(const int d);
 
 	void SearchVertice(std::vector<int>& DfNumber, std::vector<int>& TreeEdges, std::vector<int>& Low, std::vector<int>& Stek, int& r, int& l, int v, std::vector<int>& DOB);
@@ -82,7 +85,7 @@ struct kGraph : public Graph {
 
 	void kGraphFileOutput(std::ofstream& fout);
 
-	void ChangVertex(int u, int v);
+	void ChangeVertex(int u, int v);
 };
 
 void Factoring(kGraph G, const int variant, const int d, double Reliab);
@@ -90,12 +93,17 @@ void Factoring(kGraph G, const int variant, const int d, double Reliab);
 //Ветвление, variant=0 - после удаления, variant=1 - после обнадеживания ребра
 
 void Factoring2Vert(kGraph G, const int x, const int y, const int variant, const int d, double Reliab);
-//результат лежит в sumReliab[0]
+//результат лежит в globsumReliab
 //Ветвление, variant=0 - после удаления, variant=1 - после обнадеживания ребра
 
 void Factoring2VertM(kGraph G, const int x, const int y, const int variant, const int d, double Reliab, int LowerBound, int UpperBound);
 //Заполняет вектор надежностей с соответствующим ограничением на диаметр
 //Ветвление, variant=0 - после удаления, variant=1 - после обнадеживания ребра
+
+void Factoring2VertMParallel(kGraph G, const int x, const int y, const int variant, const int d, double Reliab, int LowerBound, int UpperBound);
+
+void GraphMerging(int k);
+//Считывает из файлов и объединяет два графа по первым k вершинам с помощью функции UnionGraphs
 
 kGraph UnionGraphs(kGraph G1, kGraph G2, int k);
 //{Формирует граф, полученный объединением G1 и G2 по их первым k вершинам}
