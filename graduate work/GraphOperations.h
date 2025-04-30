@@ -1,6 +1,8 @@
 #pragma once
+#include <vector>
 
-static int Nconst;
+extern int Nconst;
+extern std::vector<int> cutPoints;
 
 struct Graph {
 	std::vector<int> KAO, FO;
@@ -14,6 +16,9 @@ struct Graph {
 		this->PArray = std::move(PArray);
 	}
 	//    ~Graph()= default;
+
+	void CutPointsSearch(int v, int p);
+	// Находит точки сочленения и записывает их в cutPoints
 
 	int SearchEdge(const int i, const int j);
 	//вычисляет номер ребра из i в j в массиве FO
@@ -38,4 +43,7 @@ struct Graph {
 	std::vector<int> CutSearch();
 
 	std::vector<int> CutDecomposeOnTwo();
+
+	Graph ChangVertex(int u, int v);
+	//Меняет в графе вершины u и v местами(перенумеровывает)
 };

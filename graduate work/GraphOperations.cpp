@@ -1,9 +1,38 @@
-#include <vector>
 #include "GraphOperations.h"
 
+int Nconst;
+
+std::vector<int> cutPoints(0);
+
+void Graph::CutPointsSearch(int v, int p) {
+    static std::vector<bool> used(this->KAO.size(), false);
+    static std::vector<int> tin(this->KAO.size()), fup(this->KAO.size());
+    static int timer = 0;
+    used[v] = true;
+    tin[v] = fup[v] = timer++;
+    int children = 0;
+    int cutpointFlag = 0;
+
+    for (size_t i = this->KAO[v - 1]; i < this->KAO[v]; ++i) {
+        int to = this->FO[i];
+        //if (to == p)  continue;
+        if (used[to])
+            fup[v] = std::min(fup[v], tin[to]);
+        else {
+            this->CutPointsSearch(to, v);
+            fup[v] = std::min(fup[v], fup[to]);
+            if (fup[to] >= tin[v] && p != -1)
+                cutpointFlag = 1;
+            ++children;
+        }
+    }
+    if ((p == -1 && children > 1) || cutpointFlag)
+        cutPoints.push_back(v);
+}
 
 int Graph::SearchEdge(const int i, const int j) {
     //вычисляет номер ребра из i в j в массиве FO
+    //не допускаются мультирёбра, если ребро не найдено то возвращает невозможную в графе константу
     int res = this->FO.size();
     for (int k = this->KAO[i - 1]; k < this->KAO[i]; k++)
         if (this->FO[k] == j)
@@ -234,4 +263,61 @@ std::vector<int> Graph::CutDecomposeOnTwo() {
             boolean = false;
     }
     return Spot;
+}
+
+Graph Graph::ChangVertex(int u, int v) {
+    //Меняет в графе вершины u и v местами (перенумеровывает)
+    if (u > this->KAO.size() - 1 || v > this->KAO.size() - 1 || u == v)
+        return *this;
+    if (u > v)
+        std::swap(u, v);
+    std::vector<int> KAO(this->KAO.size()), FO(this->FO.size());
+    std::vector<double> PArray(this->PArray.size());
+    for (int i = 0; i < u; i++)
+        KAO[i] = this->KAO[i];
+    KAO[u] = this->KAO[u - 1] + this->KAO[v] - this->KAO[v - 1];
+    for (int i = u + 1; i < v; i++)
+        KAO[i] = KAO[i - 1] + this->KAO[i] - this->KAO[i - 1];
+    KAO[v] = KAO[v - 1] + this->KAO[u] - this->KAO[u - 1];
+    for (int i = v + 1; i < this->KAO.size(); i++)
+        KAO[i] = this->KAO[i];
+
+    int j = 0;
+    for (int i = this->KAO[v - 1]; i < this->KAO[v]; i++) {
+        FO[KAO[u - 1] + j] = this->FO[i];
+        PArray[KAO[u - 1] + j] = this->PArray[i];
+        j++;
+    }
+    j = 0;
+    for (int i = this->KAO[u - 1]; i < this->KAO[u]; i++) {
+        FO[KAO[v - 1] + j] = this->FO[i];
+        PArray[KAO[v - 1] + j] = this->PArray[i];
+        j++;
+    }
+    for (int ver = u + 1; ver < v; ver++) {
+        j = 0;
+        for (int i = this->KAO[ver - 1]; i < this->KAO[ver]; i++) {
+            FO[KAO[ver - 1] + j] = this->FO[i];
+            PArray[KAO[ver - 1] + j] = this->PArray[i];
+            j++;
+        }
+    }
+        
+    for (int ver = 1; ver < u; ver++)
+        for (int i = this->KAO[ver - 1]; i < this->KAO[ver]; i++) {
+            FO[i] = this->FO[i];
+            PArray[i] = this->PArray[i];
+        }
+    for (int ver = v + 1; ver < this->KAO.size(); ver++)
+        for (int i = this->KAO[ver - 1]; i < this->KAO[ver]; i++) {
+            FO[i] = this->FO[i];
+            PArray[i] = this->PArray[i];
+        }
+    for (int i = 0; i < this->FO.size(); i++)
+        if (FO[i] == u)
+            FO[i] = v;
+        else if (FO[i] == v)
+            FO[i] = u;
+    Graph Result(KAO, FO, PArray);
+    return Result;
 }
