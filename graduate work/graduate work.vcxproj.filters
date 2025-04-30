@@ -40,5 +40,11 @@
     <Text Include="input.txt">
       <Filter>Файлы ресурсов</Filter>
     </Text>
+    <Text Include="GraphsToMerge.txt">
+      <Filter>Файлы ресурсов</Filter>
+    </Text>
+    <Text Include="MergedGraphs.txt">
+      <Filter>Файлы ресурсов</Filter>
+    </Text>
   </ItemGroup>
 </Project>
