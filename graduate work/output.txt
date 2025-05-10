@@ -1,2 +1,3 @@
-Diameter: 16
-Diameter calculations(ms): 5694
+Diameter: 20
+Предупреждение: Начальный блок s (3) идет после конечного блока t (1) в декомпозиции. Проверьте логику DecomposeOnBlocksK или нумерацию блоков.
+Total Time(sec): 0.001
