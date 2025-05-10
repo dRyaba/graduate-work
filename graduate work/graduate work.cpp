@@ -43,8 +43,9 @@ int main() {
 
     //G.ReliabilityDiamConstr2Vert(x, y, UpperBound);
     //G.ReliabilityDiamConstr2VertDecomposeSimpleFacto(x, y, UpperBound);
-    G.ReliabilityDiamConstr2VertMDecompose(x, y, UpperBound);
+    //G.ReliabilityDiamConstr2VertMDecompose(x, y, UpperBound);
     //G.ReliabilityDiamConstr2VertMDecomposeParallel(x, y, UpperBound);
+    G.ReliabilityDiamConstr2VertRecursiveDecomposition(x, y, UpperBound)
 
     //sumReliab.resize(UpperBound - LowerBound + 1);
 

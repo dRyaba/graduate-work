@@ -1468,3 +1468,374 @@ std::vector<double> kGraph::solve_recursive_for_block_chain_ordered(
     }
     return final_R_for_this_call;
 }
+
+// Вспомогательная функция для восстановления графа блока и карт вершин
+// Принимает *this (исходный граф) как G_original неявно
+void kGraph::get_block_graph_and_map_ids(
+    int block_idx_to_restore,
+    const std::vector<int>& spisok_decomposition,
+    kGraph& out_block_graph,
+    std::vector<int>& out_map_new_id_to_original_id,
+    std::vector<int>& out_map_original_id_to_new_id
+) const { // Добавлено const
+    out_map_original_id_to_new_id.assign(this->KAO.size(), 0);
+    out_map_new_id_to_original_id.assign(1, 0); // 0-й элемент не используется (для 1-based new_id)
+
+    int new_vertex_id_counter = 0;
+    std::vector<bool> is_vertex_in_block_definitively(this->KAO.size(), false);
+
+    // Определяем вершины, которые точно принадлежат этому блоку
+    // (т.е. не являются точками сочленения с другими блоками, которые мы сейчас не рассматриваем,
+    // или являются точками сочленения, но мы их включаем как часть этого блока)
+    for (int v_orig = 1; v_orig < this->KAO.size(); ++v_orig) {
+        bool part_of_block = false;
+        if (this->KAO[v_orig-1] < this->KAO[v_orig]) { // Если вершина не изолирована
+             for (int edge_idx = this->KAO[v_orig - 1]; edge_idx < this->KAO[v_orig]; ++edge_idx) {
+                if (edge_idx < spisok_decomposition.size() -1 && spisok_decomposition[edge_idx] == block_idx_to_restore) {
+                    part_of_block = true;
+                    break;
+                }
+            }
+        } else if (this->Targets[v_orig] && block_idx_to_restore == 1) { // Особый случай для изолированных целевых вершин в первом блоке
+            // Это эвристика, может потребовать уточнения.
+            // Если s или t - изолированные вершины, DecomposeOnBlocksK может их не включить в реберные блоки.
+            // Здесь мы предполагаем, что если Targets[v_orig] = 1 и мы восстанавливаем блок 1, то это может быть s или t.
+            // Лучше, если DecomposeOnBlocksK корректно обрабатывает такие случаи или если входные данные не имеют изолированных s/t.
+        }
+
+
+        if (part_of_block) {
+            is_vertex_in_block_definitively[v_orig] = true;
+            new_vertex_id_counter++;
+            out_map_original_id_to_new_id[v_orig] = new_vertex_id_counter;
+            out_map_new_id_to_original_id.push_back(v_orig);
+        }
+    }
+    
+    // Если блок пуст (например, неверный block_idx_to_restore или пустая декомпозиция)
+    if (new_vertex_id_counter == 0) {
+        out_block_graph.KAO.assign(1,0);
+        out_block_graph.FO.clear();
+        out_block_graph.PArray.clear();
+        out_block_graph.Targets.assign(1,0);
+        // Карты уже инициализированы правильно (пустые или с 0)
+        return;
+    }
+
+
+    std::vector<int> KAO_new(new_vertex_id_counter + 1);
+    std::vector<int> FO_new_edges;
+    std::vector<double> Parray_new_edges;
+    std::vector<int> Targets_new(new_vertex_id_counter + 1, 0);
+
+    KAO_new[0] = 0;
+    for (int new_v_idx = 1; new_v_idx <= new_vertex_id_counter; ++new_v_idx) {
+        KAO_new[new_v_idx] = KAO_new[new_v_idx - 1];
+        int original_v_id_current = out_map_new_id_to_original_id[new_v_idx];
+        
+        if (original_v_id_current < this->Targets.size()) {
+             Targets_new[new_v_idx] = this->Targets[original_v_id_current];
+        } else {
+            // Это может произойти, если KAO.size() больше Targets.size(), что странно.
+            // Обычно они должны быть одинакового размера (N+1).
+        }
+
+        for (int edge_orig_idx = this->KAO[original_v_id_current - 1]; edge_orig_idx < this->KAO[original_v_id_current]; ++edge_orig_idx) {
+            if (edge_orig_idx < spisok_decomposition.size() -1 && spisok_decomposition[edge_orig_idx] == block_idx_to_restore) {
+                int original_adj_v_id = this->FO[edge_orig_idx];
+                if (out_map_original_id_to_new_id[original_adj_v_id] != 0) { // Если смежная вершина также в этом блоке
+                    FO_new_edges.push_back(out_map_original_id_to_new_id[original_adj_v_id]);
+                    Parray_new_edges.push_back(this->PArray[edge_orig_idx]);
+                    KAO_new[new_v_idx]++;
+                }
+            }
+        }
+    }
+    out_block_graph.KAO = KAO_new;
+    out_block_graph.FO = FO_new_edges;
+    out_block_graph.PArray = Parray_new_edges;
+    out_block_graph.Targets = Targets_new;
+}
+
+// Вспомогательная функция для определения, каким блокам принадлежит вершина (на основе ребер)
+std::vector<int> kGraph::get_blocks_containing_vertex(
+    int vertex_original_id,
+    const std::vector<int>& spisok_decomposition
+) const {
+    std::vector<int> blocks;
+    std::vector<bool> found_block(spisok_decomposition.back() + 1, false); // spisok_decomposition.back() - общее число блоков
+
+    if (vertex_original_id == 0 || vertex_original_id >= this->KAO.size()) return blocks; // Неверный ID
+
+    for (int edge_idx = this->KAO[vertex_original_id - 1]; edge_idx < this->KAO[vertex_original_id]; ++edge_idx) {
+        if (edge_idx < spisok_decomposition.size() - 1) { // Последний элемент spisok_decomposition - общее число блоков
+            int block_num = spisok_decomposition[edge_idx];
+            if (block_num > 0 && !found_block[block_num]) {
+                blocks.push_back(block_num);
+                found_block[block_num] = true;
+            }
+        }
+    }
+    return blocks;
+}
+
+
+// Вспомогательная функция для рекурсивного расчета
+std::vector<double> kGraph::solve_recursive_for_block_chain(
+    int current_block_idx,
+    int entry_node_original_id,
+    int target_node_original_id, // Глобальная цель t
+    int max_len_budget,          // Максимальная длина пути для текущего вызова (от entry_node до target_node)
+    const std::vector<int>& spisok_decomposition,
+    const std::vector<int>& block_of_each_vertex, // Не используется напрямую, если spisok_decomposition для ребер
+    int final_target_block_idx,     // Блок, в котором находится target_node_original_id
+    const std::vector<int>& articulation_points_orig_ids // ID точек сочленения между блоками i и i+1
+) const { // Добавлено const
+
+    if (max_len_budget < 0) return {}; // Невозможно построить путь
+
+    kGraph current_block_graph;
+    std::vector<int> map_new_to_orig, map_orig_to_new;
+    get_block_graph_and_map_ids(current_block_idx, spisok_decomposition,
+                                current_block_graph, map_new_to_orig, map_orig_to_new);
+
+    if (current_block_graph.KAO.size() <= 1 || map_orig_to_new[entry_node_original_id] == 0) { // Блок пуст или входная вершина не в нем
+        return std::vector<double>(max_len_budget + 1, 0.0);
+    }
+
+    int s_in_block = map_orig_to_new[entry_node_original_id];
+
+    // БАЗОВЫЙ СЛУЧАЙ: текущий блок содержит глобальную целевую вершину t
+    if (current_block_idx == final_target_block_idx) {
+        if (map_orig_to_new[target_node_original_id] == 0) { // Целевая вершина не попала в восстановленный блок
+            return std::vector<double>(max_len_budget + 1, 0.0);
+        }
+        int t_in_block = map_orig_to_new[target_node_original_id];
+        std::vector<double> R_cumulative(max_len_budget + 1, 0.0);
+        double global_globsumReliab_backup = globsumReliab; // Сохраняем на всякий случай
+
+        int d_min_this_block_path = current_block_graph.DistanceDijkstra(s_in_block, t_in_block);
+
+        for (int d = 0; d <= max_len_budget; ++d) {
+            if (d < d_min_this_block_path && d_min_this_block_path != Nconst) { // Nconst если нет пути
+                R_cumulative[d] = 0.0;
+            } else {
+                globsumReliab = 0.0; // Сброс перед вызовом
+                Factoring2Vert(current_block_graph, s_in_block, t_in_block, 0, d, 1.0);
+                R_cumulative[d] = globsumReliab;
+            }
+        }
+        // Обеспечение монотонности (кумулятивности)
+        for (int d = 1; d <= max_len_budget; ++d) {
+            if (R_cumulative[d] < R_cumulative[d - 1]) {
+                R_cumulative[d] = R_cumulative[d-1];
+            }
+        }
+        globsumReliab = global_globsumReliab_backup; // Восстанавливаем
+        return R_cumulative;
+    }
+
+    // РЕКУРСИВНЫЙ ШАГ: t не в текущем блоке
+    if (current_block_idx >= articulation_points_orig_ids.size() || articulation_points_orig_ids[current_block_idx] == 0) {
+        // Нет точки сочленения для выхода из этого блока к следующему, или current_block_idx вышел за пределы
+        return std::vector<double>(max_len_budget + 1, 0.0);
+    }
+    int exit_node_original_id = articulation_points_orig_ids[current_block_idx];
+    if (map_orig_to_new[exit_node_original_id] == 0) { // Точка выхода не в этом блоке
+        return std::vector<double>(max_len_budget + 1, 0.0);
+    }
+    int x_in_block = map_orig_to_new[exit_node_original_id];
+
+    // 1. Рассчитать R_cumul_s_x для путей (s_in_block -> x_in_block) внутри current_block_graph
+    std::vector<double> R_cumul_s_x(max_len_budget + 1, 0.0);
+    double global_globsumReliab_backup_sx = globsumReliab;
+    int d_min_s_x = current_block_graph.DistanceDijkstra(s_in_block, x_in_block);
+
+    for (int d = 0; d <= max_len_budget; ++d) {
+        if (d < d_min_s_x && d_min_s_x != Nconst) {
+             R_cumul_s_x[d] = 0.0;
+        } else {
+            globsumReliab = 0.0;
+            Factoring2Vert(current_block_graph, s_in_block, x_in_block, 0, d, 1.0);
+            R_cumul_s_x[d] = globsumReliab;
+        }
+    }
+    for (int d = 1; d <= max_len_budget; ++d) { // Монотонность
+        if (R_cumul_s_x[d] < R_cumul_s_x[d-1]) R_cumul_s_x[d] = R_cumul_s_x[d-1];
+    }
+    globsumReliab = global_globsumReliab_backup_sx;
+
+    // 2. Преобразовать в R_bar_s_x (вероятности точной длины)
+    std::vector<double> R_bar_s_x(max_len_budget + 1);
+    R_bar_s_x[0] = R_cumul_s_x[0];
+    for (int d = 1; d <= max_len_budget; ++d) {
+        R_bar_s_x[d] = R_cumul_s_x[d] - R_cumul_s_x[d - 1];
+    }
+
+    // 3. Рекурсивный вызов для остальной части цепи: (exit_node_original_id -> target_node_original_id)
+    // Бюджет для остальной части цепи зависит от len1, поэтому рекурсивный вызов делаем один раз с максимальным возможным бюджетом.
+    // Максимальная длина, которую может взять первый блок, это max_len_budget. Минимальная для остатка - 0.
+    // Так что остатку может потребоваться до max_len_budget.
+    std::vector<double> R_cumul_x_t_rest = solve_recursive_for_block_chain(
+        current_block_idx + 1, exit_node_original_id, target_node_original_id,
+        max_len_budget, // Передаем полный оставшийся бюджет
+        spisok_decomposition, block_of_each_vertex, final_target_block_idx, articulation_points_orig_ids);
+
+    // 4. Комбинирование результатов
+    std::vector<double> final_R_for_this_call(max_len_budget + 1, 0.0);
+    for (int d_target = 0; d_target <= max_len_budget; ++d_target) {
+        double sum_for_this_d_target = 0.0;
+        // Итерация по точной длине len1 в current_block_graph
+        for (int len1 = 0; len1 <= d_target; ++len1) {
+            if (len1 > max_len_budget || R_bar_s_x[len1] == 0.0) continue;
+
+            int len_for_rest_budget = d_target - len1;
+            if (len_for_rest_budget < 0) continue;
+
+            double prob_rest_of_chain = 0.0;
+            if (len_for_rest_budget < R_cumul_x_t_rest.size()) {
+                prob_rest_of_chain = R_cumul_x_t_rest[len_for_rest_budget];
+            }
+            sum_for_this_d_target += R_bar_s_x[len1] * prob_rest_of_chain;
+        }
+        final_R_for_this_call[d_target] = sum_for_this_d_target;
+    }
+     for (int d = 1; d <= max_len_budget; ++d) { // Монотонность для итогового результата
+        if (final_R_for_this_call[d] < final_R_for_this_call[d-1]) final_R_for_this_call[d] = final_R_for_this_call[d-1];
+    }
+    return final_R_for_this_call;
+}
+
+
+// Публичный интерфейс
+void kGraph::ReliabilityDiamConstr2VertRecursiveDecomposition(int s_node, int t_node, int UpperBound) {
+    Nconst = (this->KAO.size() > 1) ? (this->KAO.size() * this->KAO.size()) : 100000;
+    clock_t start_time = clock();
+    long long NumberOfRec_backup = NumberOfRec; // Сохраняем глобальный счетчик рекурсий Factoring2Vert
+    NumberOfRec = 0; // Сбрасываем для подсчета рекурсий именно этого вызова
+
+    // 1. Декомпозиция графа
+    std::vector<int> spisok_decomp = this->DecomposeOnBlocksK();
+    if (spisok_decomp.empty() || spisok_decomp.back() == 0) {
+        output << "Ошибка: Граф не может быть декомпозирован или не содержит блоков." << std::endl;
+        // Попробовать посчитать напрямую без декомпозиции, если это один блок
+        if (spisok_decomp.empty() || (spisok_decomp.back() == 1 && spisok_decomp.size() > 1) || spisok_decomp.back()==0 /*случай без блоков, но s-t есть*/) {
+            output << "Попытка прямого расчета для одного блока..." << std::endl;
+            std::vector<double> R_cumulative(UpperBound + 1, 0.0);
+            double global_globsumReliab_backup = globsumReliab;
+            int d_min_overall = this->DistanceDijkstra(s_node,t_node);
+
+            for (int d = 0; d <= UpperBound; ++d) {
+                 if (d < d_min_overall && d_min_overall !=Nconst) {
+                     R_cumulative[d] = 0.0;
+                 } else {
+                    globsumReliab = 0.0;
+                    Factoring2Vert(*this, s_node, t_node, 0, d, 1.0);
+                    R_cumulative[d] = globsumReliab;
+                 }
+            }
+            for (int d = 1; d <= UpperBound; ++d) {
+                 if (R_cumulative[d] < R_cumulative[d-1]) R_cumulative[d] = R_cumulative[d-1];
+            }
+            globsumReliab = global_globsumReliab_backup;
+            output << "Прямой расчет R^" << UpperBound << " = " << std::setprecision(16) << R_cumulative[UpperBound] << std::endl;
+            output << "Рекурсии факторизации: " << NumberOfRec << std::endl;
+            NumberOfRec += NumberOfRec_backup;
+            output << "Время рекурсивной декомпозиции (прямой расчет) (сек): " << (clock() - start_time) / 1000.0000 << std::endl;
+            output1 << (clock() - start_time) / 1000.0000 << std::endl;
+            return;
+        }
+        output << "Рекурсии факторизации: " << NumberOfRec << std::endl;
+        NumberOfRec += NumberOfRec_backup; // Восстанавливаем/обновляем глобальный счетчик
+        output << "Время рекурсивной декомпозиции (сек): " << (clock() - start_time) / 1000.0000 << std::endl;
+        return;
+    }
+    int total_blocks_in_chain = spisok_decomp.back();
+
+    // 2. Определение блоков для s и t, и точек сочленения
+    // Это самая сложная часть, зависящая от структуры DecomposeOnBlocksK и GEANT-специфики.
+    // Предположим, DecomposeOnBlocksK упорядочивает блоки s->...->t от 1 до N.
+    
+    std::vector<int> block_of_s_list = get_blocks_containing_vertex(s_node, spisok_decomp);
+    std::vector<int> block_of_t_list = get_blocks_containing_vertex(t_node, spisok_decomp);
+
+    if (block_of_s_list.empty() || block_of_t_list.empty()) {
+        output << "Ошибка: s или t не найдены в блоках после декомпозиции." << std::endl;
+        NumberOfRec += NumberOfRec_backup;
+        return;
+    }
+    // Для простоты берем первый блок из списка. Для точек сочленения это может быть не всегда верно.
+    int s_start_block_idx = block_of_s_list[0]; 
+    int final_target_block_idx = block_of_t_list[0]; // Аналогично
+
+    // Предполагаем, что нумерация блоков от DecomposeOnBlocksK идет по пути от s к t.
+    // Иначе нужно строить граф блоков и искать путь в нем.
+    // Для GEANT, где "нумеруются вручную", это предположение может быть верным.
+    if (s_start_block_idx > final_target_block_idx && total_blocks_in_chain > 1) { // Только если блоков несколько и s после t
+        // Это может случиться, если DecomposeOnBlocksK не нумерует последовательно s->t,
+        // или s и t в одном блоке, но get_blocks_containing_vertex дал разные "первые" блоки для них.
+        // Если s и t в одном блоке, то s_start_block_idx == final_target_block_idx
+        output << "Предупреждение: Начальный блок s (" << s_start_block_idx 
+               << ") идет после конечного блока t (" << final_target_block_idx 
+               << ") в декомпозиции. Проверьте логику DecomposeOnBlocksK или нумерацию блоков." << std::endl;
+        // Если они в одном блоке, это нормально.
+        bool s_t_same_block = false;
+        for(int bs : block_of_s_list) for(int bt : block_of_t_list) if(bs == bt) s_t_same_block = true;
+        if(!s_t_same_block) { // Если они действительно в разных блоках и порядок нарушен
+             NumberOfRec += NumberOfRec_backup;
+             return;
+        } else { // Если они в одном блоке, но get_blocks_containing_vertex вернул разные "первые" из-за сочленения
+            final_target_block_idx = s_start_block_idx; // Считаем, что они в одном блоке
+            output << "Коррекция: s и t находятся в одном блоке (" << s_start_block_idx << ")." << std::endl;
+        }
+    }
+
+
+    std::vector<int> articulation_points(total_blocks_in_chain + 1, 0); // articulation_points[i] = точка между блоком i и i+1
+    // Заполнение articulation_points:
+    // Ищем вершины, которые принадлежат одновременно блоку i и блоку i+1
+    for (int i = 1; i < total_blocks_in_chain; ++i) {
+        for (int v_orig = 1; v_orig < this->KAO.size(); ++v_orig) {
+            std::vector<int> blocks_for_v = get_blocks_containing_vertex(v_orig, spisok_decomp);
+            bool in_block_i = false, in_block_i_plus_1 = false;
+            for (int b : blocks_for_v) {
+                if (b == i) in_block_i = true;
+                if (b == i + 1) in_block_i_plus_1 = true;
+            }
+            if (in_block_i && in_block_i_plus_1) {
+                articulation_points[i] = v_orig;
+                break; 
+            }
+        }
+        if (articulation_points[i] == 0 && total_blocks_in_chain > 1 && i < final_target_block_idx) { // Если i-й блок не последний в актуальной цепи
+             output << "Предупреждение: Не найдена точка сочленения между блоком " << i << " и " << i + 1 << std::endl;
+        }
+    }
+    
+    // 3. Вызов рекурсивной функции
+    std::vector<double> result_reliabilities = solve_recursive_for_block_chain(
+        s_start_block_idx, s_node, t_node, UpperBound,
+        spisok_decomp, {}, /*block_of_each_vertex - не используется в текущей версии solve_recursive*/
+        final_target_block_idx, articulation_points);
+
+    output << "Результаты рекурсивной декомпозиции (кумулятивные):" << std::endl;
+    if (result_reliabilities.empty() || UpperBound >= result_reliabilities.size()) {
+        output << "Не удалось рассчитать надежность или UpperBound за пределами расчета." << std::endl;
+        if(!result_reliabilities.empty()) {
+             output << "R^" << result_reliabilities.size()-1 << " (макс. рассчитанная) = " << std::setprecision(16) << result_reliabilities.back() << std::endl;
+        }
+    } else {
+        output << "R^" << UpperBound << " = " << std::setprecision(16) << result_reliabilities[UpperBound] << std::endl;
+    }
+    // Можно вывести весь вектор result_reliabilities для отладки
+    // for(int d=0; d < result_reliabilities.size(); ++d) {
+    //    output << "R_cumul^" << d << " = " << result_reliabilities[d] << std::endl;
+    // }
+
+
+    output << "Рекурсии факторизации во время этого вызова: " << NumberOfRec << std::endl;
+    NumberOfRec += NumberOfRec_backup; // Восстанавливаем/обновляем глобальный счетчик
+
+    output << "Время рекурсивной декомпозиции (сек): " << (clock() - start_time) / 1000.0000 << std::endl;
+    output1 << (clock() - start_time) / 1000.0000 << std::endl;
+}
