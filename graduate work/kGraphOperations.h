@@ -30,7 +30,9 @@ struct kGraph : public Graph {
 	//{Расчет в-ти св-ти двух вершин x,y с огр-м на диаметр d методом ветвления.
 	// Используется разделение ветвей, встроенная ф-я проверки на расстояния;
 	// не используется выделение компонентв с двумя в-ми (так быстрее)}
+
 	void ReliabilityDiamConstr2VertDecomposeSimpleFacto(int x, int y, const int& UpperBound);
+	//Расчет надежности с применением декомпозиции на блоки и простой факторизацией
 
 	void ReliabilityDiamConstr2VertM(int x, int y,/* const int& LowerBound,*/ const int& UpperBound);
 
@@ -39,6 +41,8 @@ struct kGraph : public Graph {
 	void ReliabilityDiamConstr2VertMDecompose(int x, int y, const int& UpperBound);
 	
 	void ReliabilityDiamConstr2VertMDecomposeParallel(int x, int y, const int& UpperBound);
+
+	void ReliabilityDiamConstr2VertRecursiveDecomposition(int s_node, int t_node, int UpperBound);
 
 	bool CheckDistanceFloyd(const int d);
 
@@ -86,6 +90,34 @@ struct kGraph : public Graph {
 	void kGraphFileOutput(std::ofstream& fout);
 
 	void ChangeVertex(int u, int v);
+
+private:
+	// Вспомогательная функция для восстановления графа блока и карт вершин
+	void get_block_graph_and_map_ids(
+		int block_idx_to_restore,                   // Номер блока для восстановления (1-based)
+		const std::vector<int>& spisok_decomposition, // Результат DecomposeOnBlocksK() для G_original
+		kGraph& out_block_graph,                    // Выход: граф восстановленного блока
+		std::vector<int>& out_map_new_id_to_original_id, // Карта: новый ID в блоке -> оригинальный ID
+		std::vector<int>& out_map_original_id_to_new_id  // Карта: оригинальный ID -> новый ID в блоке (0 если не в блоке)
+	) const; // Добавляем const, так как не меняет *this (исходный граф)
+
+	// Вспомогательная функция для рекурсивного расчета
+	std::vector<double> solve_recursive_for_block_chain(
+		int current_block_idx,              // Текущий номер блока для обработки (1-based)
+		int entry_node_original_id,         // ID узла входа в этот блок (в нумерации G_original)
+		int target_node_original_id,        // Конечный узел t (в нумерации G_original)
+		int max_len_budget,                 // Максимально допустимая длина пути от entry_node до target_node
+		const std::vector<int>& spisok_decomposition, // Результат DecomposeOnBlocksK() для G_original
+		const std::vector<int>& block_of_each_vertex, // Карта: original_vertex_id -> block_id, в котором он "основной"
+		int final_target_block_idx,         // Индекс блока, содержащего target_node_original_id
+		const std::vector<int>& articulation_points_orig_ids // articulation_points_orig_ids[i] = ID точки сочленения между блоком i и i+1
+	) const; // Добавляем const
+
+	// Вспомогательная функция для определения, в каком блоке(ах) находится вершина
+	std::vector<int> get_blocks_containing_vertex(
+		int vertex_original_id,
+		const std::vector<int>& spisok_decomposition
+	) const;
 };
 
 void Factoring(kGraph G, const int variant, const int d, double Reliab);

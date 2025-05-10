@@ -36,16 +36,17 @@ int main() {
             break;
         }
     //задание верхней границы диаметра
-    int UpperBound = 16;
+    int UpperBound = 20;
     output << "Diameter: " << UpperBound << std::endl;
     //нет нумерации блоков в нужном порядке, 
     //поэтому для структур с количеством блоков >2 при неправильной изначальной нумерации блоков программа работать не будет(для GEANT'а они нумеруются вручную)
 
     //G.ReliabilityDiamConstr2Vert(x, y, UpperBound);
     //G.ReliabilityDiamConstr2VertDecomposeSimpleFacto(x, y, UpperBound);
-    G.ReliabilityDiamConstr2VertMDecompose(x, y, UpperBound);
+    //G.ReliabilityDiamConstr2VertMDecompose(x, y, UpperBound);
     //G.ReliabilityDiamConstr2VertMDecomposeParallel(x, y, UpperBound);
-
+    //G.ReliabilityDiamConstr2VertM(x, y, UpperBound);
+    G.ReliabilityDiamConstr2VertRecursiveDecomposition(x, y, UpperBound);
     //sumReliab.resize(UpperBound - LowerBound + 1);
 
     output << "Total Time(sec): " << (clock() - total_start_time) / 1000.0000;
