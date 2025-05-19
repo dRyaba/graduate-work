@@ -6,7 +6,15 @@ extern std::ofstream output, output1;
 extern int NumberOfRec;
 extern std::vector<double> sumReliab;
 extern double globsumReliab;
+extern std::vector<std::vector<double>> BlockReliab;
 
+struct GraphMethodResult {
+	double reliability;
+	long long recursions;
+	double time_sec;
+	GraphMethodResult(double rel = 0.0, long long rec = 0, double time = 0.0)
+		: reliability(rel), recursions(rec), time_sec(time) {}
+};
 
 struct kGraph : public Graph {
 	std::vector<int> Targets;
@@ -26,7 +34,7 @@ struct kGraph : public Graph {
 	// ������������ ��������� ����-�� ��������� � �������� �-��, ���������� ������,
 	// ���������� �-� �������� �� ����������}
 
-	void ReliabilityDiamConstr2Vert(int x, int y, int d);
+	GraphMethodResult ReliabilityDiamConstr2Vert(int x, int y, int d);
 	//{������ �-�� ��-�� ���� ������ x,y � ���-� �� ������� d ������� ���������.
 	// ������������ ���������� ������, ���������� �-� �������� �� ����������;
 	// �� ������������ ��������� ���������� � ����� �-�� (��� �������)}
@@ -38,11 +46,11 @@ struct kGraph : public Graph {
 
 	void ReliabilityDiamConstr2Vert2Blocks(int x, int y, const int& LowerBound, const int& UpperBound);
 
-	void ReliabilityDiamConstr2VertMDecompose(int x, int y, const int& UpperBound);
+	GraphMethodResult ReliabilityDiamConstr2VertMDecompose(int x, int y, const int& UpperBound);
 	
 	void ReliabilityDiamConstr2VertMDecomposeParallel(int x, int y, const int& UpperBound);
 
-	void ReliabilityDiamConstr2VertRecursiveDecomposition(int s_node, int t_node, int UpperBound);
+	GraphMethodResult ReliabilityDiamConstr2VertRecursiveDecomposition(int s_node, int t_node, int UpperBound);
 
 	bool CheckDistanceFloyd(const int d);
 
@@ -91,8 +99,6 @@ struct kGraph : public Graph {
 
 	void ChangeVertex(int u, int v);
 
-	void ReliabilityDiamConstr2VertRecursiveDecomposition(int s_node, int t_node, int UpperBound);
-
 	private:
 		// Вспомогательная функция для восстановления графа блока и карт вершин
 		void get_block_graph_and_map_ids(
@@ -103,23 +109,30 @@ struct kGraph : public Graph {
 			std::vector<int>& out_map_original_id_to_new_id  // Карта: оригинальный ID -> новый ID в блоке (0 если не в блоке)
 		) const; // Добавляем const, так как не меняет *this (исходный граф)
 	
-		// Вспомогательная функция для рекурсивного расчета
-		std::vector<double> solve_recursive_for_block_chain(
-			int current_block_idx,              // Текущий номер блока для обработки (1-based)
-			int entry_node_original_id,         // ID узла входа в этот блок (в нумерации G_original)
-			int target_node_original_id,        // Конечный узел t (в нумерации G_original)
-			int max_len_budget,                 // Максимально допустимая длина пути от entry_node до target_node
-			const std::vector<int>& spisok_decomposition, // Результат DecomposeOnBlocksK() для G_original
-			const std::vector<int>& block_of_each_vertex, // Карта: original_vertex_id -> block_id, в котором он "основной"
-			int final_target_block_idx,         // Индекс блока, содержащего target_node_original_id
-			const std::vector<int>& articulation_points_orig_ids // articulation_points_orig_ids[i] = ID точки сочленения между блоком i и i+1
-		) const; // Добавляем const
+		// НОВАЯ версия solve_recursive_for_block_chain, работающая с упорядоченной цепью
+		std::vector<double> solve_recursive_for_block_chain_ordered(
+			int current_block_path_idx,
+			int entry_node_original_id,
+			int target_node_original_id,
+			int max_len_budget,
+			const std::vector<int>& spisok_decomposition_G_original,
+			const std::vector<int>& ordered_original_block_ids_on_path,
+			const std::vector<int>& ordered_articulation_points_orig_ids
+		) const; // Добавляем const, так как она не должна менять *this (который здесь G_original)
+
 	
 		// Вспомогательная функция для определения, в каком блоке(ах) находится вершина
 		std::vector<int> get_blocks_containing_vertex(
 			int vertex_original_id,
 			const std::vector<int>& spisok_decomposition
 		) const;
+
+		void convertEdgeListToKAOFO(const std::string& inputPath,
+			const std::string& outputPath,
+			double reliability) override;
+
+		void convertKAOFOToEdgeList(const std::string& inputPath,
+			const std::string& outputPath) override;
 };
 
 // Вспомогательная структура для представления графа блоков

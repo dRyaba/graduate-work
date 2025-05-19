@@ -1,4 +1,9 @@
 #include "GraphOperations.h"
+#include <list>
+#include <string>
+#include <algorithm>
+#include <sstream>
+#include <set>
 
 int Nconst;
 
@@ -320,4 +325,71 @@ Graph Graph::ChangVertex(int u, int v) {
             FO[i] = u;
     Graph Result(KAO, FO, PArray);
     return Result;
+}
+
+void Graph::convertEdgeListToKAOFO(const std::string& inputPath,
+    const std::string& outputPath,
+    double reliability) {
+    std::ifstream inFile(inputPath);
+    std::vector<std::pair<int, int>> edges;
+    int u, v; char dash;
+    while (inFile >> u >> dash >> dash >> v) {
+        edges.emplace_back(u, v);
+    }
+
+    int maxVertex = 0;
+    for (auto& e : edges) maxVertex = std::max(maxVertex, std::max(e.first, e.second));
+    int n = maxVertex;
+
+    std::vector<std::vector<int>> adj(n + 1);
+    for (auto& e : edges) {
+        adj[e.first].push_back(e.second);
+        adj[e.second].push_back(e.first);
+    }
+    for (int i = 1; i <= n; ++i) std::sort(adj[i].begin(), adj[i].end());
+
+    KAO.resize(n + 2);
+    KAO[1] = 0;
+    for (int i = 1; i <= n; ++i) KAO[i + 1] = KAO[i] + static_cast<int>(adj[i].size());
+
+    int totalSize = KAO[n + 1];
+    FO.resize(totalSize);
+    int idx = 0;
+    for (int i = 1; i <= n; ++i)
+        for (int neighbor : adj[i])
+            FO[idx++] = neighbor;
+
+    PArray.assign(totalSize, reliability);
+
+    std::ofstream outFile(outputPath);
+    for (int i = 1; i <= n + 1; ++i) outFile << KAO[i] << (i < n + 1 ? ',' : '\n');
+    for (int i = 0; i < totalSize; ++i) outFile << FO[i] << (i + 1 < totalSize ? ',' : '\n');
+    for (int i = 0; i < totalSize; ++i) outFile << PArray[i] << (i + 1 < totalSize ? ',' : '\n');
+}
+
+void Graph::convertKAOFOToEdgeList(const std::string& inputPath,
+    const std::string& outputPath) {
+    std::ifstream inFile(inputPath);
+    std::string line, token;
+    std::getline(inFile, line);
+    std::stringstream ss(line);
+    KAO.clear();
+    while (std::getline(ss, token, ',')) KAO.push_back(std::stoi(token));
+
+    std::getline(inFile, line);
+    ss.clear(); ss.str(line);
+    FO.clear();
+    while (std::getline(ss, token, ',')) FO.push_back(std::stoi(token));
+
+    std::ofstream outFile(outputPath);
+    std::set<std::pair<int, int>> seen;
+    int n = static_cast<int>(KAO.size()) - 1;
+    for (int i = 1; i <= n; ++i) {
+        for (int j = KAO[i - 1]; j < KAO[i]; ++j) {
+            int a = i, b = FO[j];
+            if (a > b) std::swap(a, b);
+            if (seen.insert({ a,b }).second)
+                outFile << a << " -- " << b << '\n';
+        }
+    }
 }
