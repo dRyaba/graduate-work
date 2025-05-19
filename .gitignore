@@ -361,3 +361,11 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/graduate work.sln
+/test.bat
+/graduate work/5_blocks_sausage_3x3_edgelist.txt
+/graduate work/4_blocks_sausage_3x3_edgelist.txt
+/graduate work/3_blocks_sausage_4x4_edgelist.txt
+/graduate work/3_blocks_sausage_3x3_edgelist.txt
+/graduate work/6_blocks_sausage_3x3_edgelist.txt
+/graduate work/graduate work.vcxproj.filters
