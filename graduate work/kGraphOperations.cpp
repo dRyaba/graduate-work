@@ -498,9 +498,9 @@ GraphMethodResult kGraph::ReliabilityDiamConstr2VertDecomposeSimpleFacto(int x, 
 }
 
 void kGraph::ReliabilityDiamConstr2VertM(int x, int y, const int& UpperBound){
-//    {������ �-�� ��-�� ���� ������ x,y � ���-� �� ������� d ������� ���������������� ������������.
-//     ������������ ���������� ������, ���������� �-� �������� �� ����������;
-//     �� ������������ ��������� ���������� � ����� �-�� (��� �������)}
+//    {Расчет в-ти св-ти двух вершин x,y с огр-м на диаметр d методом модифицированной факторизации.
+//     Используется разделение ветвей, встроенная ф-я проверки на расстояния;
+//     не используется выделение компонентв с двумя в-ми (так быстрее)}
 	Nconst = this->KAO.size() * this->KAO.size();
 	clock_t start_time = clock();
 	int TerminalShortestPathLen = this->DistanceDijkstra(x, y);
