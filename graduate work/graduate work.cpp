@@ -10,14 +10,15 @@
 #include "kGraphOperations.h"
 #include <map>
 #include <iomanip>
+#include <string>
 
 
-int NUMBER_OF_REPETITIONS = 16;
+int NUMBER_OF_REPETITIONS = 1;
 
 // —— структуры для тестов ——————————————————————————————
 
 struct TestConfig {
-    std::string graph_file_path;
+    std::string graph_file_name;
     int s_node;               // 1‑based номер источника
     int t_node;               // 1‑based номер приёмника
     int upper_bound_diameter;
@@ -32,7 +33,7 @@ struct TestRunResult {
 
 // —— функции конвертации ——————————————————————————————
 
-// Из edge‑list (строка "u -- v") → KAO/FO+Targets+PArray (CSV)
+// Из edge‑list (строка "u -- v") → KAO/FO+Targets+PArray
 void convertEdgeListToKAOFO(const std::string& inPath,
     const std::string& outPath,
     double reliability)
@@ -167,57 +168,67 @@ void convertKAOFOToEdgeList(const std::string& inPath,
     std::cout << "KAOFO → EdgeList written to " << outPath << "\n";
 }
 
-// —— тестовая функция (ваша) ——————————————————————————
+// —— тестовая функция  ——————————————————————————
 
-TestRunResult run_single_test_config(const TestConfig& cfg, bool use_rec) {
-    std::vector<double> times, reliabs;
+TestRunResult run_single_test_config(const TestConfig& cfg,
+    int methodID /* 0=MDecomp,1=Rec,2=Simple */)
+{
+    const std::string dir = "C:/Users/User/source/repos/graduate work/graduate work/";
+    std::vector<double> times;
+    std::vector<double> reliabs;
     std::vector<long long> recs;
 
     for (int i = 0; i < cfg.num_repetitions; ++i) {
-        std::ifstream fin(cfg.graph_file_path);
-        if (!fin) {
-            std::cerr << "Cannot open graph: " << cfg.graph_file_path << "\n";
-            return { -1, -1, -1 };
-        }
+        std::ifstream fin(dir + cfg.graph_file_name);
         kGraph G = kGraphFileInput(fin);
+
+        //G.CutPointsSearch(52, -1); //в переменной cutpoints будет лежать список точек сочленения
+
+        // Сброс состояния, если нужно
         fin.close();
-        if (G.KAO.size() <= 1) {
-            std::cerr << "Graph too small: " << cfg.graph_file_path << "\n";
-            return { -1, -1, -1 };
-        }
 
-        // Сбрасываем глобальные переменные
-        globsumReliab = 0;
-        NumberOfRec = 0;
-        sumReliab.clear();
-        BlockReliab.clear();
-
-        GraphMethodResult result;
         auto t0 = std::chrono::high_resolution_clock::now();
-        if (use_rec) {
-            result = G.ReliabilityDiamConstr2VertRecursiveDecomposition(cfg.s_node, cfg.t_node, cfg.upper_bound_diameter);
-        } else {
-            result = G.ReliabilityDiamConstr2VertMDecompose(cfg.s_node, cfg.t_node, cfg.upper_bound_diameter);
+        GraphMethodResult mr;
+        if (methodID == 0) {
+            mr = G.ReliabilityDiamConstr2VertMDecompose(
+                cfg.s_node, cfg.t_node, cfg.upper_bound_diameter);
+        }
+        else if (methodID == 1) {
+            mr = G.ReliabilityDiamConstr2VertRecursiveDecomposition(
+                cfg.s_node, cfg.t_node, cfg.upper_bound_diameter);
+        }
+        else if (methodID == 2) {
+            mr = G.ReliabilityDiamConstr2VertDecomposeSimpleFacto(
+                cfg.s_node, cfg.t_node, cfg.upper_bound_diameter);
+        }
+        else if (methodID == 3) {
+            mr = G.ReliabilityDiamConstr2Vert(
+                cfg.s_node, cfg.t_node, cfg.upper_bound_diameter);
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        double dt = std::chrono::duration<double>(t1 - t0).count();
 
-        times.push_back(dt);
-        reliabs.push_back(result.reliability);
-        recs.push_back(result.recursions);
+        times.push_back(
+            std::chrono::duration<double>(t1 - t0).count()
+        );
+        reliabs.push_back(mr.reliability);
+        recs.push_back(mr.recursions);
     }
 
-    TestRunResult R;
-    R.time_sec = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
-    R.reliability = reliabs.empty() ? 0.0 : std::accumulate(reliabs.begin(), reliabs.end(), 0.0) / reliabs.size();
-    R.factoring_recursions = recs.empty() ? 0 : static_cast<long long>(std::accumulate(recs.begin(), recs.end(), 0LL) / recs.size());
-    return R;
+    TestRunResult out{};
+    out.time_sec = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
+    out.reliability = std::accumulate(reliabs.begin(), reliabs.end(), 0.0) / reliabs.size();
+    out.factoring_recursions = static_cast<long long>(
+        std::accumulate(recs.begin(), recs.end(), 0LL) / recs.size()
+        );
+    return out;
 }
 
 // —— main с режимами —————————————————————————————
 
 int main(int argc, char* argv[]) {
-    // Находясь в файле graduate.cpp Проект -> свойства -> Свойства конфигурации -> Отладка -> Аргументы команды: --convert edge2kao 4_blocks_sausage_3x3_edgelist.txt 4_blocks_sausage_3x3_kao.txt 0.9
+    // Для настройки параметров запуска необходимо: 
+    // Находясь в файле graduate.cpp Проект -> свойства -> Свойства конфигурации -> Отладка -> 
+    // -> Аргументы команды: --convert edge2kao 4_blocks_sausage_3x3_edgelist.txt 4_blocks_sausage_3x3_kao.txt 0.9
 
     if (argc >= 2 && std::string(argv[1]) == "--convert") {
         if (argc < 5) {
@@ -248,19 +259,27 @@ int main(int argc, char* argv[]) {
 
     // —— иначе — запускаем серию тестов ————————————————
     std::cout << "Running tests...\n";
-    const std::string dir = "C:/Users/User/source/repos/graduate work/graduate work/";
+    
 
     std::map<std::string, std::vector<int>> fileDiameters = {
-        //{ "3_blocks_sausage_3x3_kao.txt", { 9, 10, 11, 12} },
-        //{ "4_blocks_sausage_3x3_kao.txt", { 13, 14, 15, 16} },
-        //{ "5_blocks_sausage_3x3_kao.txt", { 17, 18, 19, 20 } },
-        //{ "6_blocks_sausage_3x3_kao.txt", { 21, 22, 23, 24 } },
-        //{ "3_block_sausage_4x4_kao.txt", { 11, 13, 15, 17, 19 } },
-        //{ "Geant2004_kao.txt", { 8, 9, 10, 11} },
-        //{ "IEEE-118-node_kao.txt", { 8, 9, 10, 11 } }
-        { "UPS_of_Russia_composed_with_colored_cut_vertices_kao.txt", { 18, 19, 20, 21, 22, 23, 24, 25 } }
-        //{ "Geant2009.txt",              { 8,  12, 16 } }
+        //{ "K4_kao.txt", { 1, 2, 3 } },
+        //{ "2_3x3_blocks_kao.txt", { 8, 9, 10 } },
+        { "3_blocks_sausage_3x3_kao.txt", { 9, 10, 11, 12 } },
+        { "4_blocks_sausage_3x3_kao.txt", { 13, 14, 15, 16 } },
+        { "5_blocks_sausage_3x3_kao.txt", { 17, 18, 19, 20 } },
+        { "6_blocks_sausage_3x3_kao.txt", { 21, 22, 23, 24 } },
+        //{ "3_blocks_sausage_4x4_kao.txt", { 11, 13/*, 15, 17, 19*/ } },
+        //{ "Geant2004_kao.txt", { 6, 7, 8, 9, 10, 11} },
+        //{ "IEEE-118-node_kao.txt", { 8, 9/*, 10, 11 */} },
+        //{ "UPS_of_Russia_composed_with_colored_cut_vertices_kao.txt", { 18, 19/*, 20, 21, 22, 23, 24, 25*/ } }
+        //{ "Geant2009_kao.txt", { 8,  12, 16 } }
     };
+
+    // для тестов выбираем метод по флагу:
+    // 0 — MDecompose, 1 — RecursiveDecompSF(Migov's Formula), 2 — DecompSF(Ryabinin-Migov's Formula), 3 - SF
+    int methodID = 3;  // или считывать из аргументов
+
+    const std::string dir = "C:/Users/User/source/repos/graduate work/graduate work/";
 
     std::vector<TestConfig> suite;
     for (const auto& pair : fileDiameters) {
@@ -298,30 +317,40 @@ int main(int argc, char* argv[]) {
         }
 
         for (int D : diamVec) {
-            suite.push_back({ dir + fname, s, t, D, NUMBER_OF_REPETITIONS });
+            suite.push_back({ fname, s, t, D, NUMBER_OF_REPETITIONS });
         }
     }
 
     std::ofstream sumF(dir + "test_summary_results.csv");
     sumF << "Graph,S,T,D,Reps,Method,AvgTime,AvgRel,AvgRecs\n";
 
-    bool useRec = true; // Можно добавить цикл для тестирования обоих методов
+    //bool useRec = true; // Можно добавить цикл для тестирования обоих методов
     for (const auto& cfg : suite) {
-        std::cout << "Test " << cfg.graph_file_path
+        std::cout << "Test " << cfg.graph_file_name
             << " s=" << cfg.s_node
             << " t=" << cfg.t_node
-            << " D<=" << cfg.upper_bound_diameter << "\n";
+            << " D<=" << cfg.upper_bound_diameter;
 
-        TestRunResult R = run_single_test_config(cfg, useRec);
+        auto R = run_single_test_config(cfg, methodID);
+        std::vector<std::string> methodNames = {
+            "ReliabilityDiamConstr2VertMDecompose",
+            "ReliabilityDiamConstr2VertRecursiveDecomposition",
+            "ReliabilityDiamConstr2VertDecomposeSimpleFacto",
+            "ReliabilityDiamConstr2VertSimpleFacto"
+        };
+        std::cout << " Method=" << methodNames[methodID] << ","
+            << " Time=" << R.time_sec << ","
+            << " Reliab=" << R.reliability << ","
+            << " recursions=" << R.factoring_recursions << "\n";
 
-        sumF << cfg.graph_file_path << ","
+        sumF << cfg.graph_file_name << ","
             << cfg.s_node << ","
             << cfg.t_node << ","
             << cfg.upper_bound_diameter << ","
             << cfg.num_repetitions << ","
-            << (useRec ? "Rec" : "MDecomp") << ","
-            << std::setprecision(16) << R.time_sec << ","
-            << std::setprecision(16) << R.reliability << ","
+            << methodNames[methodID] << ","
+            << R.time_sec << ","
+            << R.reliability << ","
             << R.factoring_recursions << "\n";
     }
     sumF.close();
