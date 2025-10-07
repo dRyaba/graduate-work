@@ -1,5 +1,6 @@
 #pragma once
 #include <fstream>
+#include <optional>
 #include "GraphOperations.h"
 
 extern std::ofstream output, output1;
@@ -35,12 +36,11 @@ struct kGraph : public Graph {
 	// ���������� �-� �������� �� ����������}
 
 	GraphMethodResult ReliabilityDiamConstr2Vert(int x, int y, int d);
-	//{������ �-�� ��-�� ���� ������ x,y � ���-� �� ������� d ������� ���������.
-	// ������������ ���������� ������, ���������� �-� �������� �� ����������;
-	// �� ������������ ��������� ���������� � ����� �-�� (��� �������)}
+	//{Расчет в-ти св-ти двух вершин x,y с огр-м на диаметр d методом ветвления.
+	// Используется разделение ветвей, встроенная ф-я проверки на расстояния;
+	// не используется выделение компонент с двумя в-ми (так быстрее)}
 
-	void ReliabilityDiamConstr2VertDecomposeSimpleFacto(int x, int y, const int& UpperBound);
-	//������ ���������� � ����������� ������������ �� ����� � ������� �������������
+	GraphMethodResult ReliabilityDiamConstr2VertDecomposeSimpleFacto(int x, int y, int UpperBound);
 
 	void ReliabilityDiamConstr2VertM(int x, int y,/* const int& LowerBound,*/ const int& UpperBound);
 
@@ -50,7 +50,13 @@ struct kGraph : public Graph {
 	
 	void ReliabilityDiamConstr2VertMDecomposeParallel(int x, int y, const int& UpperBound);
 
+	GraphMethodResult ReliabilityDiamConstr2VertRecDecompositionSF(int s, int t, int UpperBound);
+	
 	GraphMethodResult ReliabilityDiamConstr2VertRecursiveDecomposition(int s_node, int t_node, int UpperBound);
+
+	std::optional<int> FindLastUnreliableEdge() const;
+
+	std::pair<int, int> FindReverseEdgeIndices(int edgeIndex) const;
 
 	bool CheckDistanceFloyd(const int d);
 
@@ -82,7 +88,7 @@ struct kGraph : public Graph {
 	kGraph DeleteEdgeK(const int u, const int v);
 	//    ������� �� ����� �����(u, v)
 
-	kGraph InducedKGraph(std::vector<int> spisok, int Number);
+	kGraph InducedKGraph(const std::vector<int> spisok, int Number) const;
 	//{��������������� ������� K-����� G, � ������� ������  ����� � ������� Number � ������ spisok}
 
 	bool KComponent();
@@ -93,7 +99,7 @@ struct kGraph : public Graph {
 	//���� ���� �� �������� ������� ������, �� ��������� - ����.
 	//���������� ������� � ������� ����� �����������}
 
-	bool Boolka(std::vector<int> spisok, int Number, int i, int j);
+	bool Boolka(std::vector<int> spisok, int Number, int i, int j) const;
 
 	void kGraphFileOutput(std::ofstream& fout);
 

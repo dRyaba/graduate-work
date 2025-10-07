@@ -7,6 +7,8 @@
 #include <omp.h>
 #include <queue>
 #include <map>
+#include <optional>
+
 
 std::ofstream output("C:/Users/User/source/repos/graduate work/graduate work/output.txt");
 std::ofstream output1("C:/Users/User/source/repos/graduate work/graduate work/output1.txt", std::ios_base::app);
@@ -16,76 +18,82 @@ double globsumReliab = 0;
 std::vector<std::vector<double>> BlockReliab;
 
 
+std::optional<int> kGraph::FindLastUnreliableEdge() const {
+    for (int i = static_cast<int>(this->PArray.size()) - 1; i >= 0; --i)
+        if (this->PArray[i] < 1.0)
+            return i;
+    return std::nullopt;
+}
+
+std::pair<int, int> kGraph::FindReverseEdgeIndices(int edgeIndex) const {
+	int from = 1;
+	while (from < this->KAO.size() && this->KAO[from] <= edgeIndex)
+		++from;
+	int to = this->FO[edgeIndex];
+	int reverseStart = this->KAO[to - 1];
+	int reverseEnd = this->KAO[to];
+	for (int k = reverseStart; k < reverseEnd; ++k)
+		if (this->FO[k] == from)
+			return { from, k };
+	return { from, -1 }; // Если обратное ребро не найдено
+}
+
 void Factoring(kGraph G, const int variant, const int d, double Reliab) {
 	//��������� ����� � sumReliab[0]
 	//���������, variant=0 - ����� ��������, variant=1 - ����� ������������� �����
-	int i, j, k;
 	NumberOfRec++;
-	if (!variant) {
-		if (!G.KComponent())
-			return; // add 0 to sum
-	}
-	else if (!G.CheckDistanceFloyd(d))
-		return; // add 0 to sum
 
-	i = G.PArray.size();  //����� �� �������� PArray �� FO? 
-	for (j = G.PArray.size() - 1; j >= 0; j--)
-		if (G.PArray[j] < 1) {
-			i = j;
-			break;
-		}
-	if (i == G.FO.size()) {
+	if ((!variant && !G.KComponent()) || (variant && !G.CheckDistanceFloyd(d)))
+		return;// add 0 to sum
+
+	auto optIndex = G.FindLastUnreliableEdge();
+	if (!optIndex) {
 		sumReliab[0] += Reliab;
-		return; // add Reliab to sum
+		return;
 	}
 
-	double p = G.PArray[i];
-	G.PArray[i] = 1;
-	for (j = 1; j < G.KAO.size(); j++)
-		if (G.KAO[j] > i)
-			break;
-	for (k = G.KAO[G.FO[i] - 1]; k < G.KAO[G.FO[i]]; k++)
-		if (G.FO[k] == j)
-			break;
-	G.PArray[k] = 1;
+	int edgeIdx = *optIndex;
+	double p = G.PArray[edgeIdx];
+	G.PArray[edgeIdx] = 1.0;
+
+	auto [from, reverseIdx] = G.FindReverseEdgeIndices(edgeIdx);
+	if (reverseIdx != -1) G.PArray[reverseIdx] = 1.0;
+
 	Factoring(G, 1, d, Reliab * p);
 
-	kGraph T = G.DeleteEdgeK(G.FO[i], j);
+	if (reverseIdx != -1) G.PArray[reverseIdx] = p;
+	G.PArray[edgeIdx] = p;
+
+	kGraph T = G.DeleteEdgeK(G.FO[edgeIdx], from);
 	Factoring(T, 0, d, Reliab * (1 - p));
 }
 
-void Factoring2Vert(kGraph G, const int x, const int y, const int variant, const int d, double Reliab) {
+void Factoring2Vert(kGraph G, int x, int y, int variant, int d, double Reliab) {
 	//результат будет в globsumReliab
-	//���������, variant=0 - ����� ��������, variant=1 - ����� ������������� �����
 	NumberOfRec++;
-	if (!variant && G.DistanceDijkstra(x, y) > d)
-		return;// add 0 to sum if distance from x to y > d
 
-	int i = G.PArray.size();//����� �� �������� PArray �� FO?
-	for (int j = G.PArray.size() - 1; j >= 0; j--)
-		if (G.PArray[j] < 1) {
-			i = j;
-			break;
-		}
-	if (i == G.FO.size()) {
+	if (!variant && G.DistanceDijkstra(x, y) > d)
+		return;
+
+	auto optIndex = G.FindLastUnreliableEdge();
+	if (!optIndex) {
 		globsumReliab += Reliab;
-		return; // add Reliab to sum
+		return;
 	}
-	double p = G.PArray[i];
-	G.PArray[i] = 1;
-	int j;
-	for (j = 1; j < G.KAO.size(); j++)
-		if (G.KAO[j] > i)
-			break;
-	int k;
-	for (k = G.KAO[G.FO[i] - 1]; k < G.KAO[G.FO[i]]; k++)
-		if (G.FO[k] == j)
-			break;
-	G.PArray[k] = 1;
+
+	int edgeIdx = *optIndex;
+	double p = G.PArray[edgeIdx];
+	G.PArray[edgeIdx] = 1.0;
+
+	auto [from, reverseIdx] = G.FindReverseEdgeIndices(edgeIdx);
+	if (reverseIdx != -1) G.PArray[reverseIdx] = 1.0;
+
 	Factoring2Vert(G, x, y, 1, d, Reliab * p);
-	G.PArray[i] = p;
-	G.PArray[k] = p;
-	kGraph T = G.DeleteEdgeK(G.FO[i], j);
+
+	if (reverseIdx != -1) G.PArray[reverseIdx] = p;
+	G.PArray[edgeIdx] = p;
+
+	kGraph T = G.DeleteEdgeK(G.FO[edgeIdx], from);
 	Factoring2Vert(T, x, y, 0, d, Reliab * (1 - p));
 }
 
@@ -93,6 +101,7 @@ void Factoring2VertM(kGraph G, const int x, const int y, const int variant, cons
 	//��������� ������ ����������� � ��������������� ������������ �� �������
 	//���������, variant=0 - ����� ��������, variant=1 - ����� ������������� �����
 	NumberOfRec++;
+
 	int dist = G.DistanceDijkstra(x, y);
 	if (!variant && dist > d) {
 		if (dist <= UpperBound) {
@@ -101,31 +110,31 @@ void Factoring2VertM(kGraph G, const int x, const int y, const int variant, cons
 		}
 		return;// add 0 to sum if distance from x to y >d
 	}
-	int i = G.PArray.size();
-	for (int j = G.PArray.size() - 1; j >= 0; j--)
-		if (G.PArray[j] < 1) {
-			i = j;
-			break;
-		}
-	if (i == G.FO.size()) {
+
+	auto optIndex = G.FindLastUnreliableEdge();
+	if (!optIndex) {
 		sumReliab[d - LowerBound] += Reliab;
-		return; // add Reliab to sum
+		return;
 	}
-	double p = G.PArray[i];
-	G.PArray[i] = 1;
+	
+	int edgeIdx = *optIndex;
+	double p = G.PArray[edgeIdx];
+	G.PArray[edgeIdx] = 1.0;
+
 	int j;
 	for (j = 1; j < G.KAO.size(); j++)
-		if (G.KAO[j] > i)
+		if (G.KAO[j] > edgeIdx)
 			break;
 	int k;
-	for (k = G.KAO[G.FO[i] - 1]; k < G.KAO[G.FO[i]]; k++)
+	for (k = G.KAO[G.FO[edgeIdx] - 1]; k < G.KAO[G.FO[edgeIdx]]; k++)
 		if (G.FO[k] == j)
 			break;
+	
 	G.PArray[k] = 1;
 	Factoring2VertM(G, x, y, 1, d, Reliab * p, LowerBound, UpperBound);
-	G.PArray[i] = p;
+	G.PArray[edgeIdx] = p;
 	G.PArray[k] = p;
-	kGraph T = G.DeleteEdgeK(G.FO[i], j);
+	kGraph T = G.DeleteEdgeK(G.FO[edgeIdx], j);
 	Factoring2VertM(T, x, y, 0, d, Reliab * (1 - p), LowerBound, UpperBound);
 }
 
@@ -391,122 +400,8 @@ GraphMethodResult kGraph::ReliabilityDiamConstr2Vert(int x, int y, int d) {
     return GraphMethodResult(globsumReliab, NumberOfRec, time_sec);
 }
 
-void kGraph::ReliabilityDiamConstr2VertDecomposeSimpleFacto(int x, int y, const int& UpperBound) {
-	Nconst = this->KAO.size() * this->KAO.size();
-	clock_t start_time = clock();
-	std::vector<int> spisok = this->DecomposeOnBlocksK();
-	int BlockNum = spisok[spisok.size() - 1];
-	//���� 1 ����
-	if (BlockNum == 1) {
-		Factoring2Vert(*this, x, y, 0, UpperBound, 1);
-		output << std::setprecision(16) << globsumReliab << std::endl;
-		output << "Recursions: " << NumberOfRec << std::endl;
-		output << "Decompose SimpleFacto Time(sec): " << (clock() - start_time) / 1000.0000 << std::endl;
-		return;
-	}
-
-	//���� >1
-	//spisok = SpisokSort;
-	//std::vector<int> newSpisok(spisok);
-	//int blocknum;
-	//for (int i = 1; i < spisok[spisok.size() - 1] + 1; i++) {
-	//	blocknum = spisok[KAO[x] - 1];
-	//}
-	std::vector<int> BlockDiam(BlockNum);
-	int diamsum = 0;  //����� ���� ���������
-
-	for (int i = 0; i < BlockNum; i++) {
-		kGraph Restored = this->RestoreBlockK(i + 1, spisok);
-		x = 0; y = 0;
-		for (int j = 1; j < Restored.Targets.size(); j++)
-			if (Restored.Targets[j]) {
-				x = j;
-				break;
-			}
-		for (int j = x + 1; j < Restored.Targets.size(); j++)
-			if (Restored.Targets[j]) {
-				y = j;
-				break;
-			}
-		BlockDiam[i] = Restored.DistanceDijkstra(x, y);
-		diamsum += BlockDiam[i];
-	}
-
-	output << "Diameter calculations(ms): " << (clock() - start_time) << std::endl;
-
-	//diamsum - ����������� ���������� ����� �������� ���������
-	if (diamsum > UpperBound) {
-		output << "Error: diamsum > UpperBound" << std::endl;
-		return;
-	}
-	int gap = UpperBound - diamsum;
-	BlockReliab.resize(BlockNum, std::vector<double>(gap + 1));
-	start_time = clock();
-	for (int i = 0; i < BlockNum; i++) {
-		kGraph Restored = this->RestoreBlockK(i + 1, spisok);
-		for (int j = 1; j < Restored.Targets.size(); j++)
-			if (Restored.Targets[j]) {
-				x = j;
-				break;
-			}
-		for (int j = x + 1; j < Restored.Targets.size(); j++)
-			if (Restored.Targets[j]) {
-				y = j;
-				break;
-			}
-		for (int j = 0; j < gap + 1; j++) {
-			Factoring2Vert(Restored, x, y, 0, BlockDiam[i] + j, 1);
-			BlockReliab[i][j] = globsumReliab;
-			globsumReliab = 0;
-		}
-	}
-	clock_t reliabcalc = clock();
-	//����� n ������� n - 1 ����� ����������
-	std::vector<double> curBlockRel(gap + 1);
-	//for (int j = 1; j < BlockReliab[BlockNum - 1].size(); j++)
-	//	BlockReliab[BlockNum - 1][j] += BlockReliab[BlockNum - 1][j - 1];
-
-	for (int i = BlockNum - 1; i > 0; i--) {
-		// d1 = BlockDiam[i - 1], d2 = BlockDiam[i];
-		for (int diam = 0; diam < gap + 1; diam++) {
-			for (int j = 0; j < diam + 1; j++)
-				curBlockRel[diam] = BlockReliab[i - 1][j] * BlockReliab[i][diam - j];
-		}
-		for (int j = 0; j < BlockReliab[i - 1].size(); j++) {
-			BlockReliab[i - 1][j] = curBlockRel[j];
-			curBlockRel[j] = 0;
-		}
-	}
-	//for (int i = 1; i < BlockReliab[0].size(); i++)
-	//	BlockReliab[0][i] += BlockReliab[0][i - 1];
-	output << "reliabcalc Time(ms): " << (clock() - reliabcalc) << std::endl;
-	output << std::setprecision(16) << BlockReliab[0][BlockReliab[0].size() - 1] << std::endl;
-	output << "Recursions: " << NumberOfRec << std::endl;
-	output << "Decompose Simple Facto Time(sec): " << (clock() - start_time) / 1000.0000 << std::endl;
-	output1 << (clock() - start_time) / 1000.0000 << std::endl;
-}
-
-void kGraph::ReliabilityDiamConstr2VertM(int x, int y, const int& UpperBound){
-//    {������ �-�� ��-�� ���� ������ x,y � ���-� �� ������� d ������� ���������������� ������������.
-//     ������������ ���������� ������, ���������� �-� �������� �� ����������;
-//     �� ������������ ��������� ���������� � ����� �-�� (��� �������)}
-	Nconst = this->KAO.size() * this->KAO.size();
-	clock_t start_time = clock();
-	int TerminalShortestPath = this->DistanceDijkstra(x, y);
-	if (TerminalShortestPath > UpperBound) {
-		output << "Error 'TerminalShortestPath > UpperBound'";
-		return;
-	}
-	int gap = UpperBound - TerminalShortestPath;
-	
-	sumReliab.resize(gap + 1);
-	Factoring2VertM(*this, x, y, 0, UpperBound, 1.0, TerminalShortestPath, UpperBound);
-	output << std::setprecision(16) << sumReliab[gap] << std::endl;
-	output << "Recursions: " << NumberOfRec << std::endl;
-	output1 << (clock() - start_time) / 1000.0000 << std::endl;
-}
-
-GraphMethodResult kGraph::ReliabilityDiamConstr2VertMDecompose(int x, int y, const int& UpperBound) {
+GraphMethodResult kGraph::ReliabilityDiamConstr2VertDecomposeSimpleFacto(int x, int y, int UpperBound)
+{
 	Nconst = this->KAO.size() * this->KAO.size();
 	clock_t start_time = clock();
 	NumberOfRec = 0;
@@ -514,17 +409,20 @@ GraphMethodResult kGraph::ReliabilityDiamConstr2VertMDecompose(int x, int y, con
 	BlockReliab.clear();
 
 	std::vector<int> spisok = this->DecomposeOnBlocksK();
-	int BlockNum = spisok[spisok.size() - 1];
+	int BlockNum = spisok.back();
 
 	if (BlockNum == 1) {
 		int BlockDiam = this->DistanceDijkstra(x, y);
-		sumReliab.resize(UpperBound - BlockDiam + 1);
-		Factoring2VertM(*this, x, y, 0, UpperBound, 1, BlockDiam, UpperBound);
-		for (int i = 1; i < sumReliab.size(); i++) {
-			sumReliab[i] += sumReliab[i - 1];
+		
+		if (BlockDiam > UpperBound) {
+			double time_sec = (clock() - start_time) / 1000.0000;
+			std::cout << "Error: BlockDiam > UpperBound" << std::endl;
+			return GraphMethodResult(0.0, NumberOfRec, time_sec);
 		}
+
+		Factoring2Vert(*this, x, y, 0, UpperBound, 1);
+		double reliability = globsumReliab;
 		double time_sec = (clock() - start_time) / 1000.0000;
-		double reliability = sumReliab.empty() ? 0.0 : sumReliab[sumReliab.size() - 1];
 		return GraphMethodResult(reliability, NumberOfRec, time_sec);
 	}
 
@@ -546,6 +444,7 @@ GraphMethodResult kGraph::ReliabilityDiamConstr2VertMDecompose(int x, int y, con
 
 	if (diamsum > UpperBound) {
 		double time_sec = (clock() - start_time) / 1000.0000;
+		std::cout << "Error: diamsum > UpperBound" << std::endl;
 		return GraphMethodResult(0.0, NumberOfRec, time_sec);
 	}
 
@@ -561,20 +460,27 @@ GraphMethodResult kGraph::ReliabilityDiamConstr2VertMDecompose(int x, int y, con
 				else if (local_y == 0) local_y = j;
 			}
 		}
-		sumReliab.clear();
-		sumReliab.resize(gap + 1, 0.0);
-		Factoring2VertM(Restored, local_x, local_y, 0, BlockDiam[i] + gap, 1, BlockDiam[i], BlockDiam[i] + gap);
-		BlockReliab[i] = sumReliab;
+		for (int j = 0; j < gap + 1; j++) {
+			globsumReliab = 0;
+			Factoring2Vert(Restored, local_x, local_y, 0, BlockDiam[i] + j, 1);
+			BlockReliab[i][j] = globsumReliab;
+		}
 	}
 
 	std::vector<double> curBlockRel(gap + 1, 0.0);
-	for (int j = 1; j < BlockReliab[BlockNum - 1].size(); j++) {
-		BlockReliab[BlockNum - 1][j] += BlockReliab[BlockNum - 1][j - 1];
+	//for (int j = 1; j < BlockReliab[BlockNum - 1].size(); j++) {
+	//	BlockReliab[BlockNum - 1][j] += BlockReliab[BlockNum - 1][j - 1];
+	//}
+	//получили полные надежности вместо точных, которые не применимы в формуле
+	for (int i = 0; i < BlockNum - 1; i++) {
+		for (int j = gap; j > 0; j--) {
+			BlockReliab[i][j] -= BlockReliab[i][j - 1];
+		}
 	}
 
 	for (int i = BlockNum - 1; i > 0; i--) {
 		for (int diam = 0; diam < gap + 1; diam++) {
-			for (int j = 0; j <= diam; j++) {
+			for (int j = 0; j < diam + 1; j++) {
 				curBlockRel[diam] += BlockReliab[i - 1][j] * BlockReliab[i][diam - j];
 			}
 		}
@@ -585,7 +491,115 @@ GraphMethodResult kGraph::ReliabilityDiamConstr2VertMDecompose(int x, int y, con
 	}
 
 	double time_sec = (clock() - start_time) / 1000.0000;
-	double reliability = BlockReliab.empty() || BlockReliab[0].empty() ? 0.0 : BlockReliab[0][BlockReliab[0].size() - 1];
+	
+	double reliability = BlockReliab[0].back();
+	
+	return GraphMethodResult(reliability, NumberOfRec, time_sec);
+}
+
+void kGraph::ReliabilityDiamConstr2VertM(int x, int y, const int& UpperBound){
+//    {������ �-�� ��-�� ���� ������ x,y � ���-� �� ������� d ������� ���������������� ������������.
+//     ������������ ���������� ������, ���������� �-� �������� �� ����������;
+//     �� ������������ ��������� ���������� � ����� �-�� (��� �������)}
+	Nconst = this->KAO.size() * this->KAO.size();
+	clock_t start_time = clock();
+	int TerminalShortestPathLen = this->DistanceDijkstra(x, y);
+	if (TerminalShortestPathLen > UpperBound) {
+		output << "Error 'TerminalShortestPath > UpperBound'";
+		return;
+	}
+	int gap = UpperBound - TerminalShortestPathLen;
+	
+	sumReliab.resize(gap + 1);
+	Factoring2VertM(*this, x, y, 0, UpperBound, 1.0, TerminalShortestPathLen, UpperBound);
+	output << std::setprecision(16) << sumReliab[gap] << std::endl;
+	output << "Recursions: " << NumberOfRec << std::endl;
+	output1 << (clock() - start_time) / 1000.0000 << std::endl;
+}
+
+GraphMethodResult kGraph::ReliabilityDiamConstr2VertMDecompose(int x, int y, const int& UpperBound) {
+	Nconst = this->KAO.size() * this->KAO.size();
+	clock_t start_time = clock();
+	NumberOfRec = 0;
+	sumReliab.clear();
+	BlockReliab.clear();
+
+	std::vector<int> spisok = this->DecomposeOnBlocksK();
+	int BlockNum = spisok.back();
+
+	if (BlockNum == 1) {
+		int BlockDiam = this->DistanceDijkstra(x, y);
+		sumReliab.resize(UpperBound - BlockDiam + 1);
+		Factoring2VertM(*this, x, y, 0, UpperBound, 1, BlockDiam, UpperBound);
+		for (int i = 1; i < sumReliab.size(); i++) {
+			sumReliab[i] += sumReliab[i - 1];
+		}
+		double time_sec = (clock() - start_time) / 1000.0000;
+		double reliability = sumReliab.back();
+		return GraphMethodResult(reliability, NumberOfRec, time_sec);
+	}
+
+	std::vector<int> BlockDiam(BlockNum);
+	int diamsum = 0;
+
+	for (int i = 0; i < BlockNum; i++) {
+		kGraph Restored = this->RestoreBlockK(i + 1, spisok);
+		int local_x = 0, local_y = 0;
+		for (int j = 1; j < Restored.Targets.size(); j++) {
+			if (Restored.Targets[j]) {
+				if (local_x == 0) local_x = j;
+				else if (local_y == 0) local_y = j;
+			}
+		}
+		BlockDiam[i] = Restored.DistanceDijkstra(local_x, local_y);
+		diamsum += BlockDiam[i];
+	}
+
+	if (diamsum > UpperBound) {
+		std::cout << "Diameter sum overflow (diamsum = " + std::to_string(diamsum) + ", UpperBound = " + std::to_string(UpperBound) + ")\n";
+		double time_sec = (clock() - start_time) / 1000.0000;
+		return GraphMethodResult(0.0, NumberOfRec, time_sec);
+	}
+
+	int gap = UpperBound - diamsum;
+	BlockReliab.resize(BlockNum);
+
+	for (int i = 0; i < BlockNum; i++) {
+		kGraph Restored = this->RestoreBlockK(i + 1, spisok);
+		int local_x = 0, local_y = 0;
+		for (int j = 1; j < Restored.Targets.size(); j++) {
+			if (Restored.Targets[j]) {
+				if (local_x == 0) local_x = j;
+				else if (local_y == 0) local_y = j;
+			}
+		}
+		sumReliab.clear();
+		sumReliab.resize(gap + 1, 0.0);
+		Factoring2VertM(Restored, local_x, local_y, 0, BlockDiam[i], 1, BlockDiam[i], BlockDiam[i] + gap);
+		BlockReliab[i] = sumReliab;
+	}
+
+	std::vector<double> curBlockRel(gap + 1, 0.0);
+	for (int j = 1; j < BlockReliab[BlockNum - 1].size(); j++) {
+		BlockReliab[BlockNum - 1][j] += BlockReliab[BlockNum - 1][j - 1];
+	}
+
+	for (int i = BlockNum - 1; i > 0; i--) {
+		for (int diam = 0; diam < gap + 1; diam++) {
+			for (int j = 0; j < diam + 1; j++) {
+				curBlockRel[diam] += BlockReliab[i - 1][j] * BlockReliab[i][diam - j];
+			}
+		}
+		for (int j = 0; j < gap + 1; j++) {
+			BlockReliab[i - 1][j] = curBlockRel[j];
+			curBlockRel[j] = 0.0;
+		}
+	}
+
+	double time_sec = (clock() - start_time) / 1000.0000;
+	
+	double reliability = BlockReliab[0].back();
+
 	return GraphMethodResult(reliability, NumberOfRec, time_sec);
 }
 
@@ -594,7 +608,7 @@ void kGraph::ReliabilityDiamConstr2VertMDecomposeParallel(int x, int y, const in
 	Nconst = this->KAO.size() * this->KAO.size();
 	clock_t start_time = clock();
 	std::vector<int> spisok = this->DecomposeOnBlocksK();
-	int BlockNum = spisok[spisok.size() - 1];
+	int BlockNum = spisok.back();
 	//���� 1 ����
 	if (BlockNum == 1) {
 		int BlockDiam = this->DistanceDijkstra(x, y);
@@ -602,7 +616,7 @@ void kGraph::ReliabilityDiamConstr2VertMDecomposeParallel(int x, int y, const in
 		Factoring2VertM(*this, x, y, 0, UpperBound, 1, BlockDiam, UpperBound);
 		for (int i = 1; i < sumReliab.size(); i++)
 			sumReliab[i] += sumReliab[i - 1];
-		output << std::setprecision(16) << sumReliab[sumReliab.size() - 1] << std::endl;
+		output << std::setprecision(16) << sumReliab.back() << std::endl;
 		output << "Recursions: " << NumberOfRec << std::endl;
 		output << "Decompose Facto Time(sec): " << (clock() - start_time) / 1000.0000 << std::endl;
 		return;
@@ -665,7 +679,7 @@ void kGraph::ReliabilityDiamConstr2VertMDecomposeParallel(int x, int y, const in
 	for (int j = 1; j < BlockReliab[BlockNum - 1].size(); j++)
 		BlockReliab[BlockNum - 1][j] += BlockReliab[BlockNum - 1][j - 1];
 
-	for (int i = spisok[spisok.size() - 1] - 1; i > 0; i--) {
+	for (int i = spisok.back() - 1; i > 0; i--) {
 		//int d1 = BlockDiam[i - 1], d2 = BlockDiam[i];
 		for (int diam = 0; diam < gap + 1; diam++) {
 			for (int j = 0; j < diam + 1; j++)
@@ -679,54 +693,84 @@ void kGraph::ReliabilityDiamConstr2VertMDecomposeParallel(int x, int y, const in
 	//for (int i = 1; i < BlockReliab[0].size(); i++)
 	//	BlockReliab[0][i] += BlockReliab[0][i - 1];
 	output << "reliabcalc Time(ms): " << (clock() - reliabcalc) << std::endl;
-	output << std::setprecision(16) << BlockReliab[0][BlockReliab[0].size() - 1] << std::endl;
+	output << std::setprecision(16) << BlockReliab[0].back() << std::endl;
 	output << "Recursions: " << NumberOfRec << std::endl;
 	output << "Decompose Parallel Facto Time(sec): " << (clock() - start_time) / 1000.0000 << std::endl;
 	output1 << (clock() - start_time) / 1000.0000 << std::endl;
 }
 
+GraphMethodResult kGraph::ReliabilityDiamConstr2VertRecDecompositionSF(int s, int t, int UpperBound) {
+	Nconst = (this->KAO.size() > 1) ? (this->KAO.size() * this->KAO.size()) : 100000;
+	clock_t start_time = clock();
+	
+	int terminaldiam = this->DistanceDijkstra(s, t);
+
+	if (terminaldiam > UpperBound) {
+		double time_sec = (clock() - start_time) / 1000.0000;
+		std::cout << "Error: terminaldiam > UpperBound" << std::endl;
+		return GraphMethodResult(0.0, NumberOfRec, time_sec);
+	}
+	//!TODO убедиться в необходимости реализации отдельной функции
+}
+
+
 GraphMethodResult kGraph::ReliabilityDiamConstr2VertRecursiveDecomposition(int s_node, int t_node, int UpperBound) {
 	Nconst = (this->KAO.size() > 1) ? (this->KAO.size() * this->KAO.size()) : 100000;
 	clock_t start_time = clock();
-	long long NumberOfRec_backup = NumberOfRec;
-	NumberOfRec = 0;
 	globsumReliab = 0;
 
 	// 1. Декомпозиция графа на блоки
 	std::vector<int> spisok_decomp_original = this->DecomposeOnBlocksK();
 
-	if (spisok_decomp_original.empty() || spisok_decomp_original.back() == 0) {
-		// Прямой расчёт для одного блока
-		std::vector<double> R_cumulative(UpperBound + 1, 0.0);
-		double global_globsumReliab_backup = globsumReliab;
-		int d_min_overall = this->DistanceDijkstra(s_node, t_node);
+	int BlockNum = spisok_decomp_original.back();
 
-		for (int d = 0; d <= UpperBound; ++d) {
-			if (d < d_min_overall && d_min_overall != Nconst) {
-				R_cumulative[d] = 0.0;
-			}
-			else {
-				globsumReliab = 0.0;
-				Factoring2Vert(*this, s_node, t_node, 0, d, 1.0);
-				R_cumulative[d] = globsumReliab;
-			}
+	int diamsum = 0;
+	if (spisok_decomp_original.empty()) {
+		std::cout << "Can't decompose a graph";
+		return GraphMethodResult(0, 0, 0);
+	}
+	if (BlockNum == 1) {
+		// Прямой расчёт для одного блока
+		int BlockDiam = this->DistanceDijkstra(s_node, t_node);
+		if (BlockDiam > UpperBound) {
+			double time_sec = (clock() - start_time) / 1000.0000;
+			std::cout << "Error: BlockDiam > UpperBound" << std::endl;
+			return GraphMethodResult(0.0, NumberOfRec, time_sec);
 		}
-		for (int d = 1; d <= UpperBound; ++d) {
-			if (R_cumulative[d] < R_cumulative[d - 1]) R_cumulative[d] = R_cumulative[d - 1];
-		}
-		globsumReliab = global_globsumReliab_backup;
-		NumberOfRec += NumberOfRec_backup;
+
+		globsumReliab = 0.0;
+		Factoring2Vert(*this, s_node, t_node, 0, UpperBound, 1.0);
+
+		double reliability = globsumReliab;
 		double time_sec = (clock() - start_time) / 1000.0000;
-		double reliability = R_cumulative.empty() ? 0.0 : R_cumulative[std::min((int)R_cumulative.size() - 1, UpperBound)];
 		return GraphMethodResult(reliability, NumberOfRec, time_sec);
 	}
 
-	int num_original_blocks = spisok_decomp_original.back();
+	std::vector<int> BlockDiam(BlockNum);
+
+	for (int i = 0; i < BlockNum; i++) {
+		kGraph Restored = this->RestoreBlockK(i + 1, spisok_decomp_original);
+		int local_x = 0, local_y = 0;
+		for (int j = 1; j < Restored.Targets.size(); j++) {
+			if (Restored.Targets[j]) {
+				if (local_x == 0) local_x = j;
+				else if (local_y == 0) local_y = j;
+			}
+		}
+		BlockDiam[i] = Restored.DistanceDijkstra(local_x, local_y);
+		diamsum += BlockDiam[i];
+	}
+
+	if (diamsum > UpperBound) {
+		std::cout << "Diameter sum overflow (diamsum = " + std::to_string(diamsum) + ", UpperBound = " + std::to_string(UpperBound) + ")\n";
+		double time_sec = (clock() - start_time) / 1000.0000;
+		return GraphMethodResult(0.0, NumberOfRec, time_sec);
+	}
 
 	// 2. Построение графа блоков
-	std::vector<BlockGraphNode> block_nodes(num_original_blocks);
+	std::vector<BlockGraphNode> block_nodes(BlockNum);
 	std::map<int, int> original_block_id_to_node_idx;
-	for (int i = 0; i < num_original_blocks; ++i) {
+	for (int i = 0; i < BlockNum; ++i) {
 		block_nodes[i].original_block_id = i + 1;
 		original_block_id_to_node_idx[i + 1] = i;
 	}
@@ -758,7 +802,6 @@ GraphMethodResult kGraph::ReliabilityDiamConstr2VertRecursiveDecomposition(int s
 	std::vector<int> t_containing_orig_blocks = get_blocks_containing_vertex(t_node, spisok_decomp_original);
 
 	if (s_containing_orig_blocks.empty() || t_containing_orig_blocks.empty()) {
-		NumberOfRec += NumberOfRec_backup;
 		double time_sec = (clock() - start_time) / 1000.0000;
 		return GraphMethodResult(0.0, NumberOfRec, time_sec);
 	}
@@ -772,7 +815,6 @@ GraphMethodResult kGraph::ReliabilityDiamConstr2VertRecursiveDecomposition(int s
 		start_block_node_idx, end_block_node_idx, block_nodes.size(), block_edges, path_articulation_points_ids);
 
 	if (block_path_node_indices.empty()) {
-		NumberOfRec += NumberOfRec_backup;
 		double time_sec = (clock() - start_time) / 1000.0000;
 		return GraphMethodResult(0.0, NumberOfRec, time_sec);
 	}
@@ -793,7 +835,6 @@ GraphMethodResult kGraph::ReliabilityDiamConstr2VertRecursiveDecomposition(int s
 		0, s_node, t_node, UpperBound, spisok_decomp_original,
 		ordered_original_block_ids_on_path, final_aps_for_solver);
 
-	NumberOfRec += NumberOfRec_backup;
 	double time_sec = (clock() - start_time) / 1000.0000;
 	double reliability = result_reliabilities.empty() ? 0.0 : result_reliabilities[std::min((int)result_reliabilities.size() - 1, UpperBound)];
 	return GraphMethodResult(reliability, NumberOfRec, time_sec);
@@ -889,8 +930,8 @@ std::vector<int> kGraph::DecomposeOnBlocksK() {
 	std::vector<int> S = this->DecomposeOnBlocks();
 	if (S.size() == 1)
 		return S;
-	std::vector<int> TargetBlocks(S[S.size() - 1] + 1);
-	for (int i = 1; i < this->Targets[this->Targets.size() - 1] + 1; i++) //����� �������� �������
+	std::vector<int> TargetBlocks(S.back() + 1);
+	for (int i = 1; i < this->Targets.back() + 1; i++) //����� �������� �������
 		if (this->Targets[i] == 1) {
 			bool boolean = true;
 			int k = S[this->KAO[i - 1]];
@@ -921,7 +962,7 @@ std::vector<int> kGraph::DecomposeOnBlocksK() {
 			if (boolean == false)
 				this->Targets[i] = 1;
 		}
-	std::vector<int> NewNumbers(S[S.size() - 1] + 1);
+	std::vector<int> NewNumbers(S.back() + 1);
 	for (int i = 0; i < NewNumbers.size(); i++)
 		NewNumbers[i] = i;
 	int k = 0;
@@ -948,183 +989,167 @@ std::vector<int> kGraph::DecomposeOnBlocksK() {
 	//NewNumbers[17] = 4;
 	for (int i = 0; i < S.size() - 1; i++)
 		S[i] = NewNumbers[S[i]];
-	S[S.size() - 1] -= k;
+	S.back() -= k;
 	return S;
 }
 
 kGraph kGraph::DeleteEdgeK(const int u, const int v) {
-	//    ������� �� ����� �����(u, v)
-	int e, f;
-	e = this->SearchEdge(u, v);
-	f = this->SearchEdge(v, u);
+	int e = this->SearchEdge(u, v);
+	int f = this->SearchEdge(v, u);
 	kGraph Result;
-	Result.Targets.resize(this->Targets.size());
-	if ((e < this->FO.size()) && (f < this->FO.size())) {
-		Result.KAO.resize(this->KAO.size());
-		Result.FO.resize(this->FO.size() - 2);
-		Result.PArray.resize(this->PArray.size() - 2);
-		if (e < f) {
-			for (int i = 0; i < u; i++)
-				Result.KAO[i] = this->KAO[i];
-			for (int i = u; i < v; i++)
-				Result.KAO[i] = this->KAO[i] - 1;
-			for (int i = v; i < this->KAO.size(); i++)
-				Result.KAO[i] = this->KAO[i] - 2;
-			if (e > 0)
-				for (int i = 0; i < e; i++) {
-					Result.FO[i] = this->FO[i];
-					Result.PArray[i] = this->PArray[i];
-				}
-			if (f > e + 1)
-				for (int i = e; i < f - 1; i++) {
-					Result.FO[i] = this->FO[i + 1];
-					Result.PArray[i] = this->PArray[i + 1];
-				}
-			if (this->FO.size() > f + 1)
-				for (int i = f - 1; i < this->FO.size() - 2; i++) {
-					Result.FO[i] = this->FO[i + 2];
-					Result.PArray[i] = this->PArray[i + 2];
-				}
-		}
-		else {
-			for (int i = 0; i < v; i++)
-				Result.KAO[i] = this->KAO[i];
-			for (int i = v; i < u; i++)
-				Result.KAO[i] = this->KAO[i] - 1;
-			for (int i = u; i < this->KAO.size(); i++)
-				Result.KAO[i] = this->KAO[i] - 2;
-			if (f > 0)
-				for (int i = 0; i < f; i++) {
-					Result.FO[i] = this->FO[i];
-					Result.PArray[i] = this->PArray[i];
-				}
-			if (e > f + 1)
-				for (int i = f; i < e - 1; i++) {
-					Result.FO[i] = this->FO[i + 1];
-					Result.PArray[i] = this->PArray[i + 1];
-				}
-			if (this->FO.size() > e + 1)
-				for (int i = e - 1; i < this->FO.size() - 2; i++) {
-					Result.FO[i] = this->FO[i + 2];
-					Result.PArray[i] = this->PArray[i + 2];
-				}
+
+	if (e >= this->FO.size() || f >= this->FO.size())
+		return *this; // если одно из рёбер не найдено, вернём копию
+
+	// Удалим оба ребра из FO и PArray
+	Result.FO.reserve(this->FO.size() - 2);
+	Result.PArray.reserve(this->PArray.size() - 2);
+	for (int i = 0; i < this->FO.size(); ++i) {
+		if (i != e && i != f) {
+			Result.FO.push_back(this->FO[i]);
+			Result.PArray.push_back(this->PArray[i]);
 		}
 	}
-	Result.Targets.resize(this->Targets.size());
-	for (int i = 0; i < Result.Targets.size(); i++)
-		Result.Targets[i] = this->Targets[i];
+
+	// Пересчитаем KAO
+	Result.KAO.resize(this->KAO.size());
+	for (int i = 1; i < (int)this->KAO.size(); ++i) {
+		int count = 0;
+		for (int j = this->KAO[i - 1]; j < this->KAO[i]; ++j) {
+			if (j != e && j != f)
+				++count;
+		}
+		Result.KAO[i] = Result.KAO[i - 1] + count;
+	}
+
+	// Копируем Targets (если это необходимо)
+	Result.Targets = this->Targets;
+
 	return Result;
 }
 
-kGraph kGraph::InducedKGraph(std::vector<int> spisok, int Number) {
-	//{��������������� ������� K-����� G, � ������� ������  ����� � ������� Number � ������ spisok}
-	std::vector<int> S(spisok.size());
-	int k = 0;
-	for (int i = 1; i < spisok.size(); i++)
-		if ((spisok[i] == Number) || (!spisok[i])) {
-			k++;
-			S[i] = k;
-		}
-		else
-			S[i] = 0;
-	std::vector<int> KAO(k + 1), FO(this->FO.size());
-	std::vector<double>PArray(this->FO.size());
-	int l = 0;
-	for (int i = 1; i < spisok.size(); i++)
-		if (S[i] != 0) {
-			KAO[S[i]] = KAO[S[i] - 1];
-			for (int j = this->KAO[i - 1]; j < this->KAO[i]; j++)
-				if ((S[this->FO[j]]) && this->Boolka(spisok, Number, i, j)) {
-					KAO[S[i]]++;
-					FO[l] = S[this->FO[j]];
-					PArray[l] = this->PArray[j];
-					l++;
-				}
-		}
-	FO.resize(l);
-	PArray.resize(l);
-	std::vector<int> Targets(KAO.size());
-	kGraph Result(KAO, FO, PArray, Targets);
-	for (int i = 1; i < this->Targets.size(); i++)
-		if (S[i] > 0)
-			Result.Targets[S[i]] = this->Targets[i];
+kGraph kGraph::InducedKGraph(const std::vector<int> spisok, int Number) const {
+    int oldN = (int)spisok.size() - 1;
 
-	return Result;
+    // 1) Построим отображение старых ID -> новых [1..k]
+    std::vector<int> S(spisok.size(), 0);
+    int k = 0;
+    for (int i = 1; i <= oldN; ++i) {
+        if (spisok[i] == Number || spisok[i] == 0) {
+            S[i] = ++k;
+        }
+    }
+
+    // 2) Временные списки смежности
+    // newAdj[v] = вектор пар (u, prob) для новой вершины v (1-based)
+    std::vector<std::vector<std::pair<int,double>>> newAdj(k+1);
+    for (int oldV = 1; oldV <= oldN; ++oldV) {
+        int newV = S[oldV];
+        if (newV == 0) continue;
+
+        // сканируем все соседи старой вершины oldV
+        for (int idx = KAO[oldV-1]; idx < KAO[oldV]; ++idx) {
+            int oldU = FO[idx];
+            int newU = S[oldU];
+            // включаем ребро, только если новый U существует и Boolka разрешает
+            if (newU > 0 && Boolka(spisok, Number, oldV, idx)) {
+                newAdj[newV].emplace_back(newU, PArray[idx]);
+            }
+        }
+    }
+
+    // 3) Переводим newAdj в CSR (KAO2, FO2, P2)
+    std::vector<int> KAO2(k+1), FO2;
+    std::vector<double> P2;
+    KAO2[0] = 0;
+    for (int v = 1; v <= k; ++v) {
+        KAO2[v] = KAO2[v-1] + (int)newAdj[v].size();
+    }
+    int total = KAO2[k];
+    FO2.reserve(total);
+    P2 .reserve(total);
+    for (int v = 1; v <= k; ++v) {
+        for (auto &pr : newAdj[v]) {
+            FO2.push_back(pr.first);
+            P2.push_back(pr.second);
+        }
+    }
+
+    // 4) Targets2
+    std::vector<int> T2(k+1, 0);
+    for (int oldV = 1; oldV <= oldN; ++oldV) {
+        int newV = S[oldV];
+        if (newV > 0) {
+            T2[newV] = this->Targets[oldV];
+        }
+    }
+
+    return kGraph(std::move(KAO2), std::move(FO2), std::move(P2), std::move(T2));
 }
 
 bool kGraph::KComponent() {
-	//{�������� ���������� ��������� ����� G, ���������� ��� ������� �������.
-	//���� ��� ��������, �� ���������� ����������� ��� G, � ��������� - ������.
-	//� ��������� ������ ���� �� ����������, � ��������� - ����.
-	//���������������� ����� G ���������� ���� � ��� ������, ����� �� ��������.
-	//���� ���� �� �������� ������� ������, �� ��������� - ����.
-	//���������� ������� � ������� ����� �����������}
-	int sum1 = 0;
-	for (int i = 1; i < this->Targets.size(); i++)
+	// Проверка: если целевая вершина всего одна, делаем граф тривиальным
+	int target_count = 0;
+	for (int i = 1; i < this->Targets.size(); ++i) {
 		if (this->Targets[i] == 1)
-			sum1++;
-	if (sum1 == 1) {
-		// ��� ������ ���������� ���������?
-		// ���� �� ������� ������� �� 2�� �� ���������� ��������
-		// � ���� ��� ���� ����� 1 ������� �������, �� ���������� ������������ ����
-		// � ���� ������ ������� ������� 1
-		this->KAO.resize(2);
-		this->KAO[0] = 0;
-		this->KAO[1] = 0;
-		this->FO.resize(0);
-		this->PArray.resize(0);
-		this->Targets.resize(2);
-		this->Targets[0] = 0;
-		this->Targets[1] = 0;
+			++target_count;
+	}
+
+	if (target_count == 1) {
+		this->KAO = { 0, 0 };
+		this->FO.clear();
+		this->PArray.clear();
+		this->Targets = { 0, 0 };
 		return true;
 	}
-	else {
-		std::vector<int> A, B, Spot;
-		int sum = 1;
-		int SumAll = 1;
-		A.resize(1);
-		for (int i = 1; i < this->Targets.size(); i++)
-			if (this->Targets[i] == 1) {
-				A[0] = i;
-				break;
-			}
-		int l = A.size();
-		Spot.resize(this->KAO.size());
-		for (int i = 1; i < this->KAO.size(); i++)
-			Spot[i] = 2;
-		Spot[A[0]] = 1;
-		while (l > 0) {
-			B.resize(0);
-			for (int i : A)
-				for (int j = this->KAO[i - 1]; j < this->KAO[i]; j++)
-					if (Spot[this->FO[j]] == 2) {
-						B.resize(B.size() + 1);
-						B[B.size() - 1] = this->FO[j];
-						Spot[this->FO[j]] = 1;
-						if (this->Targets[this->FO[j]] == 1)
-							sum++;
-						SumAll++;
-					}
 
-			A.resize(B.size());
-			l = A.size();
-			if (l > 0)
-				for (int i = 0; i < l; i++)
-					A[i] = B[i];
+	// BFS для обхода компоненты связности по целевым вершинам
+	std::vector<int> spot(this->KAO.size(), 2); // 2 — не посещено
+	std::queue<int> q;
+
+	// Найдём первую целевую вершину и начнем обход
+	int start = -1;
+	for (int i = 1; i < this->Targets.size(); ++i) {
+		if (this->Targets[i] == 1) {
+			start = i;
+			break;
 		}
-		bool Result = (sum == sum1);
-		if (Result && (SumAll < (this->KAO.size() - 1)))
-			*this = this->InducedKGraph(Spot, 1); //requires attention!
-		return Result;
 	}
+	if (start == -1) return false; // на всякий случай
+
+	q.push(start);
+	spot[start] = 1;
+
+	int reachable_targets = 1;
+	int reachable_total = 1;
+
+	while (!q.empty()) {
+		int u = q.front(); q.pop();
+		for (int i = this->KAO[u - 1]; i < this->KAO[u]; ++i) {
+			int v = this->FO[i];
+			if (spot[v] == 2) {
+				spot[v] = 1;
+				q.push(v);
+				if (this->Targets[v] == 1)
+					++reachable_targets;
+				++reachable_total;
+			}
+		}
+	}
+
+	bool all_targets_reached = (reachable_targets == target_count);
+
+	// Если граф связный, но содержит лишние вершины — обрезаем его
+	if (all_targets_reached && reachable_total < (int)this->KAO.size() - 1) {
+		*this = this->InducedKGraph(spot, 1); // оставить только достигнутые вершины
+	}
+
+	return all_targets_reached;
 }
 
-bool kGraph::Boolka(std::vector<int> spisok, int Number, int i, int j) {
+bool kGraph::Boolka(std::vector<int> spisok, int Number, int i, int j) const{
 	if (Number == 1)
 		return true;
-	//    if (!(spisok[i] || spisok[this->FO[j]]))
-	//        return false;
-	//    return true;
 	return spisok[i] || spisok[this->FO[j]];
 }
 
@@ -1217,7 +1242,7 @@ kGraph kGraph::RestoreBlock(int Number, const std::vector<int>& spisok) {
 
 	for (int i = 1; i < S.size(); i++) {
 		if (S[i]) {
-			KAO.push_back(KAO[KAO.size() - 1] + S[i]);
+			KAO.push_back(KAO.back() + S[i]);
 			Targets.push_back(this->Targets[i]);
 		}
 	}
@@ -1273,15 +1298,15 @@ void kGraph::kGraphFileOutput(std::ofstream& fout) {
 	for (int i = 0; i < this->KAO.size() - 1; i++) {
 		fout << KAO[i] << ",";
 	}
-	fout << this->KAO[this->KAO.size() - 1] << std::endl;
+	fout << this->KAO.back() << std::endl;
 	for (int i = 0; i < this->FO.size() - 1; i++) {
 		fout << FO[i] << ",";
 	}
-	fout << this->FO[this->FO.size() - 1] << std::endl;
+	fout << this->FO.back() << std::endl;
 	for (int i = 0; i < this->Targets.size() - 1; i++) {
 		fout << Targets[i] << ",";
 	}
-	fout << this->Targets[this->Targets.size() - 1] << std::endl;
+	fout << this->Targets.back() << std::endl;
 	fout << this->PArray[0];
 }
 
@@ -1397,7 +1422,7 @@ std::vector<double> kGraph::solve_recursive_for_block_chain_ordered(
              R_cumul_s_x[d] = 0.0;
         } else {
             globsumReliab = 0.0;
-            Factoring2Vert(current_block_graph, s_in_block, x_in_block, 0, d, 1.0);
+            Factoring2Vert(current_block_graph, s_in_block, x_in_block, 0, d, 1.0); // Здесь происходит пересчет для одних и тех же значений диаметра??
             R_cumul_s_x[d] = globsumReliab;
         }
     }

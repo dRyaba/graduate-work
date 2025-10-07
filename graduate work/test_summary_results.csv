@@ -1,0 +1,2 @@
+Graph,S,T,D,Reps,Method,AvgTime,AvgRel,AvgRecs
+3_blocks_sausage_3x3_kao.txt,1,29,9,1,ReliabilityDiamConstr2VertSimpleFacto,1.58e-05,0,1

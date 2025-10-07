@@ -1,8 +1,10 @@
 #pragma once
 #include <vector>
+#include <fstream>
 
 extern int Nconst;
 extern std::vector<int> cutPoints;
+
 
 struct Graph {
 	std::vector<int> KAO, FO;
@@ -20,12 +22,12 @@ struct Graph {
 	void CutPointsSearch(int v, int p);
 	// Находит точки сочленения и записывает их в cutPoints
 
-	int SearchEdge(const int i, const int j);
+	int SearchEdge(const int i, const int j) const;
 	//вычисляет номер ребра из i в j в массиве FO
 
-	int DistanceDijkstra(const int x, const int y);
+	int DistanceDijkstra(const int x, const int y) const;
 
-	bool CheckEdge(int i, int j);
+	bool CheckEdge(int i, int j) const;
 
 	Graph DeleteEdge(int u, int v);
 
@@ -46,4 +48,13 @@ struct Graph {
 
 	Graph ChangVertex(int u, int v);
 	//Меняет в графе вершины u и v местами(перенумеровывает)
+
+	// Чтение списка рёбер и преобразование в формат KAO/FO
+	virtual void convertEdgeListToKAOFO(const std::string& inputPath,
+		const std::string& outputPath,
+		double reliability);
+
+	// Обратное преобразование KAO/FO -> список рёбер
+	virtual void convertKAOFOToEdgeList(const std::string& inputPath,
+		const std::string& outputPath);
 };
