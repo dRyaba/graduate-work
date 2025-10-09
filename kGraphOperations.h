@@ -1,12 +1,21 @@
 #pragma once
 #include <fstream>
+#include <optional>
 #include "GraphOperations.h"
 
 extern std::ofstream output, output1;
 extern int NumberOfRec;
 extern std::vector<double> sumReliab;
 extern double globsumReliab;
+extern std::vector<std::vector<double>> BlockReliab;
 
+struct GraphMethodResult {
+	double reliability;
+	long long recursions;
+	double time_sec;
+	GraphMethodResult(double rel = 0.0, long long rec = 0, double time = 0.0)
+		: reliability(rel), recursions(rec), time_sec(time) {}
+};
 
 struct kGraph : public Graph {
 	std::vector<int> Targets;
@@ -22,90 +31,147 @@ struct kGraph : public Graph {
 	//    ~kGraph()= default;
 
 	void ReliabilityDiamConstr(int d);
-	//{Расчет вероятности связности с ограничением на диаметр d методом ветвления.
-	// Используется выделение комп-ты связности с целевыми в-ми, разделение ветвей,
-	// встроенная ф-я проверки на расстояния}
+	//{пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ d пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
+	// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ-пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ-пїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ,
+	// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ-пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ}
 
-	void ReliabilityDiamConstr2Vert(int x, int y, int d);
-	//{Расчет в-ти св-ти двух вершин x,y с огр-м на диаметр d методом ветвления.
-	// Используется разделение ветвей, встроенная ф-я проверки на расстояния;
-	// не используется выделение компонентв с двумя в-ми (так быстрее)}
-	void ReliabilityDiamConstr2VertDecomposeSimpleFacto(int x, int y, const int& UpperBound);
+	GraphMethodResult ReliabilityDiamConstr2Vert(int x, int y, int d);
+	//{Р Р°СЃС‡РµС‚ РІ-С‚Рё СЃРІ-С‚Рё РґРІСѓС… РІРµСЂС€РёРЅ x,y СЃ РѕРіСЂ-Рј РЅР° РґРёР°РјРµС‚СЂ d РјРµС‚РѕРґРѕРј РІРµС‚РІР»РµРЅРёСЏ.
+	// РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ СЂР°Р·РґРµР»РµРЅРёРµ РІРµС‚РІРµР№, РІСЃС‚СЂРѕРµРЅРЅР°СЏ С„-СЏ РїСЂРѕРІРµСЂРєРё РЅР° СЂР°СЃСЃС‚РѕСЏРЅРёСЏ;
+	// РЅРµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РІС‹РґРµР»РµРЅРёРµ РєРѕРјРїРѕРЅРµРЅС‚ СЃ РґРІСѓРјСЏ РІ-РјРё (С‚Р°Рє Р±С‹СЃС‚СЂРµРµ)}
+
+	GraphMethodResult ReliabilityDiamConstr2VertDecomposeSimpleFacto(int x, int y, int UpperBound);
 
 	void ReliabilityDiamConstr2VertM(int x, int y,/* const int& LowerBound,*/ const int& UpperBound);
 
 	void ReliabilityDiamConstr2Vert2Blocks(int x, int y, const int& LowerBound, const int& UpperBound);
 
-	void ReliabilityDiamConstr2VertMDecompose(int x, int y, const int& UpperBound);
+	GraphMethodResult ReliabilityDiamConstr2VertMDecompose(int x, int y, const int& UpperBound);
 	
 	void ReliabilityDiamConstr2VertMDecomposeParallel(int x, int y, const int& UpperBound);
+
+	GraphMethodResult ReliabilityDiamConstr2VertRecDecompositionSF(int s, int t, int UpperBound);
+	
+	GraphMethodResult ReliabilityDiamConstr2VertRecursiveDecomposition(int s_node, int t_node, int UpperBound);
+
+	std::optional<int> FindLastUnreliableEdge() const;
+
+	std::pair<int, int> FindReverseEdgeIndices(int edgeIndex) const;
 
 	bool CheckDistanceFloyd(const int d);
 
 	void SearchVertice(std::vector<int>& DfNumber, std::vector<int>& TreeEdges, std::vector<int>& Low, std::vector<int>& Stek, int& r, int& l, int v, std::vector<int>& DOB);
 
 	std::vector<int> DecomposeOnBlocks();
-		//Result[i] - номер блока в котрый попало ребро с номером i(номер ребра по массиву FO)
-		//Result[Result.size() - 1] - кол - во блоков
+		//Result[i] - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ i(пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ FO)
+		//Result[Result.size() - 1] - пїЅпїЅпїЅ - пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 
 	std::vector<int> DecomposeOnBlocksK();
-	//{Разложение K - графа на блоки.
-	//Result[i] - номер блока в котрый попало ребро с номером i(номер ребра по массиву FO)
-	//Result[length(Result) - 1] - кол - во блоков, которые содержат цел.в - ны или являются связующими
-	//Ребра, входящие в блоки, которые не содержат цел.в - н и не являются связующими входят блок с номером 0
-	//Точки сочленения в связующих блоках заносятся в цлевые вершины графа G
-	//Если в графе одна цел.в - на, то Result[i] = 0 для всех i
-	//Если в графе нет ребер, то Result состоит из одного элемента, Result[0] = 0
-	//Применение функции некорректно к несвязому графу и графу без целевых вершин}
+	//{пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ K - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ.
+	//Result[i] - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ i(пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ FO)
+	//Result[length(Result) - 1] - пїЅпїЅпїЅ - пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ.пїЅ - пїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+	//пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ.пїЅ - пїЅ пїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ 0
+	//пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ G
+	//пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ.пїЅ - пїЅпїЅ, пїЅпїЅ Result[i] = 0 пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ i
+	//пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅ Result пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, Result[0] = 0
+	//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ}
 
 	kGraph RestoreBlockK(int Number, const std::vector<int>& spisok);
-	//{Восстанавливает блок K - графа G с номером Number,
-	// используя spisok предварительно сформированный процедурой DecopmoseOnBlocksK
-	// Эта же процедура уже пополнила спсиок цел.в - н необходимыми точками сочленения}
+	//{пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ K - пїЅпїЅпїЅпїЅпїЅ G пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ Number,
+	// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ spisok пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ DecopmoseOnBlocksK
+	// пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ.пїЅ - пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ}
 
 	kGraph RestoreBlock(int Number, const std::vector<int>& spisok);
 
 	bool ConnectivityWithoutBlock(int Block, std::vector<int> S);
 
 	kGraph DeleteEdgeK(const int u, const int v);
-	//    Удаляет из графа ребро(u, v)
+	//    пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ(u, v)
 
-	kGraph InducedKGraph(std::vector<int> spisok, int Number);
-	//{Восстанавливает подграф K-графа G, в который входят  ребра с номером Number в списке spisok}
+	kGraph InducedKGraph(const std::vector<int> spisok, int Number) const;
+	//{пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ K-пїЅпїЅпїЅпїЅпїЅ G, пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ  пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ Number пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ spisok}
 
 	bool KComponent();
-	//{Выделяет компоненту связности графа G, содержащую все целевые вершины.
-	//Если это возможно, то компонента сохраняется как G, а результат - истина.
-	//В противном случае граф не изменяется, а результат - ложь.
-	//Переформирование графа G происходит лишь в том случае, когда он несвязен.
-	//Если граф не содержит целевых вершин, то результат - ложь.
-	//Применение функции к пустому графу некорректно}
+	//{пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ G, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
+	//пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ G, пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅ.
+	//пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅ.
+	//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ G пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
+	//пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅ.
+	//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ}
 
-	bool Boolka(std::vector<int> spisok, int Number, int i, int j);
+	bool Boolka(std::vector<int> spisok, int Number, int i, int j) const;
 
 	void kGraphFileOutput(std::ofstream& fout);
 
 	void ChangeVertex(int u, int v);
+
+	private:
+		// Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅР°СЏ С„СѓРЅРєС†РёСЏ РґР»СЏ РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ РіСЂР°С„Р° Р±Р»РѕРєР° Рё РєР°СЂС‚ РІРµСЂС€РёРЅ
+		void get_block_graph_and_map_ids(
+			int block_idx_to_restore,                   // РќРѕРјРµСЂ Р±Р»РѕРєР° РґР»СЏ РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ (1-based)
+			const std::vector<int>& spisok_decomposition, // Р РµР·СѓР»СЊС‚Р°С‚ DecomposeOnBlocksK() РґР»СЏ G_original
+			kGraph& out_block_graph,                    // Р’С‹С…РѕРґ: РіСЂР°С„ РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРЅРѕРіРѕ Р±Р»РѕРєР°
+			std::vector<int>& out_map_new_id_to_original_id, // РљР°СЂС‚Р°: РЅРѕРІС‹Р№ ID РІ Р±Р»РѕРєРµ -> РѕСЂРёРіРёРЅР°Р»СЊРЅС‹Р№ ID
+			std::vector<int>& out_map_original_id_to_new_id  // РљР°СЂС‚Р°: РѕСЂРёРіРёРЅР°Р»СЊРЅС‹Р№ ID -> РЅРѕРІС‹Р№ ID РІ Р±Р»РѕРєРµ (0 РµСЃР»Рё РЅРµ РІ Р±Р»РѕРєРµ)
+		) const; // Р”РѕР±Р°РІР»СЏРµРј const, С‚Р°Рє РєР°Рє РЅРµ РјРµРЅСЏРµС‚ *this (РёСЃС…РѕРґРЅС‹Р№ РіСЂР°С„)
+	
+		// РќРћР’РђРЇ РІРµСЂСЃРёСЏ solve_recursive_for_block_chain, СЂР°Р±РѕС‚Р°СЋС‰Р°СЏ СЃ СѓРїРѕСЂСЏРґРѕС‡РµРЅРЅРѕР№ С†РµРїСЊСЋ
+		std::vector<double> solve_recursive_for_block_chain_ordered(
+			int current_block_path_idx,
+			int entry_node_original_id,
+			int target_node_original_id,
+			int max_len_budget,
+			const std::vector<int>& spisok_decomposition_G_original,
+			const std::vector<int>& ordered_original_block_ids_on_path,
+			const std::vector<int>& ordered_articulation_points_orig_ids
+		) const; // Р”РѕР±Р°РІР»СЏРµРј const, С‚Р°Рє РєР°Рє РѕРЅР° РЅРµ РґРѕР»Р¶РЅР° РјРµРЅСЏС‚СЊ *this (РєРѕС‚РѕСЂС‹Р№ Р·РґРµСЃСЊ G_original)
+
+	
+		// Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅР°СЏ С„СѓРЅРєС†РёСЏ РґР»СЏ РѕРїСЂРµРґРµР»РµРЅРёСЏ, РІ РєР°РєРѕРј Р±Р»РѕРєРµ(Р°С…) РЅР°С…РѕРґРёС‚СЃСЏ РІРµСЂС€РёРЅР°
+		std::vector<int> get_blocks_containing_vertex(
+			int vertex_original_id,
+			const std::vector<int>& spisok_decomposition
+		) const;
+
+		void convertEdgeListToKAOFO(const std::string& inputPath,
+			const std::string& outputPath,
+			double reliability) override;
+
+		void convertKAOFOToEdgeList(const std::string& inputPath,
+			const std::string& outputPath) override;
+};
+
+// Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅР°СЏ СЃС‚СЂСѓРєС‚СѓСЂР° РґР»СЏ РїСЂРµРґСЃС‚Р°РІР»РµРЅРёСЏ РіСЂР°С„Р° Р±Р»РѕРєРѕРІ
+struct BlockGraphNode {
+    int original_block_id; // ID РёР· DecomposeOnBlocksK
+    std::vector<int> vertices_original_ids; // Р’РµСЂС€РёРЅС‹ РёСЃС…РѕРґРЅРѕРіРѕ РіСЂР°С„Р°, РїСЂРёРЅР°РґР»РµР¶Р°С‰РёРµ СЌС‚РѕРјСѓ Р±Р»РѕРєСѓ
+    // РњРѕР¶РЅРѕ РґРѕР±Р°РІРёС‚СЊ РґСЂСѓРіСѓСЋ РјРµС‚Р°-РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ Р±Р»РѕРєРµ, РµСЃР»Рё РЅСѓР¶РЅРѕ
+};
+
+struct BlockGraphEdge {
+    int from_block_node_idx; // РРЅРґРµРєСЃ СѓР·Р»Р° РІ РІРµРєС‚РѕСЂРµ СѓР·Р»РѕРІ РіСЂР°С„Р° Р±Р»РѕРєРѕРІ
+    int to_block_node_idx;   // РРЅРґРµРєСЃ СѓР·Р»Р° РІ РІРµРєС‚РѕСЂРµ СѓР·Р»РѕРІ РіСЂР°С„Р° Р±Р»РѕРєРѕРІ
+    int articulation_point_original_id; // ID С‚РѕС‡РєРё СЃРѕС‡Р»РµРЅРµРЅРёСЏ
 };
 
 void Factoring(kGraph G, const int variant, const int d, double Reliab);
-//результат лежит в sumReliab[0]
-//Ветвление, variant=0 - после удаления, variant=1 - после обнадеживания ребра
+//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ sumReliab[0]
+//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, variant=0 - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, variant=1 - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 
 void Factoring2Vert(kGraph G, const int x, const int y, const int variant, const int d, double Reliab);
-//результат лежит в globsumReliab
-//Ветвление, variant=0 - после удаления, variant=1 - после обнадеживания ребра
+//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ globsumReliab
+//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, variant=0 - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, variant=1 - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 
 void Factoring2VertM(kGraph G, const int x, const int y, const int variant, const int d, double Reliab, int LowerBound, int UpperBound);
-//Заполняет вектор надежностей с соответствующим ограничением на диаметр
-//Ветвление, variant=0 - после удаления, variant=1 - после обнадеживания ребра
+//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, variant=0 - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, variant=1 - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 
 void Factoring2VertMParallel(kGraph G, const int x, const int y, const int variant, const int d, double Reliab, int LowerBound, int UpperBound);
 
 void GraphMerging(int k);
-//Считывает из файлов и объединяет два графа по первым k вершинам с помощью функции UnionGraphs
+//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ k пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ UnionGraphs
 
 kGraph UnionGraphs(kGraph G1, kGraph G2, int k);
-//{Формирует граф, полученный объединением G1 и G2 по их первым k вершинам}
+//{пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ G1 пїЅ G2 пїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ k пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ}
 
 kGraph kGraphFileInput(std::ifstream& fin);

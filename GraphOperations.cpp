@@ -1,4 +1,10 @@
 #include "GraphOperations.h"
+#include <list>
+#include <string>
+#include <algorithm>
+#include <sstream>
+#include <set>
+#include <queue>
 
 int Nconst;
 
@@ -11,7 +17,7 @@ void Graph::CutPointsSearch(int v, int p) {
     used[v] = true;
     tin[v] = fup[v] = timer++;
     int children = 0;
-    int cutpointFlag = 0;
+    bool cutpointFlag = false;
 
     for (size_t i = this->KAO[v - 1]; i < this->KAO[v]; ++i) {
         int to = this->FO[i];
@@ -22,7 +28,7 @@ void Graph::CutPointsSearch(int v, int p) {
             this->CutPointsSearch(to, v);
             fup[v] = std::min(fup[v], fup[to]);
             if (fup[to] >= tin[v] && p != -1)
-                cutpointFlag = 1;
+                cutpointFlag = true;
             ++children;
         }
     }
@@ -30,52 +36,63 @@ void Graph::CutPointsSearch(int v, int p) {
         cutPoints.push_back(v);
 }
 
-int Graph::SearchEdge(const int i, const int j) {
-    //вычисл€ет номер ребра из i в j в массиве FO
-    //не допускаютс€ мультирЄбра, если ребро не найдено то возвращает невозможную в графе константу
-    int res = this->FO.size();
-    for (int k = this->KAO[i - 1]; k < this->KAO[i]; k++)
-        if (this->FO[k] == j)
-            res = k;
-    return res;
+int Graph::SearchEdge(const int i, const int j) const {
+    // ищем ровно одно ребро (i->j) в CSR-массиве FO
+    int start = KAO[i - 1];
+    int end = KAO[i];
+    for (int idx = start; idx < end; ++idx) {
+        if (FO[idx] == j)
+            return idx;            // нашли Ч сразу возвращаем
+    }
+    return static_cast<int>(FO.size());  // не нашли Ч возвращаем Ђнедопустимыйї индекс
 }
 
-int Graph::DistanceDijkstra(const int x, const int y) {
-    //    {ћетодом ƒейкстры строит массив рассто€ний и возвращает нужное.
-    //    ¬начале - проверка вершины на изолированность}
-
-    if (this->KAO[x] == this->KAO[x - 1]) //x не может быть 0 по условию задани€ KAO
+int Graph::DistanceDijkstra(int src, int dst) const {
+    // ѕроверка изолированности: если у src нет соседей
+    if (KAO[src] == KAO[src - 1])
         return Nconst;
 
-    std::vector<int> DS(this->KAO.size(), Nconst), Pon(this->KAO.size());
+    const int n = static_cast<int>(KAO.size());
+    const int INF = Nconst;
 
-    DS[x] = 0;
-    int c, b = 0;
-    for (int k = 0; k < this->KAO.size() - 2; k++) {
-        c = Nconst;
-        for (int i = 1; i < this->KAO.size(); i++)
-            if ((DS[i] < c) && !Pon[i]) {
-                c = DS[i];
-                b = i;
+    // ћин-куча пар (dist, vertex)
+    using PII = std::pair<int, int>;
+    std::priority_queue<PII, std::vector<PII>, std::greater<PII>> pq;
+
+    std::vector<int> dist(n, INF);
+    std::vector<bool> seen(n, false);
+
+    dist[src] = 0;
+    pq.emplace(0, src);
+
+    while (!pq.empty()) {
+        auto [d, u] = pq.top(); pq.pop();
+        if (seen[u]) continue;
+        seen[u] = true;
+        if (u == dst)   // можем прервать, как только дошли до dst
+            return d;
+
+        // –ассматриваем всех соседей u
+        for (int idx = KAO[u - 1]; idx < KAO[u]; ++idx) {
+            int v = FO[idx];
+            int w = 1; // тут у вас вес = 1; если не 1, замените на нужное
+            if (dist[v] > d + w && !seen[v]) {
+                dist[v] = d + w;
+                pq.emplace(dist[v], v);
             }
-        Pon[b] = 1;
-        for (int i = this->KAO[b - 1]; i < this->KAO[b]; i++) { // смотрим все ребра вершины b
-            c = this->FO[i];
-            if (!Pon[c] && (DS[c] > DS[b] + 1)) // ищем наименьший путь в вершину
-                DS[c] = DS[b] + 1;
-            //  {если длина ребра >1, то вместо +1 нужно +d(b,c)}
         }
     }
-    return DS[y];
+
+    return dist[dst];
 }
 
-bool Graph::CheckEdge(int i, int j) {
+
+bool Graph::CheckEdge(int i, int j) const {
     //вычисл€ет номер ребра из i в j в массиве FO
     //ƒ–: скорее не вычисл€ет, а провер€ет наличие
-    for (int k = this->KAO[i - 1]; k < this->KAO[i]; k++)
-        if (this->FO[k] == j)
-            return true;
-    return false;
+    auto begin = FO.begin() + KAO[i-1];
+    auto end   = FO.begin() + KAO[i];
+    return std::find(begin, end, j) != end;
 }
 
 std::vector<int> Graph::CutDecompose(const std::vector<int> V) {
@@ -99,7 +116,7 @@ std::vector<int> Graph::CutDecompose(const std::vector<int> V) {
             for (int j = this->KAO[A[i] - 1]; j < this->KAO[A[i]]; j++)
                 if (Spot[this->FO[j]] == 1) {
                     B.resize(B.size() + 1);
-                    B[B.size() - 1] = this->FO[j];
+                    B.back() = this->FO[j];
                     Spot[this->FO[j]] = 2;
                     sum++;
                 }
@@ -240,7 +257,7 @@ std::vector<int> Graph::CutDecomposeOnTwo() {
                 for (j1 = this->KAO[S[i1] - 1]; j1 < this->KAO[S[i1]]; j1++)
                     if (Spot[this->FO[j1]] == 2) {
                         Snew.resize(Snew.size() + 1);
-                        Snew[Snew.size() - 1] = this->FO[j1];
+                        Snew.back() = this->FO[j1];
                         Spot[this->FO[j1]] = 1;
                         l++;
                     }
@@ -320,4 +337,71 @@ Graph Graph::ChangVertex(int u, int v) {
             FO[i] = u;
     Graph Result(KAO, FO, PArray);
     return Result;
+}
+
+void Graph::convertEdgeListToKAOFO(const std::string& inputPath,
+    const std::string& outputPath,
+    double reliability) {
+    std::ifstream inFile(inputPath);
+    std::vector<std::pair<int, int>> edges;
+    int u, v; char dash;
+    while (inFile >> u >> dash >> dash >> v) {
+        edges.emplace_back(u, v);
+    }
+
+    int maxVertex = 0;
+    for (auto& e : edges) maxVertex = std::max(maxVertex, std::max(e.first, e.second));
+    int n = maxVertex;
+
+    std::vector<std::vector<int>> adj(n + 1);
+    for (auto& e : edges) {
+        adj[e.first].push_back(e.second);
+        adj[e.second].push_back(e.first);
+    }
+    for (int i = 1; i <= n; ++i) std::sort(adj[i].begin(), adj[i].end());
+
+    KAO.resize(n + 2);
+    KAO[1] = 0;
+    for (int i = 1; i <= n; ++i) KAO[i + 1] = KAO[i] + static_cast<int>(adj[i].size());
+
+    int totalSize = KAO[n + 1];
+    FO.resize(totalSize);
+    int idx = 0;
+    for (int i = 1; i <= n; ++i)
+        for (int neighbor : adj[i])
+            FO[idx++] = neighbor;
+
+    PArray.assign(totalSize, reliability);
+
+    std::ofstream outFile(outputPath);
+    for (int i = 1; i <= n + 1; ++i) outFile << KAO[i] << (i < n + 1 ? ',' : '\n');
+    for (int i = 0; i < totalSize; ++i) outFile << FO[i] << (i + 1 < totalSize ? ',' : '\n');
+    for (int i = 0; i < totalSize; ++i) outFile << PArray[i] << (i + 1 < totalSize ? ',' : '\n');
+}
+
+void Graph::convertKAOFOToEdgeList(const std::string& inputPath,
+    const std::string& outputPath) {
+    std::ifstream inFile(inputPath);
+    std::string line, token;
+    std::getline(inFile, line);
+    std::stringstream ss(line);
+    KAO.clear();
+    while (std::getline(ss, token, ',')) KAO.push_back(std::stoi(token));
+
+    std::getline(inFile, line);
+    ss.clear(); ss.str(line);
+    FO.clear();
+    while (std::getline(ss, token, ',')) FO.push_back(std::stoi(token));
+
+    std::ofstream outFile(outputPath);
+    std::set<std::pair<int, int>> seen;
+    int n = static_cast<int>(KAO.size()) - 1;
+    for (int i = 1; i <= n; ++i) {
+        for (int j = KAO[i - 1]; j < KAO[i]; ++j) {
+            int a = i, b = FO[j];
+            if (a > b) std::swap(a, b);
+            if (seen.insert({ a,b }).second)
+                outFile << a << " -- " << b << '\n';
+        }
+    }
 }

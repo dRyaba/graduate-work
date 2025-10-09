@@ -1,96 +1,108 @@
 #include "kGraphOperations.h"
+#include "DataImporter.h"
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
 #include <omp.h>
+#include <queue>
+#include <map>
+#include <optional>
 
-std::ofstream output("C:/Users/User/source/repos/graduate work/graduate work/output.txt");
-std::ofstream output1("C:/Users/User/source/repos/graduate work/graduate work/output1.txt", std::ios_base::app);
+
+std::ofstream output("output.txt");
+std::ofstream output1("output1.txt", std::ios_base::app);
 int NumberOfRec = 0;
 std::vector<double> sumReliab;
 double globsumReliab = 0;
 std::vector<std::vector<double>> BlockReliab;
 
 
+std::optional<int> kGraph::FindLastUnreliableEdge() const {
+    for (int i = static_cast<int>(this->PArray.size()) - 1; i >= 0; --i)
+        if (this->PArray[i] < 1.0)
+            return i;
+    return std::nullopt;
+}
+
+std::pair<int, int> kGraph::FindReverseEdgeIndices(int edgeIndex) const {
+	int from = 1;
+	while (from < this->KAO.size() && this->KAO[from] <= edgeIndex)
+		++from;
+	int to = this->FO[edgeIndex];
+	int reverseStart = this->KAO[to - 1];
+	int reverseEnd = this->KAO[to];
+	for (int k = reverseStart; k < reverseEnd; ++k)
+		if (this->FO[k] == from)
+			return { from, k };
+	return { from, -1 }; // Р•СЃР»Рё РѕР±СЂР°С‚РЅРѕРµ СЂРµР±СЂРѕ РЅРµ РЅР°Р№РґРµРЅРѕ
+}
+
 void Factoring(kGraph G, const int variant, const int d, double Reliab) {
-	//результат лежит в sumReliab[0]
-	//Ветвление, variant=0 - после удаления, variant=1 - после обнадеживания ребра
-	int i, j, k;
+	//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ sumReliab[0]
+	//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, variant=0 - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, variant=1 - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 	NumberOfRec++;
-	if (!variant) {
-		if (!G.KComponent())
-			return; // add 0 to sum
-	}
-	else if (!G.CheckDistanceFloyd(d))
-		return; // add 0 to sum
 
-	i = G.PArray.size();  //можно ли заменить PArray на FO? 
-	for (j = G.PArray.size() - 1; j >= 0; j--)
-		if (G.PArray[j] < 1) {
-			i = j;
-			break;
-		}
-	if (i == G.FO.size()) {
+	if ((!variant && !G.KComponent()) || (variant && !G.CheckDistanceFloyd(d)))
+		return;// add 0 to sum
+
+	auto optIndex = G.FindLastUnreliableEdge();
+	if (!optIndex) {
 		sumReliab[0] += Reliab;
-		return; // add Reliab to sum
+		return;
 	}
 
-	double p = G.PArray[i];
-	G.PArray[i] = 1;
-	for (j = 1; j < G.KAO.size(); j++)
-		if (G.KAO[j] > i)
-			break;
-	for (k = G.KAO[G.FO[i] - 1]; k < G.KAO[G.FO[i]]; k++)
-		if (G.FO[k] == j)
-			break;
-	G.PArray[k] = 1;
+	int edgeIdx = *optIndex;
+	double p = G.PArray[edgeIdx];
+	G.PArray[edgeIdx] = 1.0;
+
+	auto [from, reverseIdx] = G.FindReverseEdgeIndices(edgeIdx);
+	if (reverseIdx != -1) G.PArray[reverseIdx] = 1.0;
+
 	Factoring(G, 1, d, Reliab * p);
 
-	kGraph T = G.DeleteEdgeK(G.FO[i], j);
+	if (reverseIdx != -1) G.PArray[reverseIdx] = p;
+	G.PArray[edgeIdx] = p;
+
+	kGraph T = G.DeleteEdgeK(G.FO[edgeIdx], from);
 	Factoring(T, 0, d, Reliab * (1 - p));
 }
 
-void Factoring2Vert(kGraph G, const int x, const int y, const int variant, const int d, double Reliab) {
-	//результат лежит в globsumReliab
-	//Ветвление, variant=0 - после удаления, variant=1 - после обнадеживания ребра
+void Factoring2Vert(kGraph G, int x, int y, int variant, int d, double Reliab) {
+	//СЂРµР·СѓР»СЊС‚Р°С‚ Р±СѓРґРµС‚ РІ globsumReliab
 	NumberOfRec++;
-	if (!variant && G.DistanceDijkstra(x, y) > d)
-		return;// add 0 to sum if distance from x to y > d
 
-	int i = G.PArray.size();//можно ли заменить PArray на FO?
-	for (int j = G.PArray.size() - 1; j >= 0; j--)
-		if (G.PArray[j] < 1) {
-			i = j;
-			break;
-		}
-	if (i == G.FO.size()) {
+	if (!variant && G.DistanceDijkstra(x, y) > d)
+		return;
+
+	auto optIndex = G.FindLastUnreliableEdge();
+	if (!optIndex) {
 		globsumReliab += Reliab;
-		return; // add Reliab to sum
+		return;
 	}
-	double p = G.PArray[i];
-	G.PArray[i] = 1;
-	int j;
-	for (j = 1; j < G.KAO.size(); j++)
-		if (G.KAO[j] > i)
-			break;
-	int k;
-	for (k = G.KAO[G.FO[i] - 1]; k < G.KAO[G.FO[i]]; k++)
-		if (G.FO[k] == j)
-			break;
-	G.PArray[k] = 1;
+
+	int edgeIdx = *optIndex;
+	double p = G.PArray[edgeIdx];
+	G.PArray[edgeIdx] = 1.0;
+
+	auto [from, reverseIdx] = G.FindReverseEdgeIndices(edgeIdx);
+	if (reverseIdx != -1) G.PArray[reverseIdx] = 1.0;
+
 	Factoring2Vert(G, x, y, 1, d, Reliab * p);
-	G.PArray[i] = p;
-	G.PArray[k] = p;
-	kGraph T = G.DeleteEdgeK(G.FO[i], j);
+
+	if (reverseIdx != -1) G.PArray[reverseIdx] = p;
+	G.PArray[edgeIdx] = p;
+
+	kGraph T = G.DeleteEdgeK(G.FO[edgeIdx], from);
 	Factoring2Vert(T, x, y, 0, d, Reliab * (1 - p));
 }
 
 void Factoring2VertM(kGraph G, const int x, const int y, const int variant, const int d, double Reliab, int LowerBound, int UpperBound) {
-	//Заполняет вектор надежностей с соответствующим ограничением на диаметр
-	//Ветвление, variant=0 - после удаления, variant=1 - после обнадеживания ребра
+	//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+	//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, variant=0 - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, variant=1 - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 	NumberOfRec++;
+
 	int dist = G.DistanceDijkstra(x, y);
 	if (!variant && dist > d) {
 		if (dist <= UpperBound) {
@@ -99,37 +111,37 @@ void Factoring2VertM(kGraph G, const int x, const int y, const int variant, cons
 		}
 		return;// add 0 to sum if distance from x to y >d
 	}
-	int i = G.PArray.size();
-	for (int j = G.PArray.size() - 1; j >= 0; j--)
-		if (G.PArray[j] < 1) {
-			i = j;
-			break;
-		}
-	if (i == G.FO.size()) {
+
+	auto optIndex = G.FindLastUnreliableEdge();
+	if (!optIndex) {
 		sumReliab[d - LowerBound] += Reliab;
-		return; // add Reliab to sum
+		return;
 	}
-	double p = G.PArray[i];
-	G.PArray[i] = 1;
+	
+	int edgeIdx = *optIndex;
+	double p = G.PArray[edgeIdx];
+	G.PArray[edgeIdx] = 1.0;
+
 	int j;
 	for (j = 1; j < G.KAO.size(); j++)
-		if (G.KAO[j] > i)
+		if (G.KAO[j] > edgeIdx)
 			break;
 	int k;
-	for (k = G.KAO[G.FO[i] - 1]; k < G.KAO[G.FO[i]]; k++)
+	for (k = G.KAO[G.FO[edgeIdx] - 1]; k < G.KAO[G.FO[edgeIdx]]; k++)
 		if (G.FO[k] == j)
 			break;
+	
 	G.PArray[k] = 1;
 	Factoring2VertM(G, x, y, 1, d, Reliab * p, LowerBound, UpperBound);
-	G.PArray[i] = p;
+	G.PArray[edgeIdx] = p;
 	G.PArray[k] = p;
-	kGraph T = G.DeleteEdgeK(G.FO[i], j);
+	kGraph T = G.DeleteEdgeK(G.FO[edgeIdx], j);
 	Factoring2VertM(T, x, y, 0, d, Reliab * (1 - p), LowerBound, UpperBound);
 }
 
 void Factoring2VertMParallel(kGraph G, const int x, const int y, const int variant, const int d, double Reliab, int LowerBound, int UpperBound) {
-	//Заполняет вектор надежностей с соответствующим ограничением на диаметр
-	//Ветвление, variant=0 - после удаления, variant=1 - после обнадеживания ребра
+	//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+	//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, variant=0 - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, variant=1 - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 	NumberOfRec++;
 	int dist = G.DistanceDijkstra(x, y);
 	if (!variant && dist > d) {
@@ -168,28 +180,39 @@ void Factoring2VertMParallel(kGraph G, const int x, const int y, const int varia
 }
 
 void GraphMerging(int k) {
-	std::ifstream fin("C:/Users/User/source/repos/graduate work/graduate work/GraphsToMerge.txt");
-	if (!fin) {
-		std::cout << "Error!\n";
-		throw std::runtime_error("OPEN_ERROR");
+	// РСЃРїРѕР»СЊР·СѓРµРј DataImporter РґР»СЏ Р·Р°РіСЂСѓР·РєРё РіСЂР°С„РѕРІ
+	DataImporter importer("graphs_data/");
+	
+	try {
+		auto graphs = importer.loadGraphsToMerge();
+		if (graphs.size() < 2) {
+			throw std::runtime_error("Need at least 2 graphs for merging");
+		}
+		
+		kGraph G1 = *graphs[0];
+		kGraph G2 = *graphs[1];
+		
+		kGraph G = UnionGraphs(G1, G2, k);
+		for (int i = 1; i < G1.KAO.size() / 2; i++)
+			G.ChangeVertex(i, G1.KAO.size() - 1);
+			
+		std::ofstream fout("graphs_data/MergedGraphs.txt", std::ofstream::trunc);
+		if (!fout) {
+			std::cout << "Error creating output file!\n";
+			throw std::runtime_error("OPEN_ERROR");
+		}
+		G.kGraphFileOutput(fout);
+		fout.close();
+		
+	} catch (const std::exception& e) {
+		std::cout << "Error in GraphMerging: " << e.what() << "\n";
+		throw;
 	}
-	kGraph G1 = kGraphFileInput(fin);
-	kGraph G2 = kGraphFileInput(fin);
-	fin.close();
-	kGraph G = UnionGraphs(G1, G2, k);
-	for (int i = 1; i < G1.KAO.size() / 2; i++)
-		G.ChangeVertex(i, G1.KAO.size() - 1);
-	std::ofstream fout("C:/Users/User/source/repos/graduate work/graduate work/MergedGraphs.txt", std::ofstream::trunc);
-	if (!fout) {
-		std::cout << "Error!\n";
-		throw std::runtime_error("OPEN_ERROR");
-	}
-	G.kGraphFileOutput(fout);
 }
 
 kGraph UnionGraphs(kGraph G1, kGraph G2, int k) {
-	//{Формирует граф, полученный объединением G1 и G2 по их первым k вершинам}
-	//{NN - массив с номерами в-н G2 в G; номера в-н G1 в G совпадает с их номерами в G1}
+	//{пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ G1 пїЅ G2 пїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ k пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ}
+	//{NN - пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ-пїЅ G2 пїЅ G; пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ-пїЅ G1 пїЅ G пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ G1}
 	int N1 = G1.KAO.size() - 1, N2 = G2.KAO.size() - 1;
 	std::vector<int> NN(N2 + 1);
 	for (int i = 1; i < k + 1; i++)
@@ -237,16 +260,16 @@ kGraph UnionGraphs(kGraph G1, kGraph G2, int k) {
 	}
 	std::vector<double> PArray(FO.size());
 	for (int i = 0; i < PArray.size(); i++)
-		PArray[i] = 0.9; // плохо, надо брать вероятности, соответствующие ребрам
+		PArray[i] = 0.9; // пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 	std::vector<int> Targets(KAO.size());
-	//Targets тоже надо заполнять соответствующим образом
+	//Targets пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 	kGraph Result(KAO, FO, PArray, Targets);
 
 	return Result;
 }
 
 void kGraph::ChangeVertex(int u, int v) {
-	//Меняет в графе вершины u и v местами (перенумеровывает)
+	//пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ u пїЅ v пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
 	if (u > this->KAO.size() - 1 || v > this->KAO.size() - 1 || u == v)
 		return;
 	if (u > v)
@@ -309,243 +332,310 @@ void kGraph::ChangeVertex(int u, int v) {
 	*this = Result;
 }
 
+// РќРћР’РђРЇ РІСЃРїРѕРјРѕРіР°С‚РµР»СЊРЅР°СЏ С„СѓРЅРєС†РёСЏ РґР»СЏ РїРѕРёСЃРєР° РїСѓС‚Рё РІ РіСЂР°С„Рµ Р±Р»РѕРєРѕРІ (BFS)
+std::vector<int> find_path_in_block_graph(
+	int start_block_node_idx, // РРЅРґРµРєСЃ СЃС‚Р°СЂС‚РѕРІРѕРіРѕ СѓР·Р»Р° РІ block_nodes
+	int end_block_node_idx,   // РРЅРґРµРєСЃ С†РµР»РµРІРѕРіРѕ СѓР·Р»Р° РІ block_nodes
+	int num_block_nodes,
+	const std::vector<BlockGraphEdge>& block_edges,
+	std::vector<int>& out_path_articulation_points_original_ids // ID С‚РѕС‡РµРє СЃРѕС‡Р»РµРЅРµРЅРёСЏ РЅР° РїСѓС‚Рё
+) {
+	std::vector<std::vector<std::pair<int, int>>> adj(num_block_nodes); // СЃРјРµР¶РЅС‹Р№ СѓР·РµР», ID С‚РѕС‡РєРё СЃРѕС‡Р»РµРЅРµРЅРёСЏ
+	for (const auto& edge : block_edges) {
+		adj[edge.from_block_node_idx].push_back({ edge.to_block_node_idx, edge.articulation_point_original_id });
+		adj[edge.to_block_node_idx].push_back({ edge.from_block_node_idx, edge.articulation_point_original_id }); // Р”Р»СЏ РЅРµРѕСЂРёРµРЅС‚РёСЂРѕРІР°РЅРЅРѕРіРѕ РіСЂР°С„Р° Р±Р»РѕРєРѕРІ
+	}
+
+	std::vector<int> path_nodes;
+	out_path_articulation_points_original_ids.clear();
+
+	if (start_block_node_idx == end_block_node_idx) {
+		path_nodes.push_back(start_block_node_idx);
+		return path_nodes;
+	}
+
+	std::queue<std::vector<std::pair<int, int>>> q; // {node_idx, articulation_point_id_to_reach_this_node}
+	q.push({ {start_block_node_idx, 0} }); // РќР°С‡Р°Р»СЊРЅР°СЏ С‚РѕС‡РєР° СЃРѕС‡Р»РµРЅРµРЅРёСЏ 0 (РЅРµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ)
+
+	std::vector<std::vector<std::pair<int, int>>> paths_to_node(num_block_nodes); // РҐСЂР°РЅРёС‚ РїСѓС‚СЊ Рє РєР°Р¶РґРѕРјСѓ СѓР·Р»Сѓ
+	paths_to_node[start_block_node_idx] = { {start_block_node_idx, 0} };
+	std::vector<bool> visited(num_block_nodes, false);
+	visited[start_block_node_idx] = true;
+
+	while (!q.empty()) {
+		std::vector<std::pair<int, int>> current_path_info = q.front();
+		q.pop();
+		int u_node_idx = current_path_info.back().first;
+
+		if (u_node_idx == end_block_node_idx) {
+			for (const auto& p_info : current_path_info) {
+				path_nodes.push_back(p_info.first);
+				if (p_info.second != 0) { // РџСЂРѕРїСѓСЃРєР°РµРј С„РёРєС‚РёРІРЅСѓСЋ С‚РѕС‡РєСѓ СЃРѕС‡Р»РµРЅРµРЅРёСЏ РґР»СЏ СЃС‚Р°СЂС‚Р°
+					out_path_articulation_points_original_ids.push_back(p_info.second);
+				}
+			}
+			return path_nodes;
+		}
+
+		for (auto& edge_info : adj[u_node_idx]) {
+			int v_node_idx = edge_info.first;
+			int ap_id = edge_info.second;
+			if (!visited[v_node_idx]) {
+				visited[v_node_idx] = true;
+				std::vector<std::pair<int, int>> new_path_info = current_path_info;
+				new_path_info.push_back({ v_node_idx, ap_id });
+				q.push(new_path_info);
+				paths_to_node[v_node_idx] = new_path_info; // РЎРѕС…СЂР°РЅСЏРµРј РїСѓС‚СЊ
+			}
+		}
+	}
+	return {}; // РџСѓС‚СЊ РЅРµ РЅР°Р№РґРµРЅ
+}
+
 void kGraph::ReliabilityDiamConstr(int d) {
-	//{Расчет вероятности связности с ограничением на диаметр d методом ветвления.
-	// Используется выделение комп-ты связности с целевыми в-ми, разделение ветвей,
-	// встроенная ф-я проверки на расстояния}
+	//{пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ d пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
+	// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ-пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ-пїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ,
+	// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ-пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ}
 	Nconst = this->KAO.size() * this->KAO.size();
 	//double t = Factoring(G, 0, d);
 	//return t;
 	Factoring(*this, 0, d, 1);
 }
 
-void kGraph::ReliabilityDiamConstr2Vert(int x, int y, int d) {
-	//    {Расчет в-ти св-ти двух вершин x,y с огр-м на диаметр d методом ветвления.
-	//     Используется разделение ветвей, встроенная ф-я проверки на расстояния;
-	//     не используется выделение компонентв с двумя в-ми (так быстрее)}
-	Nconst = this->KAO.size() * this->KAO.size();
-	clock_t start_time = clock();
-	Factoring2Vert(*this, x, y, 0, d, 1.0);
-	output << std::setprecision(16) << globsumReliab << std::endl;
-	output << "Recursions: " << NumberOfRec << std::endl;
-	output1 << (clock() - start_time) / 1000.0000 << std::endl;
+GraphMethodResult kGraph::ReliabilityDiamConstr2Vert(int x, int y, int d) {
+    Nconst = this->KAO.size() * this->KAO.size();
+    clock_t start_time = clock();
+    globsumReliab = 0; // РЎР±СЂР°СЃС‹РІР°РµРј РіР»РѕР±Р°Р»СЊРЅСѓСЋ РїРµСЂРµРјРµРЅРЅСѓСЋ
+    NumberOfRec = 0;
+    Factoring2Vert(*this, x, y, 0, d, 1.0);
+    double time_sec = (clock() - start_time) / 1000.0000;
+    return GraphMethodResult(globsumReliab, NumberOfRec, time_sec);
 }
 
-void kGraph::ReliabilityDiamConstr2VertDecomposeSimpleFacto(int x, int y, const int& UpperBound) {
+GraphMethodResult kGraph::ReliabilityDiamConstr2VertDecomposeSimpleFacto(int x, int y, int UpperBound)
+{
 	Nconst = this->KAO.size() * this->KAO.size();
 	clock_t start_time = clock();
+	NumberOfRec = 0;
+	sumReliab.clear();
+	BlockReliab.clear();
+
 	std::vector<int> spisok = this->DecomposeOnBlocksK();
-	int BlockNum = spisok[spisok.size() - 1];
-	//если 1 блок
+	int BlockNum = spisok.back();
+
 	if (BlockNum == 1) {
+		int BlockDiam = this->DistanceDijkstra(x, y);
+		
+		if (BlockDiam > UpperBound) {
+			double time_sec = (clock() - start_time) / 1000.0000;
+			std::cout << "Error: BlockDiam > UpperBound" << std::endl;
+			return GraphMethodResult(0.0, NumberOfRec, time_sec);
+		}
+
 		Factoring2Vert(*this, x, y, 0, UpperBound, 1);
-		output << std::setprecision(16) << globsumReliab << std::endl;
-		output << "Recursions: " << NumberOfRec << std::endl;
-		output << "Decompose SimpleFacto Time(sec): " << (clock() - start_time) / 1000.0000 << std::endl;
-		return;
+		double reliability = globsumReliab;
+		double time_sec = (clock() - start_time) / 1000.0000;
+		return GraphMethodResult(reliability, NumberOfRec, time_sec);
 	}
 
-	//если >1
-	//spisok = SpisokSort;
-	//std::vector<int> newSpisok(spisok);
-	//int blocknum;
-	//for (int i = 1; i < spisok[spisok.size() - 1] + 1; i++) {
-	//	blocknum = spisok[KAO[x] - 1];
-	//}
 	std::vector<int> BlockDiam(BlockNum);
-	int diamsum = 0;  //сумма всех диаметров
+	int diamsum = 0;
 
 	for (int i = 0; i < BlockNum; i++) {
 		kGraph Restored = this->RestoreBlockK(i + 1, spisok);
-		x = 0; y = 0;
-		for (int j = 1; j < Restored.Targets.size(); j++)
+		int local_x = 0, local_y = 0;
+		for (int j = 1; j < Restored.Targets.size(); j++) {
 			if (Restored.Targets[j]) {
-				x = j;
-				break;
+				if (local_x == 0) local_x = j;
+				else if (local_y == 0) local_y = j;
 			}
-		for (int j = x + 1; j < Restored.Targets.size(); j++)
-			if (Restored.Targets[j]) {
-				y = j;
-				break;
-			}
-		BlockDiam[i] = Restored.DistanceDijkstra(x, y);
+		}
+		BlockDiam[i] = Restored.DistanceDijkstra(local_x, local_y);
 		diamsum += BlockDiam[i];
 	}
 
-	output << "Diameter calculations(ms): " << (clock() - start_time) << std::endl;
-
-	//diamsum - минимальное расстояние между целевыми вершинами
 	if (diamsum > UpperBound) {
-		output << "diamsum > UpperBound" << std::endl;
-		return;
+		double time_sec = (clock() - start_time) / 1000.0000;
+		std::cout << "Error: diamsum > UpperBound" << std::endl;
+		return GraphMethodResult(0.0, NumberOfRec, time_sec);
 	}
+
 	int gap = UpperBound - diamsum;
-	BlockReliab.resize(BlockNum, std::vector<double>(gap + 1));
-	start_time = clock();
+	BlockReliab.resize(BlockNum, std::vector<double>(gap + 1, 0.0));
+
 	for (int i = 0; i < BlockNum; i++) {
 		kGraph Restored = this->RestoreBlockK(i + 1, spisok);
-		for (int j = 1; j < Restored.Targets.size(); j++)
+		int local_x = 0, local_y = 0;
+		for (int j = 1; j < Restored.Targets.size(); j++) {
 			if (Restored.Targets[j]) {
-				x = j;
-				break;
+				if (local_x == 0) local_x = j;
+				else if (local_y == 0) local_y = j;
 			}
-		for (int j = x + 1; j < Restored.Targets.size(); j++)
-			if (Restored.Targets[j]) {
-				y = j;
-				break;
-			}
+		}
 		for (int j = 0; j < gap + 1; j++) {
-			Factoring2Vert(Restored, x, y, 0, BlockDiam[i] + j, 1);
-			BlockReliab[i][j] = globsumReliab;
 			globsumReliab = 0;
+			Factoring2Vert(Restored, local_x, local_y, 0, BlockDiam[i] + j, 1);
+			BlockReliab[i][j] = globsumReliab;
 		}
 	}
-	clock_t reliabcalc = clock();
-	//между n блоками n - 1 точек сочленения
-	std::vector<double> curBlockRel(gap + 1);
-	//for (int j = 1; j < BlockReliab[BlockNum - 1].size(); j++)
+
+	std::vector<double> curBlockRel(gap + 1, 0.0);
+	//for (int j = 1; j < BlockReliab[BlockNum - 1].size(); j++) {
 	//	BlockReliab[BlockNum - 1][j] += BlockReliab[BlockNum - 1][j - 1];
+	//}
+	//РїРѕР»СѓС‡РёР»Рё РїРѕР»РЅС‹Рµ РЅР°РґРµР¶РЅРѕСЃС‚Рё РІРјРµСЃС‚Рѕ С‚РѕС‡РЅС‹С…, РєРѕС‚РѕСЂС‹Рµ РЅРµ РїСЂРёРјРµРЅРёРјС‹ РІ С„РѕСЂРјСѓР»Рµ
+	for (int i = 0; i < BlockNum - 1; i++) {
+		for (int j = gap; j > 0; j--) {
+			BlockReliab[i][j] -= BlockReliab[i][j - 1];
+		}
+	}
 
 	for (int i = BlockNum - 1; i > 0; i--) {
-		// d1 = BlockDiam[i - 1], d2 = BlockDiam[i];
 		for (int diam = 0; diam < gap + 1; diam++) {
-			for (int j = 0; j < diam + 1; j++)
-				curBlockRel[diam] = BlockReliab[i - 1][j] * BlockReliab[i][diam - j];
+			for (int j = 0; j < diam + 1; j++) {
+				curBlockRel[diam] += BlockReliab[i - 1][j] * BlockReliab[i][diam - j];
+			}
 		}
-		for (int j = 0; j < BlockReliab[i - 1].size(); j++) {
+		for (int j = 0; j < gap + 1; j++) {
 			BlockReliab[i - 1][j] = curBlockRel[j];
-			curBlockRel[j] = 0;
+			curBlockRel[j] = 0.0;
 		}
 	}
-	//for (int i = 1; i < BlockReliab[0].size(); i++)
-	//	BlockReliab[0][i] += BlockReliab[0][i - 1];
-	output << "reliabcalc Time(ms): " << (clock() - reliabcalc) << std::endl;
-	output << std::setprecision(16) << BlockReliab[0][BlockReliab[0].size() - 1] << std::endl;
+
+	double time_sec = (clock() - start_time) / 1000.0000;
+	
+	double reliability = BlockReliab[0].back();
+	
+	return GraphMethodResult(reliability, NumberOfRec, time_sec);
+}
+
+void kGraph::ReliabilityDiamConstr2VertM(int x, int y, const int& UpperBound){
+//    {Р Р°СЃС‡РµС‚ РІ-С‚Рё СЃРІ-С‚Рё РґРІСѓС… РІРµСЂС€РёРЅ x,y СЃ РѕРіСЂ-Рј РЅР° РґРёР°РјРµС‚СЂ d РјРµС‚РѕРґРѕРј РјРѕРґРёС„РёС†РёСЂРѕРІР°РЅРЅРѕР№ С„Р°РєС‚РѕСЂРёР·Р°С†РёРё.
+//     РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ СЂР°Р·РґРµР»РµРЅРёРµ РІРµС‚РІРµР№, РІСЃС‚СЂРѕРµРЅРЅР°СЏ С„-СЏ РїСЂРѕРІРµСЂРєРё РЅР° СЂР°СЃСЃС‚РѕСЏРЅРёСЏ;
+//     РЅРµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РІС‹РґРµР»РµРЅРёРµ РєРѕРјРїРѕРЅРµРЅС‚РІ СЃ РґРІСѓРјСЏ РІ-РјРё (С‚Р°Рє Р±С‹СЃС‚СЂРµРµ)}
+	Nconst = this->KAO.size() * this->KAO.size();
+	clock_t start_time = clock();
+	int TerminalShortestPathLen = this->DistanceDijkstra(x, y);
+	if (TerminalShortestPathLen > UpperBound) {
+		output << "Error 'TerminalShortestPath > UpperBound'";
+		return;
+	}
+	int gap = UpperBound - TerminalShortestPathLen;
+	
+	sumReliab.resize(gap + 1);
+	Factoring2VertM(*this, x, y, 0, UpperBound, 1.0, TerminalShortestPathLen, UpperBound);
+	output << std::setprecision(16) << sumReliab[gap] << std::endl;
 	output << "Recursions: " << NumberOfRec << std::endl;
-	output << "Decompose Simple Facto Time(sec): " << (clock() - start_time) / 1000.0000 << std::endl;
 	output1 << (clock() - start_time) / 1000.0000 << std::endl;
 }
 
-void kGraph::ReliabilityDiamConstr2VertMDecompose(int x, int y, const int& UpperBound) {
-	//нет правильной нумерации блоков. вследствие чего для GEANTа блоки нумеровались вручную
+GraphMethodResult kGraph::ReliabilityDiamConstr2VertMDecompose(int x, int y, const int& UpperBound) {
 	Nconst = this->KAO.size() * this->KAO.size();
 	clock_t start_time = clock();
+	NumberOfRec = 0;
+	sumReliab.clear();
+	BlockReliab.clear();
+
 	std::vector<int> spisok = this->DecomposeOnBlocksK();
-	int BlockNum = spisok[spisok.size() - 1];
-	//если 1 блок
+	int BlockNum = spisok.back();
+
 	if (BlockNum == 1) {
 		int BlockDiam = this->DistanceDijkstra(x, y);
 		sumReliab.resize(UpperBound - BlockDiam + 1);
 		Factoring2VertM(*this, x, y, 0, UpperBound, 1, BlockDiam, UpperBound);
-		for (int i = 1; i < sumReliab.size(); i++)
+		for (int i = 1; i < sumReliab.size(); i++) {
 			sumReliab[i] += sumReliab[i - 1];
-		output << std::setprecision(16) << sumReliab[sumReliab.size() - 1] << std::endl;
-		output << "Recursions: " << NumberOfRec << std::endl;
-		output << "Decompose Facto Time(sec): " << (clock() - start_time) / 1000.0000 << std::endl;
-		return;
+		}
+		double time_sec = (clock() - start_time) / 1000.0000;
+		double reliability = sumReliab.back();
+		return GraphMethodResult(reliability, NumberOfRec, time_sec);
 	}
 
-	//если >1
-	//spisok = SpisokSort;
-	//std::vector<int> newSpisok(spisok);
-	//int blocknum;
-	//for (int i = 1; i < spisok[spisok.size() - 1] + 1; i++) {
-	//	blocknum = spisok[KAO[x] - 1];
-	//}
 	std::vector<int> BlockDiam(BlockNum);
-	int diamsum = 0;  //сумма всех диаметров
+	int diamsum = 0;
 
 	for (int i = 0; i < BlockNum; i++) {
 		kGraph Restored = this->RestoreBlockK(i + 1, spisok);
-		x = 0; y = 0;
-		for (int j = 1; j < Restored.Targets.size(); j++)
+		int local_x = 0, local_y = 0;
+		for (int j = 1; j < Restored.Targets.size(); j++) {
 			if (Restored.Targets[j]) {
-				x = j;
-				break;
+				if (local_x == 0) local_x = j;
+				else if (local_y == 0) local_y = j;
 			}
-		for (int j = x + 1; j < Restored.Targets.size(); j++)
-			if (Restored.Targets[j]) {
-				y = j;
-				break;
-			}
-		BlockDiam[i] = Restored.DistanceDijkstra(x, y);
+		}
+		BlockDiam[i] = Restored.DistanceDijkstra(local_x, local_y);
 		diamsum += BlockDiam[i];
 	}
 
-	output << "Diameter calculations(ms): " << (clock() - start_time) << std::endl;
-	
-	//diamsum - минимальное расстояние между целевыми вершинами
 	if (diamsum > UpperBound) {
-		output << "diamsum > UpperBound" << std::endl;
-		return;
+		std::cout << "Diameter sum overflow (diamsum = " + std::to_string(diamsum) + ", UpperBound = " + std::to_string(UpperBound) + ")\n";
+		double time_sec = (clock() - start_time) / 1000.0000;
+		return GraphMethodResult(0.0, NumberOfRec, time_sec);
 	}
+
 	int gap = UpperBound - diamsum;
-	start_time = clock();
+	BlockReliab.resize(BlockNum);
+
 	for (int i = 0; i < BlockNum; i++) {
 		kGraph Restored = this->RestoreBlockK(i + 1, spisok);
-		for (int j = 1; j < Restored.Targets.size(); j++)
+		int local_x = 0, local_y = 0;
+		for (int j = 1; j < Restored.Targets.size(); j++) {
 			if (Restored.Targets[j]) {
-				x = j;
-				break;
+				if (local_x == 0) local_x = j;
+				else if (local_y == 0) local_y = j;
 			}
-		for (int j = x + 1; j < Restored.Targets.size(); j++)
-			if (Restored.Targets[j]) {
-				y = j;
-				break;
-			}
-		sumReliab.resize(0);
-		sumReliab.resize(gap + 1);
-		Factoring2VertM(Restored, x, y, 0, BlockDiam[i], 1, BlockDiam[i], gap + BlockDiam[i]);
-		BlockReliab.push_back(sumReliab);//получили sumreliab для блока, сохраняем его в BlockReliab
+		}
+		sumReliab.clear();
+		sumReliab.resize(gap + 1, 0.0);
+		Factoring2VertM(Restored, local_x, local_y, 0, BlockDiam[i], 1, BlockDiam[i], BlockDiam[i] + gap);
+		BlockReliab[i] = sumReliab;
 	}
-	clock_t reliabcalc = clock();
-	//между n блоками n - 1 точек сочленения
-	std::vector<double> curBlockRel(gap + 1);
-	for (int j = 1; j < BlockReliab[BlockNum - 1].size(); j++)
+
+	std::vector<double> curBlockRel(gap + 1, 0.0);
+	for (int j = 1; j < BlockReliab[BlockNum - 1].size(); j++) {
 		BlockReliab[BlockNum - 1][j] += BlockReliab[BlockNum - 1][j - 1];
+	}
 
 	for (int i = BlockNum - 1; i > 0; i--) {
-		//int d1 = BlockDiam[i - 1], d2 = BlockDiam[i];
 		for (int diam = 0; diam < gap + 1; diam++) {
-			for (int j = 0; j < diam + 1; j++)
+			for (int j = 0; j < diam + 1; j++) {
 				curBlockRel[diam] += BlockReliab[i - 1][j] * BlockReliab[i][diam - j];
+			}
 		}
 		for (int j = 0; j < gap + 1; j++) {
 			BlockReliab[i - 1][j] = curBlockRel[j];
-			curBlockRel[j] = 0;
+			curBlockRel[j] = 0.0;
 		}
 	}
-	//for (int i = 1; i < BlockReliab[0].size(); i++)
-	//	BlockReliab[0][i] += BlockReliab[0][i - 1];
-	output << "reliabcalc Time(ms): " << (clock() - reliabcalc) << std::endl;
-	output << std::setprecision(16) << BlockReliab[0][BlockReliab[0].size() - 1] << std::endl;
-	output << "Recursions: " << NumberOfRec << std::endl;
-	output << "Decompose Facto Time(sec): " << (clock() - start_time) / 1000.0000 << std::endl;
-	//output1 << std::setprecision(16) << BlockReliab[0][BlockReliab[0].size() - 1] << std::endl;
-	output1 << (clock() - start_time) / 1000.0000 << std::endl;
+
+	double time_sec = (clock() - start_time) / 1000.0000;
+	
+	double reliability = BlockReliab[0].back();
+
+	return GraphMethodResult(reliability, NumberOfRec, time_sec);
 }
 
 void kGraph::ReliabilityDiamConstr2VertMDecomposeParallel(int x, int y, const int& UpperBound) {
-	//для сборки Release в VS распараллеливание не работает
+	//пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ Release пїЅ VS пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 	Nconst = this->KAO.size() * this->KAO.size();
 	clock_t start_time = clock();
 	std::vector<int> spisok = this->DecomposeOnBlocksK();
-	int BlockNum = spisok[spisok.size() - 1];
-	//если 1 блок
+	int BlockNum = spisok.back();
+	//пїЅпїЅпїЅпїЅ 1 пїЅпїЅпїЅпїЅ
 	if (BlockNum == 1) {
 		int BlockDiam = this->DistanceDijkstra(x, y);
 		sumReliab.resize(UpperBound - BlockDiam + 1);
 		Factoring2VertM(*this, x, y, 0, UpperBound, 1, BlockDiam, UpperBound);
 		for (int i = 1; i < sumReliab.size(); i++)
 			sumReliab[i] += sumReliab[i - 1];
-		output << std::setprecision(16) << sumReliab[sumReliab.size() - 1] << std::endl;
+		output << std::setprecision(16) << sumReliab.back() << std::endl;
 		output << "Recursions: " << NumberOfRec << std::endl;
 		output << "Decompose Facto Time(sec): " << (clock() - start_time) / 1000.0000 << std::endl;
 		return;
 	}
 
 	std::vector<int> BlockDiam(BlockNum);
-	int diamsum = 0;  //сумма всех диаметров
+	int diamsum = 0;  //пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
 	for (int i = 0; i < BlockNum; i++) {
 		kGraph Restored = this->RestoreBlockK(i + 1, spisok);
@@ -566,9 +656,9 @@ void kGraph::ReliabilityDiamConstr2VertMDecomposeParallel(int x, int y, const in
 
 	output << "Diameter calculations(ms): " << (clock() - start_time) << std::endl;
 
-	//diamsum - минимальное расстояние между целевыми вершинами
+	//diamsum - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 	if (diamsum > UpperBound) {
-		output << "Error: diamsum > UpperBound" << std::endl;
+		output << "Diameter sum overflow (diamsum = " + std::to_string(diamsum) + ", UpperBound = " + std::to_string(UpperBound) + ")\n";
 		return;
 	}
 	int gap = UpperBound - diamsum;
@@ -596,12 +686,12 @@ void kGraph::ReliabilityDiamConstr2VertMDecomposeParallel(int x, int y, const in
 			}
 
 	clock_t reliabcalc = clock();
-	//между n блоками n - 1 точек сочленения
+	//пїЅпїЅпїЅпїЅпїЅ n пїЅпїЅпїЅпїЅпїЅпїЅпїЅ n - 1 пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 	std::vector<double> curBlockRel(gap + 1);
 	for (int j = 1; j < BlockReliab[BlockNum - 1].size(); j++)
 		BlockReliab[BlockNum - 1][j] += BlockReliab[BlockNum - 1][j - 1];
 
-	for (int i = spisok[spisok.size() - 1] - 1; i > 0; i--) {
+	for (int i = spisok.back() - 1; i > 0; i--) {
 		//int d1 = BlockDiam[i - 1], d2 = BlockDiam[i];
 		for (int diam = 0; diam < gap + 1; diam++) {
 			for (int j = 0; j < diam + 1; j++)
@@ -615,14 +705,155 @@ void kGraph::ReliabilityDiamConstr2VertMDecomposeParallel(int x, int y, const in
 	//for (int i = 1; i < BlockReliab[0].size(); i++)
 	//	BlockReliab[0][i] += BlockReliab[0][i - 1];
 	output << "reliabcalc Time(ms): " << (clock() - reliabcalc) << std::endl;
-	output << std::setprecision(16) << BlockReliab[0][BlockReliab[0].size() - 1] << std::endl;
+	output << std::setprecision(16) << BlockReliab[0].back() << std::endl;
 	output << "Recursions: " << NumberOfRec << std::endl;
 	output << "Decompose Parallel Facto Time(sec): " << (clock() - start_time) / 1000.0000 << std::endl;
 	output1 << (clock() - start_time) / 1000.0000 << std::endl;
 }
 
+GraphMethodResult kGraph::ReliabilityDiamConstr2VertRecDecompositionSF(int s, int t, int UpperBound) {
+	Nconst = (this->KAO.size() > 1) ? (this->KAO.size() * this->KAO.size()) : 100000;
+	clock_t start_time = clock();
+	
+	int terminaldiam = this->DistanceDijkstra(s, t);
+
+	if (terminaldiam > UpperBound) {
+		double time_sec = (clock() - start_time) / 1000.0000;
+		std::cout << "Error: terminaldiam > UpperBound" << std::endl;
+		return GraphMethodResult(0.0, NumberOfRec, time_sec);
+	}
+	//!TODO СѓР±РµРґРёС‚СЊСЃСЏ РІ РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё СЂРµР°Р»РёР·Р°С†РёРё РѕС‚РґРµР»СЊРЅРѕР№ С„СѓРЅРєС†РёРё
+}
+
+
+GraphMethodResult kGraph::ReliabilityDiamConstr2VertRecursiveDecomposition(int s_node, int t_node, int UpperBound) {
+	Nconst = (this->KAO.size() > 1) ? (this->KAO.size() * this->KAO.size()) : 100000;
+	clock_t start_time = clock();
+	globsumReliab = 0;
+
+	// 1. Р”РµРєРѕРјРїРѕР·РёС†РёСЏ РіСЂР°С„Р° РЅР° Р±Р»РѕРєРё
+	std::vector<int> spisok_decomp_original = this->DecomposeOnBlocksK();
+
+	int BlockNum = spisok_decomp_original.back();
+
+	int diamsum = 0;
+	if (spisok_decomp_original.empty()) {
+		std::cout << "Can't decompose a graph";
+		return GraphMethodResult(0, 0, 0);
+	}
+	if (BlockNum == 1) {
+		// РџСЂСЏРјРѕР№ СЂР°СЃС‡С‘С‚ РґР»СЏ РѕРґРЅРѕРіРѕ Р±Р»РѕРєР°
+		int BlockDiam = this->DistanceDijkstra(s_node, t_node);
+		if (BlockDiam > UpperBound) {
+			double time_sec = (clock() - start_time) / 1000.0000;
+			std::cout << "Error: BlockDiam > UpperBound" << std::endl;
+			return GraphMethodResult(0.0, NumberOfRec, time_sec);
+		}
+
+		globsumReliab = 0.0;
+		Factoring2Vert(*this, s_node, t_node, 0, UpperBound, 1.0);
+
+		double reliability = globsumReliab;
+		double time_sec = (clock() - start_time) / 1000.0000;
+		return GraphMethodResult(reliability, NumberOfRec, time_sec);
+	}
+
+	std::vector<int> BlockDiam(BlockNum);
+
+	for (int i = 0; i < BlockNum; i++) {
+		kGraph Restored = this->RestoreBlockK(i + 1, spisok_decomp_original);
+		int local_x = 0, local_y = 0;
+		for (int j = 1; j < Restored.Targets.size(); j++) {
+			if (Restored.Targets[j]) {
+				if (local_x == 0) local_x = j;
+				else if (local_y == 0) local_y = j;
+			}
+		}
+		BlockDiam[i] = Restored.DistanceDijkstra(local_x, local_y);
+		diamsum += BlockDiam[i];
+	}
+
+	if (diamsum > UpperBound) {
+		std::cout << "Diameter sum overflow (diamsum = " + std::to_string(diamsum) + ", UpperBound = " + std::to_string(UpperBound) + ")\n";
+		double time_sec = (clock() - start_time) / 1000.0000;
+		return GraphMethodResult(0.0, NumberOfRec, time_sec);
+	}
+
+	// 2. РџРѕСЃС‚СЂРѕРµРЅРёРµ РіСЂР°С„Р° Р±Р»РѕРєРѕРІ
+	std::vector<BlockGraphNode> block_nodes(BlockNum);
+	std::map<int, int> original_block_id_to_node_idx;
+	for (int i = 0; i < BlockNum; ++i) {
+		block_nodes[i].original_block_id = i + 1;
+		original_block_id_to_node_idx[i + 1] = i;
+	}
+
+	std::vector<BlockGraphEdge> block_edges;
+	std::vector<bool> articulation_point_processed(this->KAO.size(), false);
+
+	for (int v_orig = 1; v_orig < this->KAO.size(); ++v_orig) {
+		std::vector<int> blocks_for_v = get_blocks_containing_vertex(v_orig, spisok_decomp_original);
+		if (blocks_for_v.size() > 1) {
+			if (articulation_point_processed[v_orig]) continue;
+			articulation_point_processed[v_orig] = true;
+			for (size_t i = 0; i < blocks_for_v.size(); ++i) {
+				for (size_t j = i + 1; j < blocks_for_v.size(); ++j) {
+					int block1_orig_id = blocks_for_v[i];
+					int block2_orig_id = blocks_for_v[j];
+					if (original_block_id_to_node_idx.count(block1_orig_id) && original_block_id_to_node_idx.count(block2_orig_id)) {
+						block_edges.push_back({ original_block_id_to_node_idx[block1_orig_id],
+											   original_block_id_to_node_idx[block2_orig_id],
+											   v_orig });
+					}
+				}
+			}
+		}
+	}
+
+	// 3. РћРїСЂРµРґРµР»РµРЅРёРµ СЃС‚Р°СЂС‚РѕРІРѕРіРѕ Рё РєРѕРЅРµС‡РЅРѕРіРѕ Р±Р»РѕРєРѕРІ
+	std::vector<int> s_containing_orig_blocks = get_blocks_containing_vertex(s_node, spisok_decomp_original);
+	std::vector<int> t_containing_orig_blocks = get_blocks_containing_vertex(t_node, spisok_decomp_original);
+
+	if (s_containing_orig_blocks.empty() || t_containing_orig_blocks.empty()) {
+		double time_sec = (clock() - start_time) / 1000.0000;
+		return GraphMethodResult(0.0, NumberOfRec, time_sec);
+	}
+
+	int start_block_node_idx = original_block_id_to_node_idx[s_containing_orig_blocks[0]];
+	int end_block_node_idx = original_block_id_to_node_idx[t_containing_orig_blocks[0]];
+
+	// 4. РќР°Р№С‚Рё РїСѓС‚СЊ Р±Р»РѕРєРѕРІ
+	std::vector<int> path_articulation_points_ids;
+	std::vector<int> block_path_node_indices = find_path_in_block_graph(
+		start_block_node_idx, end_block_node_idx, block_nodes.size(), block_edges, path_articulation_points_ids);
+
+	if (block_path_node_indices.empty()) {
+		double time_sec = (clock() - start_time) / 1000.0000;
+		return GraphMethodResult(0.0, NumberOfRec, time_sec);
+	}
+
+	// 5. РџРѕРґРіРѕС‚РѕРІРєР° СѓРїРѕСЂСЏРґРѕС‡РµРЅРЅРѕР№ С†РµРїРё Р±Р»РѕРєРѕРІ
+	std::vector<int> ordered_original_block_ids_on_path;
+	for (int node_idx : block_path_node_indices) {
+		ordered_original_block_ids_on_path.push_back(block_nodes[node_idx].original_block_id);
+	}
+
+	std::vector<int> final_aps_for_solver(ordered_original_block_ids_on_path.size() + 1, 0);
+	for (size_t i = 0; i < path_articulation_points_ids.size(); ++i) {
+		final_aps_for_solver[i + 1] = path_articulation_points_ids[i];
+	}
+
+	// 6. Р’С‹Р·РѕРІ СЂРµРєСѓСЂСЃРёРІРЅРѕР№ С„СѓРЅРєС†РёРё
+	std::vector<double> result_reliabilities = this->solve_recursive_for_block_chain_ordered(
+		0, s_node, t_node, UpperBound, spisok_decomp_original,
+		ordered_original_block_ids_on_path, final_aps_for_solver);
+
+	double time_sec = (clock() - start_time) / 1000.0000;
+	double reliability = result_reliabilities.empty() ? 0.0 : result_reliabilities[std::min((int)result_reliabilities.size() - 1, UpperBound)];
+	return GraphMethodResult(reliability, NumberOfRec, time_sec);
+}
+
 bool kGraph::CheckDistanceFloyd(const int d) {
-	//Методом Флойда строит матрицу расстояний и проверяет нужные
+	//пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 	int N = this->KAO.size();
 	std::vector<std::vector<int> > M(N + 1);
 
@@ -689,8 +920,8 @@ void kGraph::SearchVertice(std::vector<int>& DfNumber, std::vector<int>& TreeEdg
 }
 
 std::vector<int> kGraph::DecomposeOnBlocks() {
-	//Result[i] - номер блока в котрый попало ребро с номером i(номер ребра по массиву FO)
-	//Result[Result.size() - 1] - кол - во блоков
+	//Result[i] - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ i(пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ FO)
+	//Result[Result.size() - 1] - пїЅпїЅпїЅ - пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 	std::vector<int> DfNumber(this->KAO.size()), TreeEdges(this->FO.size()), Low(this->KAO.size()), Stek;
 	int r = 1, l = 1;
 	std::vector<int> Result(this->FO.size() + 1);
@@ -700,19 +931,19 @@ std::vector<int> kGraph::DecomposeOnBlocks() {
 }
 
 std::vector<int> kGraph::DecomposeOnBlocksK() {
-	//{Разложение K - графа на блоки.
-	//Result[i] - номер блока в котрый попало ребро с номером i(номер ребра по массиву FO)
-	//Result[length(Result) - 1] - кол - во блоков, которые содержат цел.в - ны или являются связующими
-	//Ребра, входящие в блоки, которые не содержат цел.в - н и не являются связующими входят блок с номером 0
-	//Точки сочленения в связующих блоках заносятся в целевые вершины графа G
-	//Если в графе одна цел.в - на, то Result[i] = 0 для всех i
-	//Если в графе нет ребер, то Result состоит из одного элемента, Result[0] = 0
-	//Применение функции некорректно к несвязому графу и графу без целевых вершин}
+	//{пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ K - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ.
+	//Result[i] - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ i(пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ FO)
+	//Result[length(Result) - 1] - пїЅпїЅпїЅ - пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ.пїЅ - пїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+	//пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ.пїЅ - пїЅ пїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ 0
+	//пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ G
+	//пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ.пїЅ - пїЅпїЅ, пїЅпїЅ Result[i] = 0 пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ i
+	//пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅ Result пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, Result[0] = 0
+	//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ}
 	std::vector<int> S = this->DecomposeOnBlocks();
 	if (S.size() == 1)
 		return S;
-	std::vector<int> TargetBlocks(S[S.size() - 1] + 1);
-	for (int i = 1; i < this->Targets[this->Targets.size() - 1] + 1; i++) //очень странная строчка
+	std::vector<int> TargetBlocks(S.back() + 1);
+	for (int i = 1; i < this->Targets.back() + 1; i++) //пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 		if (this->Targets[i] == 1) {
 			bool boolean = true;
 			int k = S[this->KAO[i - 1]];
@@ -727,7 +958,7 @@ std::vector<int> kGraph::DecomposeOnBlocksK() {
 		if (TargetBlocks[i] == 0 && ConnectivityWithoutBlock(i, S) == false)
 			TargetBlocks[i] = 1;
 
-	// место для объявления targetsOrder
+	// пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ targetsOrder
 	// std::vector<int> TargetOrder(this->Targets.size());
 	// TargetOrder[!y!] = *amount of targetBlocks*;
 	for (int i = 1; i < this->KAO.size(); i++)
@@ -743,7 +974,7 @@ std::vector<int> kGraph::DecomposeOnBlocksK() {
 			if (boolean == false)
 				this->Targets[i] = 1;
 		}
-	std::vector<int> NewNumbers(S[S.size() - 1] + 1);
+	std::vector<int> NewNumbers(S.back() + 1);
 	for (int i = 0; i < NewNumbers.size(); i++)
 		NewNumbers[i] = i;
 	int k = 0;
@@ -754,199 +985,183 @@ std::vector<int> kGraph::DecomposeOnBlocksK() {
 			for (int j = i + 1; j < NewNumbers.size(); j++)
 				NewNumbers[j]--;
 		}
-	//S[] - массив в котором указано какому блоку принадлежит каждое ребро
-	//NewNumbers[] - содержит для каждого блока информацию. Либо 0, если блок отсекается, либо число- позиция блока в цепи
-	// то есть в каком порядке будут обсчитываться блоки
-	//!TODO исправить на нормальную нумерацию
-	//было 
+	//S[] - пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
+	//NewNumbers[] - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅ 0, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ
+	// пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
+	//!TODO пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+	//пїЅпїЅпїЅпїЅ 
 	// NewNumbers[17] = 1;
 	// NewNumbers[20] = 2;
 	// NewNumbers[24] = 3;
 	// NewNumbers[50] = 4;
-	//стало
-	NewNumbers[24] = 1;
-	NewNumbers[50] = 2;
-	NewNumbers[20] = 3;
-	NewNumbers[17] = 4;
+	//пїЅпїЅпїЅпїЅпїЅ
+	//NewNumbers[24] = 1;
+	//NewNumbers[50] = 2;
+	//NewNumbers[20] = 3;
+	//NewNumbers[17] = 4;
 	for (int i = 0; i < S.size() - 1; i++)
 		S[i] = NewNumbers[S[i]];
-	S[S.size() - 1] -= k;
+	S.back() -= k;
 	return S;
 }
 
 kGraph kGraph::DeleteEdgeK(const int u, const int v) {
-	//    Удаляет из графа ребро(u, v)
-	int e, f;
-	e = this->SearchEdge(u, v);
-	f = this->SearchEdge(v, u);
+	int e = this->SearchEdge(u, v);
+	int f = this->SearchEdge(v, u);
 	kGraph Result;
-	Result.Targets.resize(this->Targets.size());
-	if ((e < this->FO.size()) && (f < this->FO.size())) {
-		Result.KAO.resize(this->KAO.size());
-		Result.FO.resize(this->FO.size() - 2);
-		Result.PArray.resize(this->PArray.size() - 2);
-		if (e < f) {
-			for (int i = 0; i < u; i++)
-				Result.KAO[i] = this->KAO[i];
-			for (int i = u; i < v; i++)
-				Result.KAO[i] = this->KAO[i] - 1;
-			for (int i = v; i < this->KAO.size(); i++)
-				Result.KAO[i] = this->KAO[i] - 2;
-			if (e > 0)
-				for (int i = 0; i < e; i++) {
-					Result.FO[i] = this->FO[i];
-					Result.PArray[i] = this->PArray[i];
-				}
-			if (f > e + 1)
-				for (int i = e; i < f - 1; i++) {
-					Result.FO[i] = this->FO[i + 1];
-					Result.PArray[i] = this->PArray[i + 1];
-				}
-			if (this->FO.size() > f + 1)
-				for (int i = f - 1; i < this->FO.size() - 2; i++) {
-					Result.FO[i] = this->FO[i + 2];
-					Result.PArray[i] = this->PArray[i + 2];
-				}
-		}
-		else {
-			for (int i = 0; i < v; i++)
-				Result.KAO[i] = this->KAO[i];
-			for (int i = v; i < u; i++)
-				Result.KAO[i] = this->KAO[i] - 1;
-			for (int i = u; i < this->KAO.size(); i++)
-				Result.KAO[i] = this->KAO[i] - 2;
-			if (f > 0)
-				for (int i = 0; i < f; i++) {
-					Result.FO[i] = this->FO[i];
-					Result.PArray[i] = this->PArray[i];
-				}
-			if (e > f + 1)
-				for (int i = f; i < e - 1; i++) {
-					Result.FO[i] = this->FO[i + 1];
-					Result.PArray[i] = this->PArray[i + 1];
-				}
-			if (this->FO.size() > e + 1)
-				for (int i = e - 1; i < this->FO.size() - 2; i++) {
-					Result.FO[i] = this->FO[i + 2];
-					Result.PArray[i] = this->PArray[i + 2];
-				}
+
+	if (e >= this->FO.size() || f >= this->FO.size())
+		return *this; // РµСЃР»Рё РѕРґРЅРѕ РёР· СЂС‘Р±РµСЂ РЅРµ РЅР°Р№РґРµРЅРѕ, РІРµСЂРЅС‘Рј РєРѕРїРёСЋ
+
+	// РЈРґР°Р»РёРј РѕР±Р° СЂРµР±СЂР° РёР· FO Рё PArray
+	Result.FO.reserve(this->FO.size() - 2);
+	Result.PArray.reserve(this->PArray.size() - 2);
+	for (int i = 0; i < this->FO.size(); ++i) {
+		if (i != e && i != f) {
+			Result.FO.push_back(this->FO[i]);
+			Result.PArray.push_back(this->PArray[i]);
 		}
 	}
-	Result.Targets.resize(this->Targets.size());
-	for (int i = 0; i < Result.Targets.size(); i++)
-		Result.Targets[i] = this->Targets[i];
+
+	// РџРµСЂРµСЃС‡РёС‚Р°РµРј KAO
+	Result.KAO.resize(this->KAO.size());
+	for (int i = 1; i < (int)this->KAO.size(); ++i) {
+		int count = 0;
+		for (int j = this->KAO[i - 1]; j < this->KAO[i]; ++j) {
+			if (j != e && j != f)
+				++count;
+		}
+		Result.KAO[i] = Result.KAO[i - 1] + count;
+	}
+
+	// РљРѕРїРёСЂСѓРµРј Targets (РµСЃР»Рё СЌС‚Рѕ РЅРµРѕР±С…РѕРґРёРјРѕ)
+	Result.Targets = this->Targets;
+
 	return Result;
 }
 
-kGraph kGraph::InducedKGraph(std::vector<int> spisok, int Number) {
-	//{Восстанавливает подграф K-графа G, в который входят  ребра с номером Number в списке spisok}
-	std::vector<int> S(spisok.size());
-	int k = 0;
-	for (int i = 1; i < spisok.size(); i++)
-		if ((spisok[i] == Number) || (!spisok[i])) {
-			k++;
-			S[i] = k;
-		}
-		else
-			S[i] = 0;
-	std::vector<int> KAO(k + 1), FO(this->FO.size());
-	std::vector<double>PArray(this->FO.size());
-	int l = 0;
-	for (int i = 1; i < spisok.size(); i++)
-		if (S[i] != 0) {
-			KAO[S[i]] = KAO[S[i] - 1];
-			for (int j = this->KAO[i - 1]; j < this->KAO[i]; j++)
-				if ((S[this->FO[j]]) && this->Boolka(spisok, Number, i, j)) {
-					KAO[S[i]]++;
-					FO[l] = S[this->FO[j]];
-					PArray[l] = this->PArray[j];
-					l++;
-				}
-		}
-	FO.resize(l);
-	PArray.resize(l);
-	std::vector<int> Targets(KAO.size());
-	kGraph Result(KAO, FO, PArray, Targets);
-	for (int i = 1; i < this->Targets.size(); i++)
-		if (S[i] > 0)
-			Result.Targets[S[i]] = this->Targets[i];
+kGraph kGraph::InducedKGraph(const std::vector<int> spisok, int Number) const {
+    int oldN = (int)spisok.size() - 1;
 
-	return Result;
+    // 1) РџРѕСЃС‚СЂРѕРёРј РѕС‚РѕР±СЂР°Р¶РµРЅРёРµ СЃС‚Р°СЂС‹С… ID -> РЅРѕРІС‹С… [1..k]
+    std::vector<int> S(spisok.size(), 0);
+    int k = 0;
+    for (int i = 1; i <= oldN; ++i) {
+        if (spisok[i] == Number || spisok[i] == 0) {
+            S[i] = ++k;
+        }
+    }
+
+    // 2) Р’СЂРµРјРµРЅРЅС‹Рµ СЃРїРёСЃРєРё СЃРјРµР¶РЅРѕСЃС‚Рё
+    // newAdj[v] = РІРµРєС‚РѕСЂ РїР°СЂ (u, prob) РґР»СЏ РЅРѕРІРѕР№ РІРµСЂС€РёРЅС‹ v (1-based)
+    std::vector<std::vector<std::pair<int,double>>> newAdj(k+1);
+    for (int oldV = 1; oldV <= oldN; ++oldV) {
+        int newV = S[oldV];
+        if (newV == 0) continue;
+
+        // СЃРєР°РЅРёСЂСѓРµРј РІСЃРµ СЃРѕСЃРµРґРё СЃС‚Р°СЂРѕР№ РІРµСЂС€РёРЅС‹ oldV
+        for (int idx = KAO[oldV-1]; idx < KAO[oldV]; ++idx) {
+            int oldU = FO[idx];
+            int newU = S[oldU];
+            // РІРєР»СЋС‡Р°РµРј СЂРµР±СЂРѕ, С‚РѕР»СЊРєРѕ РµСЃР»Рё РЅРѕРІС‹Р№ U СЃСѓС‰РµСЃС‚РІСѓРµС‚ Рё Boolka СЂР°Р·СЂРµС€Р°РµС‚
+            if (newU > 0 && Boolka(spisok, Number, oldV, idx)) {
+                newAdj[newV].emplace_back(newU, PArray[idx]);
+            }
+        }
+    }
+
+    // 3) РџРµСЂРµРІРѕРґРёРј newAdj РІ CSR (KAO2, FO2, P2)
+    std::vector<int> KAO2(k+1), FO2;
+    std::vector<double> P2;
+    KAO2[0] = 0;
+    for (int v = 1; v <= k; ++v) {
+        KAO2[v] = KAO2[v-1] + (int)newAdj[v].size();
+    }
+    int total = KAO2[k];
+    FO2.reserve(total);
+    P2 .reserve(total);
+    for (int v = 1; v <= k; ++v) {
+        for (auto &pr : newAdj[v]) {
+            FO2.push_back(pr.first);
+            P2.push_back(pr.second);
+        }
+    }
+
+    // 4) Targets2
+    std::vector<int> T2(k+1, 0);
+    for (int oldV = 1; oldV <= oldN; ++oldV) {
+        int newV = S[oldV];
+        if (newV > 0) {
+            T2[newV] = this->Targets[oldV];
+        }
+    }
+
+    return kGraph(std::move(KAO2), std::move(FO2), std::move(P2), std::move(T2));
 }
 
 bool kGraph::KComponent() {
-	//{Выделяет компоненту связности графа G, содержащую все целевые вершины.
-	//Если это возможно, то компонента сохраняется как G, а результат - истина.
-	//В противном случае граф не изменяется, а результат - ложь.
-	//Переформирование графа G происходит лишь в том случае, когда он несвязен.
-	//Если граф не содержит целевых вершин, то результат - ложь.
-	//Применение функции к пустому графу некорректно}
-	int sum1 = 0;
-	for (int i = 1; i < this->Targets.size(); i++)
+	// РџСЂРѕРІРµСЂРєР°: РµСЃР»Рё С†РµР»РµРІР°СЏ РІРµСЂС€РёРЅР° РІСЃРµРіРѕ РѕРґРЅР°, РґРµР»Р°РµРј РіСЂР°С„ С‚СЂРёРІРёР°Р»СЊРЅС‹Рј
+	int target_count = 0;
+	for (int i = 1; i < this->Targets.size(); ++i) {
 		if (this->Targets[i] == 1)
-			sum1++;
-	if (sum1 == 1) {
-		// как ищется компонента связности?
-		// идем по массиву Таргетс со 2го до последнего элемента
-		// и если там есть всего 1 целевая вершина, то возвращаем безвершинный граф
-		// а если первый элемент таргетс 1
-		this->KAO.resize(2);
-		this->KAO[0] = 0;
-		this->KAO[1] = 0;
-		this->FO.resize(0);
-		this->PArray.resize(0);
-		this->Targets.resize(2);
-		this->Targets[0] = 0;
-		this->Targets[1] = 0;
+			++target_count;
+	}
+
+	if (target_count == 1) {
+		this->KAO = { 0, 0 };
+		this->FO.clear();
+		this->PArray.clear();
+		this->Targets = { 0, 0 };
 		return true;
 	}
-	else {
-		std::vector<int> A, B, Spot;
-		int sum = 1;
-		int SumAll = 1;
-		A.resize(1);
-		for (int i = 1; i < this->Targets.size(); i++)
-			if (this->Targets[i] == 1) {
-				A[0] = i;
-				break;
-			}
-		int l = A.size();
-		Spot.resize(this->KAO.size());
-		for (int i = 1; i < this->KAO.size(); i++)
-			Spot[i] = 2;
-		Spot[A[0]] = 1;
-		while (l > 0) {
-			B.resize(0);
-			for (int i : A)
-				for (int j = this->KAO[i - 1]; j < this->KAO[i]; j++)
-					if (Spot[this->FO[j]] == 2) {
-						B.resize(B.size() + 1);
-						B[B.size() - 1] = this->FO[j];
-						Spot[this->FO[j]] = 1;
-						if (this->Targets[this->FO[j]] == 1)
-							sum++;
-						SumAll++;
-					}
 
-			A.resize(B.size());
-			l = A.size();
-			if (l > 0)
-				for (int i = 0; i < l; i++)
-					A[i] = B[i];
+	// BFS РґР»СЏ РѕР±С…РѕРґР° РєРѕРјРїРѕРЅРµРЅС‚С‹ СЃРІСЏР·РЅРѕСЃС‚Рё РїРѕ С†РµР»РµРІС‹Рј РІРµСЂС€РёРЅР°Рј
+	std::vector<int> spot(this->KAO.size(), 2); // 2 вЂ” РЅРµ РїРѕСЃРµС‰РµРЅРѕ
+	std::queue<int> q;
+
+	// РќР°Р№РґС‘Рј РїРµСЂРІСѓСЋ С†РµР»РµРІСѓСЋ РІРµСЂС€РёРЅСѓ Рё РЅР°С‡РЅРµРј РѕР±С…РѕРґ
+	int start = -1;
+	for (int i = 1; i < this->Targets.size(); ++i) {
+		if (this->Targets[i] == 1) {
+			start = i;
+			break;
 		}
-		bool Result = (sum == sum1);
-		if (Result && (SumAll < (this->KAO.size() - 1)))
-			*this = this->InducedKGraph(Spot, 1); //requires attention!
-		return Result;
 	}
+	if (start == -1) return false; // РЅР° РІСЃСЏРєРёР№ СЃР»СѓС‡Р°Р№
+
+	q.push(start);
+	spot[start] = 1;
+
+	int reachable_targets = 1;
+	int reachable_total = 1;
+
+	while (!q.empty()) {
+		int u = q.front(); q.pop();
+		for (int i = this->KAO[u - 1]; i < this->KAO[u]; ++i) {
+			int v = this->FO[i];
+			if (spot[v] == 2) {
+				spot[v] = 1;
+				q.push(v);
+				if (this->Targets[v] == 1)
+					++reachable_targets;
+				++reachable_total;
+			}
+		}
+	}
+
+	bool all_targets_reached = (reachable_targets == target_count);
+
+	// Р•СЃР»Рё РіСЂР°С„ СЃРІСЏР·РЅС‹Р№, РЅРѕ СЃРѕРґРµСЂР¶РёС‚ Р»РёС€РЅРёРµ РІРµСЂС€РёРЅС‹ вЂ” РѕР±СЂРµР·Р°РµРј РµРіРѕ
+	if (all_targets_reached && reachable_total < (int)this->KAO.size() - 1) {
+		*this = this->InducedKGraph(spot, 1); // РѕСЃС‚Р°РІРёС‚СЊ С‚РѕР»СЊРєРѕ РґРѕСЃС‚РёРіРЅСѓС‚С‹Рµ РІРµСЂС€РёРЅС‹
+	}
+
+	return all_targets_reached;
 }
 
-bool kGraph::Boolka(std::vector<int> spisok, int Number, int i, int j) {
+bool kGraph::Boolka(std::vector<int> spisok, int Number, int i, int j) const{
 	if (Number == 1)
 		return true;
-	//    if (!(spisok[i] || spisok[this->FO[j]]))
-	//        return false;
-	//    return true;
 	return spisok[i] || spisok[this->FO[j]];
 }
 
@@ -986,9 +1201,9 @@ bool kGraph::ConnectivityWithoutBlock(int Block, std::vector<int> S) {
 }
 
 kGraph kGraph::RestoreBlockK(int Number, const std::vector<int>& spisok) {
-	//{Восстанавливает блок K - графа G с номером Number,
-	// используя spisok предварительно сформированный процедурой DecopmoseOnBlocksK
-	// Эта же процедура уже пополнила спсиок цел.в - н необходимыми точками сочленения}
+	//{пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ K - пїЅпїЅпїЅпїЅпїЅ G пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ Number,
+	// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ spisok пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ DecopmoseOnBlocksK
+	// пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ.пїЅ - пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ}
 	std::vector<int> S(this->KAO.size()), BackS(this->KAO.size());
 	int j = 0;
 	for (int i = 0; i < spisok.size() - 1; i++)
@@ -1039,7 +1254,7 @@ kGraph kGraph::RestoreBlock(int Number, const std::vector<int>& spisok) {
 
 	for (int i = 1; i < S.size(); i++) {
 		if (S[i]) {
-			KAO.push_back(KAO[KAO.size() - 1] + S[i]);
+			KAO.push_back(KAO.back() + S[i]);
 			Targets.push_back(this->Targets[i]);
 		}
 	}
@@ -1095,14 +1310,279 @@ void kGraph::kGraphFileOutput(std::ofstream& fout) {
 	for (int i = 0; i < this->KAO.size() - 1; i++) {
 		fout << KAO[i] << ",";
 	}
-	fout << this->KAO[this->KAO.size() - 1] << std::endl;
+	fout << this->KAO.back() << std::endl;
 	for (int i = 0; i < this->FO.size() - 1; i++) {
 		fout << FO[i] << ",";
 	}
-	fout << this->FO[this->FO.size() - 1] << std::endl;
+	fout << this->FO.back() << std::endl;
 	for (int i = 0; i < this->Targets.size() - 1; i++) {
 		fout << Targets[i] << ",";
 	}
-	fout << this->Targets[this->Targets.size() - 1] << std::endl;
+	fout << this->Targets.back() << std::endl;
 	fout << this->PArray[0];
+}
+
+// Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅР°СЏ С„СѓРЅРєС†РёСЏ РґР»СЏ РѕРїСЂРµРґРµР»РµРЅРёСЏ, РєР°РєРёРј Р±Р»РѕРєР°Рј РїСЂРёРЅР°РґР»РµР¶РёС‚ РІРµСЂС€РёРЅР° (РЅР° РѕСЃРЅРѕРІРµ СЂРµР±РµСЂ)
+std::vector<int> kGraph::get_blocks_containing_vertex(
+	int vertex_original_id,
+	const std::vector<int>& spisok_decomposition
+) const {
+	std::vector<int> blocks;
+	std::vector<bool> found_block(spisok_decomposition.back() + 1, false); // spisok_decomposition.back() - РѕР±С‰РµРµ С‡РёСЃР»Рѕ Р±Р»РѕРєРѕРІ
+
+	if (vertex_original_id == 0 || vertex_original_id >= this->KAO.size()) return blocks; // РќРµРІРµСЂРЅС‹Р№ ID
+
+	for (int edge_idx = this->KAO[vertex_original_id - 1]; edge_idx < this->KAO[vertex_original_id]; ++edge_idx) {
+		if (edge_idx < spisok_decomposition.size() - 1) { // РџРѕСЃР»РµРґРЅРёР№ СЌР»РµРјРµРЅС‚ spisok_decomposition - РѕР±С‰РµРµ С‡РёСЃР»Рѕ Р±Р»РѕРєРѕРІ
+			int block_num = spisok_decomposition[edge_idx];
+			if (block_num > 0 && !found_block[block_num]) {
+				blocks.push_back(block_num);
+				found_block[block_num] = true;
+			}
+		}
+	}
+	return blocks;
+}
+
+
+
+// РќРћР’РђРЇ РІРµСЂСЃРёСЏ solve_recursive_for_block_chain, СЂР°Р±РѕС‚Р°СЋС‰Р°СЏ СЃ СѓРїРѕСЂСЏРґРѕС‡РµРЅРЅРѕР№ С†РµРїСЊСЋ
+std::vector<double> kGraph::solve_recursive_for_block_chain_ordered(
+    int current_block_path_idx,         // РРЅРґРµРєСЃ С‚РµРєСѓС‰РµРіРѕ Р±Р»РѕРєР° РІ ordered_original_block_ids_on_path
+    int entry_node_original_id,         // ID СѓР·Р»Р° РІС…РѕРґР° РІ СЌС‚РѕС‚ Р±Р»РѕРє (РІ РЅСѓРјРµСЂР°С†РёРё G_original)
+    int target_node_original_id,        // РљРѕРЅРµС‡РЅС‹Р№ СѓР·РµР» t (РІ РЅСѓРјРµСЂР°С†РёРё G_original)
+    int max_len_budget,                 // РњР°РєСЃРёРјР°Р»СЊРЅРѕ РґРѕРїСѓСЃС‚РёРјР°СЏ РґР»РёРЅР° РїСѓС‚Рё РґР»СЏ С‚РµРєСѓС‰РµРіРѕ РІС‹Р·РѕРІР°
+    const std::vector<int>& spisok_decomposition_G_original, // Р”Р»СЏ get_block_graph_and_map_ids
+    const std::vector<int>& ordered_original_block_ids_on_path, // РЈРїРѕСЂСЏРґРѕС‡РµРЅРЅР°СЏ С†РµРїСЊ ID Р±Р»РѕРєРѕРІ
+    const std::vector<int>& ordered_articulation_points_orig_ids // ordered_aps[i] - С‚РѕС‡РєР° РјРµР¶РґСѓ Р±Р»РѕРєРѕРј i-1 Рё i РІ РїСѓС‚Рё
+) const { // РЎРґРµР»Р°Р» const
+
+    if (max_len_budget < 0 || current_block_path_idx >= ordered_original_block_ids_on_path.size()) return {};
+
+    int original_block_id_to_restore = ordered_original_block_ids_on_path[current_block_path_idx];
+
+    kGraph current_block_graph;
+    std::vector<int> map_new_to_orig, map_orig_to_new;
+    // Р’Р°Р¶РЅРѕ: get_block_graph_and_map_ids РІС‹Р·С‹РІР°РµС‚СЃСЏ РѕС‚ G_original
+    this->get_block_graph_and_map_ids(original_block_id_to_restore, spisok_decomposition_G_original,
+                                current_block_graph, map_new_to_orig, map_orig_to_new);
+
+    if (current_block_graph.KAO.size() <= 1 || map_orig_to_new[entry_node_original_id] == 0) {
+        return std::vector<double>(max_len_budget + 1, 0.0);
+    }
+    int s_in_block = map_orig_to_new[entry_node_original_id];
+
+    // Р‘РђР—РћР’Р«Р™ РЎР›РЈР§РђР™: С‚РµРєСѓС‰РёР№ Р±Р»РѕРє СЏРІР»СЏРµС‚СЃСЏ РїРѕСЃР»РµРґРЅРёРј РІ РїСѓС‚Рё Р СЃРѕРґРµСЂР¶РёС‚ target_node_original_id
+    bool is_last_block_in_path = (current_block_path_idx == ordered_original_block_ids_on_path.size() - 1);
+    
+    std::vector<int> blocks_of_target = this->get_blocks_containing_vertex(target_node_original_id, spisok_decomposition_G_original);
+    bool target_in_current_original_block = false;
+    for(int b_id : blocks_of_target) {
+        if (b_id == original_block_id_to_restore) {
+            target_in_current_original_block = true;
+            break;
+        }
+    }
+
+    if (is_last_block_in_path && target_in_current_original_block) {
+        if (map_orig_to_new[target_node_original_id] == 0) {
+            return std::vector<double>(max_len_budget + 1, 0.0);
+        }
+        int t_in_block = map_orig_to_new[target_node_original_id];
+        std::vector<double> R_cumulative(max_len_budget + 1, 0.0);
+        double global_globsumReliab_backup = globsumReliab;
+
+        int d_min_this_block_path = current_block_graph.DistanceDijkstra(s_in_block, t_in_block);
+        for (int d = 0; d <= max_len_budget; ++d) {
+            if (d < d_min_this_block_path && d_min_this_block_path != Nconst) {
+                R_cumulative[d] = 0.0;
+            } else {
+                globsumReliab = 0.0;
+                Factoring2Vert(current_block_graph, s_in_block, t_in_block, 0, d, 1.0);
+                R_cumulative[d] = globsumReliab;
+            }
+        }
+        for (int d = 1; d <= max_len_budget; ++d) {
+            if (R_cumulative[d] < R_cumulative[d - 1]) R_cumulative[d] = R_cumulative[d-1];
+        }
+        globsumReliab = global_globsumReliab_backup;
+        return R_cumulative;
+    }
+
+    // Р Р•РљРЈР РЎРР’РќР«Р™ РЁРђР“
+    if (is_last_block_in_path && !target_in_current_original_block) { // РџРѕСЃР»РµРґРЅРёР№ Р±Р»РѕРє, РЅРѕ t РЅРµ РІ РЅРµРј - РѕС€РёР±РєР° РїСѓС‚Рё
+         return std::vector<double>(max_len_budget + 1, 0.0);
+    }
+    // Р•СЃР»Рё РЅРµ РїРѕСЃР»РµРґРЅРёР№ Р±Р»РѕРє, РЅСѓР¶РЅР° С‚РѕС‡РєР° РІС‹С…РѕРґР°
+    // ordered_articulation_points_orig_ids[current_block_path_idx + 1] СЌС‚Рѕ С‚РѕС‡РєР° РјРµР¶РґСѓ current Рё next
+    if (current_block_path_idx + 1 >= ordered_articulation_points_orig_ids.size() || ordered_articulation_points_orig_ids[current_block_path_idx + 1] == 0) {
+        return std::vector<double>(max_len_budget + 1, 0.0); // РќРµС‚ С‚РѕС‡РєРё РІС‹С…РѕРґР°
+    }
+    int exit_node_original_id = ordered_articulation_points_orig_ids[current_block_path_idx + 1];
+    if (map_orig_to_new.empty() || exit_node_original_id >= map_orig_to_new.size() || map_orig_to_new[exit_node_original_id] == 0) {
+        return std::vector<double>(max_len_budget + 1, 0.0); // РўРѕС‡РєР° РІС‹С…РѕРґР° РЅРµ РІ С‚РµРєСѓС‰РµРј РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРЅРѕРј Р±Р»РѕРєРµ
+    }
+    int x_in_block = map_orig_to_new[exit_node_original_id];
+
+
+    // 1. Р Р°СЃСЃС‡РёС‚Р°С‚СЊ R_cumul_s_x (s_in_block -> x_in_block) РІ current_block_graph
+    std::vector<double> R_cumul_s_x(max_len_budget + 1, 0.0);
+    double global_globsumReliab_backup_sx = globsumReliab;
+    int d_min_s_x = current_block_graph.DistanceDijkstra(s_in_block, x_in_block);
+    for (int d = 0; d <= max_len_budget; ++d) {
+        if (d < d_min_s_x && d_min_s_x != Nconst) {
+             R_cumul_s_x[d] = 0.0;
+        } else {
+            globsumReliab = 0.0;
+            Factoring2Vert(current_block_graph, s_in_block, x_in_block, 0, d, 1.0); // Р—РґРµСЃСЊ РїСЂРѕРёСЃС…РѕРґРёС‚ РїРµСЂРµСЃС‡РµС‚ РґР»СЏ РѕРґРЅРёС… Рё С‚РµС… Р¶Рµ Р·РЅР°С‡РµРЅРёР№ РґРёР°РјРµС‚СЂР°??
+            R_cumul_s_x[d] = globsumReliab;
+        }
+    }
+    for (int d = 1; d <= max_len_budget; ++d) {
+        if (R_cumul_s_x[d] < R_cumul_s_x[d-1]) R_cumul_s_x[d] = R_cumul_s_x[d-1];
+    }
+    globsumReliab = global_globsumReliab_backup_sx;
+
+    std::vector<double> R_bar_s_x(max_len_budget + 1);
+    R_bar_s_x[0] = R_cumul_s_x[0];
+    for (int d = 1; d <= max_len_budget; ++d) {
+        R_bar_s_x[d] = R_cumul_s_x[d] - R_cumul_s_x[d - 1];
+    }
+
+    // 2. Р РµРєСѓСЂСЃРёРІРЅС‹Р№ РІС‹Р·РѕРІ РґР»СЏ РѕСЃС‚Р°Р»СЊРЅРѕР№ С‡Р°СЃС‚Рё С†РµРїРё
+    std::vector<double> R_cumul_x_t_rest = this->solve_recursive_for_block_chain_ordered(
+        current_block_path_idx + 1, exit_node_original_id, target_node_original_id,
+        max_len_budget, spisok_decomposition_G_original,
+        ordered_original_block_ids_on_path, ordered_articulation_points_orig_ids);
+
+    // 3. РљРѕРјР±РёРЅРёСЂРѕРІР°РЅРёРµ
+    std::vector<double> final_R_for_this_call(max_len_budget + 1, 0.0);
+    for (int d_target = 0; d_target <= max_len_budget; ++d_target) {
+        double sum_for_this_d_target = 0.0;
+        for (int len1 = 0; len1 <= d_target; ++len1) {
+            if (R_bar_s_x[len1] == 0.0) continue;
+            int len_for_rest_budget = d_target - len1;
+            if (len_for_rest_budget < 0) continue;
+            double prob_rest_of_chain = 0.0;
+            if (len_for_rest_budget < R_cumul_x_t_rest.size()) {
+                prob_rest_of_chain = R_cumul_x_t_rest[len_for_rest_budget];
+            }
+            sum_for_this_d_target += R_bar_s_x[len1] * prob_rest_of_chain;
+        }
+        final_R_for_this_call[d_target] = sum_for_this_d_target;
+    }
+    for (int d = 1; d <= max_len_budget; ++d) {
+        if (final_R_for_this_call[d] < final_R_for_this_call[d-1]) final_R_for_this_call[d] = final_R_for_this_call[d-1];
+    }
+    return final_R_for_this_call;
+}
+
+// Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅР°СЏ С„СѓРЅРєС†РёСЏ РґР»СЏ РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ РіСЂР°С„Р° Р±Р»РѕРєР° Рё РєР°СЂС‚ РІРµСЂС€РёРЅ
+// РџСЂРёРЅРёРјР°РµС‚ *this (РёСЃС…РѕРґРЅС‹Р№ РіСЂР°С„) РєР°Рє G_original РЅРµСЏРІРЅРѕ
+void kGraph::get_block_graph_and_map_ids(
+    int block_idx_to_restore,
+    const std::vector<int>& spisok_decomposition,
+    kGraph& out_block_graph,
+    std::vector<int>& out_map_new_id_to_original_id,
+    std::vector<int>& out_map_original_id_to_new_id
+) const { // Р”РѕР±Р°РІР»РµРЅРѕ const
+    out_map_original_id_to_new_id.assign(this->KAO.size(), 0);
+    out_map_new_id_to_original_id.assign(1, 0); // 0-Р№ СЌР»РµРјРµРЅС‚ РЅРµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ (РґР»СЏ 1-based new_id)
+
+    int new_vertex_id_counter = 0;
+    std::vector<bool> is_vertex_in_block_definitively(this->KAO.size(), false);
+
+    // РћРїСЂРµРґРµР»СЏРµРј РІРµСЂС€РёРЅС‹, РєРѕС‚РѕСЂС‹Рµ С‚РѕС‡РЅРѕ РїСЂРёРЅР°РґР»РµР¶Р°С‚ СЌС‚РѕРјСѓ Р±Р»РѕРєСѓ
+    // (С‚.Рµ. РЅРµ СЏРІР»СЏСЋС‚СЃСЏ С‚РѕС‡РєР°РјРё СЃРѕС‡Р»РµРЅРµРЅРёСЏ СЃ РґСЂСѓРіРёРјРё Р±Р»РѕРєР°РјРё, РєРѕС‚РѕСЂС‹Рµ РјС‹ СЃРµР№С‡Р°СЃ РЅРµ СЂР°СЃСЃРјР°С‚СЂРёРІР°РµРј,
+    // РёР»Рё СЏРІР»СЏСЋС‚СЃСЏ С‚РѕС‡РєР°РјРё СЃРѕС‡Р»РµРЅРµРЅРёСЏ, РЅРѕ РјС‹ РёС… РІРєР»СЋС‡Р°РµРј РєР°Рє С‡Р°СЃС‚СЊ СЌС‚РѕРіРѕ Р±Р»РѕРєР°)
+    for (int v_orig = 1; v_orig < this->KAO.size(); ++v_orig) {
+        bool part_of_block = false;
+        if (this->KAO[v_orig-1] < this->KAO[v_orig]) { // Р•СЃР»Рё РІРµСЂС€РёРЅР° РЅРµ РёР·РѕР»РёСЂРѕРІР°РЅР°
+             for (int edge_idx = this->KAO[v_orig - 1]; edge_idx < this->KAO[v_orig]; ++edge_idx) {
+                if (edge_idx < spisok_decomposition.size() -1 && spisok_decomposition[edge_idx] == block_idx_to_restore) {
+                    part_of_block = true;
+                    break;
+                }
+            }
+        } else if (this->Targets[v_orig] && block_idx_to_restore == 1) { // РћСЃРѕР±С‹Р№ СЃР»СѓС‡Р°Р№ РґР»СЏ РёР·РѕР»РёСЂРѕРІР°РЅРЅС‹С… С†РµР»РµРІС‹С… РІРµСЂС€РёРЅ РІ РїРµСЂРІРѕРј Р±Р»РѕРєРµ
+            // Р­С‚Рѕ СЌРІСЂРёСЃС‚РёРєР°, РјРѕР¶РµС‚ РїРѕС‚СЂРµР±РѕРІР°С‚СЊ СѓС‚РѕС‡РЅРµРЅРёСЏ.
+            // Р•СЃР»Рё s РёР»Рё t - РёР·РѕР»РёСЂРѕРІР°РЅРЅС‹Рµ РІРµСЂС€РёРЅС‹, DecomposeOnBlocksK РјРѕР¶РµС‚ РёС… РЅРµ РІРєР»СЋС‡РёС‚СЊ РІ СЂРµР±РµСЂРЅС‹Рµ Р±Р»РѕРєРё.
+            // Р—РґРµСЃСЊ РјС‹ РїСЂРµРґРїРѕР»Р°РіР°РµРј, С‡С‚Рѕ РµСЃР»Рё Targets[v_orig] = 1 Рё РјС‹ РІРѕСЃСЃС‚Р°РЅР°РІР»РёРІР°РµРј Р±Р»РѕРє 1, С‚Рѕ СЌС‚Рѕ РјРѕР¶РµС‚ Р±С‹С‚СЊ s РёР»Рё t.
+            // Р›СѓС‡С€Рµ, РµСЃР»Рё DecomposeOnBlocksK РєРѕСЂСЂРµРєС‚РЅРѕ РѕР±СЂР°Р±Р°С‚С‹РІР°РµС‚ С‚Р°РєРёРµ СЃР»СѓС‡Р°Рё РёР»Рё РµСЃР»Рё РІС…РѕРґРЅС‹Рµ РґР°РЅРЅС‹Рµ РЅРµ РёРјРµСЋС‚ РёР·РѕР»РёСЂРѕРІР°РЅРЅС‹С… s/t.
+        }
+
+
+        if (part_of_block) {
+            is_vertex_in_block_definitively[v_orig] = true;
+            new_vertex_id_counter++;
+            out_map_original_id_to_new_id[v_orig] = new_vertex_id_counter;
+            out_map_new_id_to_original_id.push_back(v_orig);
+        }
+    }
+    
+    // Р•СЃР»Рё Р±Р»РѕРє РїСѓСЃС‚ (РЅР°РїСЂРёРјРµСЂ, РЅРµРІРµСЂРЅС‹Р№ block_idx_to_restore РёР»Рё РїСѓСЃС‚Р°СЏ РґРµРєРѕРјРїРѕР·РёС†РёСЏ)
+    if (new_vertex_id_counter == 0) {
+        out_block_graph.KAO.assign(1,0);
+        out_block_graph.FO.clear();
+        out_block_graph.PArray.clear();
+        out_block_graph.Targets.assign(1,0);
+        // РљР°СЂС‚С‹ СѓР¶Рµ РёРЅРёС†РёР°Р»РёР·РёСЂРѕРІР°РЅС‹ РїСЂР°РІРёР»СЊРЅРѕ (РїСѓСЃС‚С‹Рµ РёР»Рё СЃ 0)
+        return;
+    }
+
+
+    std::vector<int> KAO_new(new_vertex_id_counter + 1);
+    std::vector<int> FO_new_edges;
+    std::vector<double> Parray_new_edges;
+    std::vector<int> Targets_new(new_vertex_id_counter + 1, 0);
+
+    KAO_new[0] = 0;
+    for (int new_v_idx = 1; new_v_idx <= new_vertex_id_counter; ++new_v_idx) {
+        KAO_new[new_v_idx] = KAO_new[new_v_idx - 1];
+        int original_v_id_current = out_map_new_id_to_original_id[new_v_idx];
+        
+        if (original_v_id_current < this->Targets.size()) {
+             Targets_new[new_v_idx] = this->Targets[original_v_id_current];
+        } else {
+            // Р­С‚Рѕ РјРѕР¶РµС‚ РїСЂРѕРёР·РѕР№С‚Рё, РµСЃР»Рё KAO.size() Р±РѕР»СЊС€Рµ Targets.size(), С‡С‚Рѕ СЃС‚СЂР°РЅРЅРѕ.
+            // РћР±С‹С‡РЅРѕ РѕРЅРё РґРѕР»Р¶РЅС‹ Р±С‹С‚СЊ РѕРґРёРЅР°РєРѕРІРѕРіРѕ СЂР°Р·РјРµСЂР° (N+1).
+        }
+
+        for (int edge_orig_idx = this->KAO[original_v_id_current - 1]; edge_orig_idx < this->KAO[original_v_id_current]; ++edge_orig_idx) {
+            if (edge_orig_idx < spisok_decomposition.size() -1 && spisok_decomposition[edge_orig_idx] == block_idx_to_restore) {
+                int original_adj_v_id = this->FO[edge_orig_idx];
+                if (out_map_original_id_to_new_id[original_adj_v_id] != 0) { // Р•СЃР»Рё СЃРјРµР¶РЅР°СЏ РІРµСЂС€РёРЅР° С‚Р°РєР¶Рµ РІ СЌС‚РѕРј Р±Р»РѕРєРµ
+                    FO_new_edges.push_back(out_map_original_id_to_new_id[original_adj_v_id]);
+                    Parray_new_edges.push_back(this->PArray[edge_orig_idx]);
+                    KAO_new[new_v_idx]++;
+                }
+            }
+        }
+    }
+    out_block_graph.KAO = KAO_new;
+    out_block_graph.FO = FO_new_edges;
+    out_block_graph.PArray = Parray_new_edges;
+    out_block_graph.Targets = Targets_new;
+}
+
+
+void kGraph::convertEdgeListToKAOFO(const std::string& inputPath,
+	const std::string& outputPath,
+	double reliability) {
+	// Р‘Р°Р·РѕРІР°СЏ РєРѕРЅРІРµСЂСЃРёСЏ
+	Graph::convertEdgeListToKAOFO(inputPath, outputPath, reliability);
+
+	// РћР±СЂР°Р±РѕС‚РєР° Targets
+	int n = static_cast<int>(KAO.size()) - 2;
+	Targets.assign(n, 0);
+	std::ofstream outFile(outputPath, std::ios::app);
+	for (int i = 0; i < n; ++i)
+		outFile << Targets[i] << (i + 1 < n ? ',' : '\n');
+}
+
+void kGraph::convertKAOFOToEdgeList(const std::string& inputPath,
+	const std::string& outputPath) {
+	// Р‘Р°Р·РѕРІС‹Р№ РјРµС‚РѕРґ РІРѕСЃСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ СЃРїРёСЃРѕРє СЂС‘Р±РµСЂ
+	Graph::convertKAOFOToEdgeList(inputPath, outputPath);
+	// TODO: С‡С‚РµРЅРёРµ Targets, РµСЃР»Рё РїРѕС‚СЂРµР±СѓРµС‚СЃСЏ
 }
