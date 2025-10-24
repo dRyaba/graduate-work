@@ -28,7 +28,8 @@ struct kGraph : public Graph {
 		this->PArray = std::move(PArray);
 		this->Targets = std::move(Targets);
 	}
-	//    ~kGraph()= default;
+	
+	virtual ~kGraph() = default;
 
 	void ReliabilityDiamConstr(int d);
 	//{������ ����������� ��������� � ������������ �� ������� d ������� ���������.
@@ -105,6 +106,13 @@ struct kGraph : public Graph {
 
 	void ChangeVertex(int u, int v);
 
+	void convertEdgeListToKAOFO(const std::string& inputPath,
+		const std::string& outputPath,
+		double reliability) override;
+
+	void convertKAOFOToEdgeList(const std::string& inputPath,
+		const std::string& outputPath) override;
+
 	private:
 		// Вспомогательная функция для восстановления графа блока и карт вершин
 		void get_block_graph_and_map_ids(
@@ -133,12 +141,6 @@ struct kGraph : public Graph {
 			const std::vector<int>& spisok_decomposition
 		) const;
 
-		void convertEdgeListToKAOFO(const std::string& inputPath,
-			const std::string& outputPath,
-			double reliability) override;
-
-		void convertKAOFOToEdgeList(const std::string& inputPath,
-			const std::string& outputPath) override;
 };
 
 // Вспомогательная структура для представления графа блоков

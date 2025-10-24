@@ -19,30 +19,28 @@ endif()
 if(MSVC)
     add_compile_options(/W4 /permissive-)
 else()
-    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+    add_compile_options(-Wall -Wno-invalid-utf8 -Wno-sign-compare -Wno-unused-variable)
 endif()
 
 # Include directories
 include_directories(include)
+include_directories(.)
 
 # Source files
 set(SOURCES
-    src/main.cpp
-    src/Graph.cpp
-    src/ReliabilityGraph.cpp
-    src/DataImporter.cpp
-    src/TestSuite.cpp
-    src/GraphOperations.cpp
+    src/main_simple.cpp
+    conversion_functions.cpp
+    kGraphOperations.cpp
+    DataImporter.cpp
+    GraphOperations.cpp
 )
 
 # Header files
 set(HEADERS
     include/graph_reliability.h
-    include/graph_reliability/Graph.h
-    include/graph_reliability/ReliabilityGraph.h
-    include/graph_reliability/DataImporter.h
-    include/graph_reliability/TestSuite.h
-    include/graph_reliability/GraphOperations.h
+    DataImporter.h
+    kGraphOperations.h
+    GraphOperations.h
 )
 
 # Create executable

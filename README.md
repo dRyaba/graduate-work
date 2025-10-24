@@ -1,7 +1,6 @@
 # Graph Reliability Analysis Library
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/your-repo/graph-reliability)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![C++ Standard](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 
@@ -183,10 +182,6 @@ open docs/html/index.html
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 

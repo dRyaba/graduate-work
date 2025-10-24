@@ -5,7 +5,9 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#ifdef HAVE_OPENMP
 #include <omp.h>
+#endif
 #include <queue>
 #include <map>
 #include <optional>
@@ -158,7 +160,11 @@ void Factoring2VertMParallel(kGraph G, const int x, const int y, const int varia
 			break;
 		}
 	if (i == G.FO.size()) {
-		BlockReliab[omp_get_thread_num()][d - LowerBound] += Reliab;
+#ifdef HAVE_OPENMP
+                BlockReliab[omp_get_thread_num()][d - LowerBound] += Reliab;
+#else
+                BlockReliab[0][d - LowerBound] += Reliab;
+#endif
 		return; // add Reliab to sum
 	}
 	double p = G.PArray[i];
@@ -667,7 +673,9 @@ void kGraph::ReliabilityDiamConstr2VertMDecomposeParallel(int x, int y, const in
 	//omp_set_num_threads(BlockNum);
 	BlockReliab.resize(BlockNum,std::vector<double>(gap + 1));
 	
+#ifdef HAVE_OPENMP
 	#pragma omp parallel for num_threads(BlockNum)
+#endif
 			for (int i = 0; i < BlockNum; i++) {
 				//std::cout << omp_get_num_threads() << std::endl;
 					kGraph Restored = this->RestoreBlockK(i + 1, spisok);
