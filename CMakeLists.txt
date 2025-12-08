@@ -28,19 +28,22 @@ include_directories(.)
 
 # Source files
 set(SOURCES
-    src/main_simple.cpp
-    conversion_functions.cpp
-    kGraphOperations.cpp
-    DataImporter.cpp
-    GraphOperations.cpp
+    src/main.cpp
+    src/Graph.cpp
+    src/ReliabilityGraph.cpp
+    src/DataImporter.cpp
+    src/GraphOperations.cpp
+    src/TestSuite.cpp
 )
 
 # Header files
 set(HEADERS
     include/graph_reliability.h
-    DataImporter.h
-    kGraphOperations.h
-    GraphOperations.h
+    include/graph_reliability/Graph.h
+    include/graph_reliability/ReliabilityGraph.h
+    include/graph_reliability/DataImporter.h
+    include/graph_reliability/GraphOperations.h
+    include/graph_reliability/TestSuite.h
 )
 
 # Create executable
