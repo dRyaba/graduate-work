@@ -1,8 +1,8 @@
 # Graph Reliability Analysis Library
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/your-repo/graph-reliability)
-[![C++ Standard](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![C++ Standard](https://img.shields.io/badge/C%2B%2B-17-blue.svg)
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
 
 A comprehensive C++ library for network reliability analysis, providing efficient algorithms for calculating network reliability with diameter constraints and various decomposition methods.
 
@@ -49,7 +49,7 @@ using namespace graph_reliability;
 DataImporter importer("graphs_data/");
 
 // Load a graph
-auto graph = importer.loadKAOGraph("example.kao");
+auto graph = importer.loadKAOGraph("K4_kao.txt");
 
 // Calculate reliability
 auto result = graph->calculateReliabilityWithMDecomposition(1, 10, 15);
@@ -76,7 +76,7 @@ std::cout << "Execution time: " << result.execution_time_sec << " seconds" << st
 
 ## Project Structure
 
-```
+```plaintext
 graduate-work/
 ├── include/                    # Header files
 │   ├── graph_reliability.h    # Main header
@@ -87,11 +87,17 @@ graduate-work/
 │       ├── TestSuite.h        # Testing framework
 │       └── GraphOperations.h  # Graph utilities
 ├── src/                       # Source files
-│   └── main.cpp              # Main application
-├── graphs_data/              # Test data
-├── docs/                     # Documentation
+│   ├── main.cpp              # Main application
+│   ├── Graph.cpp             # Base graph implementation
+│   ├── ReliabilityGraph.cpp  # Reliability calculations
+│   ├── DataImporter.cpp      # Data import implementation
+│   ├── TestSuite.cpp         # Testing framework
+│   └── GraphOperations.cpp   # Graph utilities
+├── graphs_data/              # Test data (KAO and EdgeList files)
+├── docs/                     # Documentation (Doxygen)
+├── build/                    # Build output (gitignored)
 ├── CMakeLists.txt           # Build configuration
-└── README.md               # This file
+└── README.md                # This file
 ```
 
 ## API Reference
@@ -99,15 +105,19 @@ graduate-work/
 ### Core Classes
 
 #### `Graph`
+
 Base graph structure using CSR format for efficient memory usage and fast adjacency queries.
 
 #### `ReliabilityGraph`
+
 Extended graph structure with target vertices and specialized reliability calculation methods.
 
 #### `DataImporter`
+
 Centralized system for loading graphs from various formats and managing data file paths.
 
 #### `TestSuite`
+
 Comprehensive testing framework for different reliability calculation methods.
 
 ### Reliability Calculation Methods
@@ -120,7 +130,8 @@ Comprehensive testing framework for different reliability calculation methods.
 ## Data Formats
 
 ### KAO Format
-```
+
+```plaintext
 0,2,5,8,10,13,17,21,24,27,31,35,38,40,43,46,48
 2,5,1,3,6,2,4,7,3,8,1,6,9,2,5,7,10,3,6,8,11,4,7,12,5,10,13,6,9,11,14,7,10,12,15,8,11,16,9,14,10,13,15,11,14,16,12,15
 0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0
@@ -129,7 +140,8 @@ Comprehensive testing framework for different reliability calculation methods.
 ```
 
 ### Edge List Format
-```
+
+```plaintext
 1 -- 2
 2 -- 3
 3 -- 4
@@ -139,6 +151,7 @@ Comprehensive testing framework for different reliability calculation methods.
 ## Performance
 
 The library is optimized for performance with:
+
 - CSR format for memory efficiency
 - OpenMP parallelization for CPU-intensive operations
 - Efficient algorithms with complexity analysis
@@ -192,6 +205,7 @@ open docs/html/index.html
 ## Support
 
 For questions, issues, or contributions, please:
+
 - Open an issue on GitHub
 - Contact the development team
 - Check the documentation in the `docs/` directory
