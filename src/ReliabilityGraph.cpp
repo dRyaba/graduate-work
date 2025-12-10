@@ -234,6 +234,65 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityBetweenVertices(VertexId
     return ReliabilityResult(total_rel, recursions, 0.0);
 }
 
+// Modified factoring - computes reliabilities for ALL diameters from lowerBound to upperBound in ONE pass
+// This is the key optimization of M-Decomposition (Factoring2VertM from legacy code)
+std::pair<std::vector<double>, long long> ReliabilityGraph::calculateReliabilityMultipleDiameters(
+    VertexId source, VertexId target, int lowerBound, int upperBound) const {
+    
+    int range = upperBound - lowerBound + 1;
+    std::vector<double> results(range, 0.0);
+    long long recursions = 0;
+    
+    // Modified factoring: if distance > d but <= upperBound, continue with d+1
+    std::function<void(ReliabilityGraph, int, int, double)> solveM = 
+        [&](ReliabilityGraph g, int variant, int d, double current_rel) {
+        recursions++;
+        
+        int dist = g.calculateDistance(source, target, upperBound + 1);
+        
+        if (!variant && dist > d) {
+            if (dist <= upperBound) {
+                recursions--; // Don't count this as a recursion (matches legacy behavior)
+                solveM(g, 0, d + 1, current_rel);
+            }
+            return; // distance > upperBound, add 0
+        }
+        
+        auto opt_edge = g.findLastUnreliableEdge();
+        if (!opt_edge) {
+            // Add reliability to result for diameter d
+            if (d >= lowerBound && d <= upperBound) {
+                results[d - lowerBound] += current_rel;
+            }
+            return;
+        }
+        
+        EdgeId edge_idx = *opt_edge;
+        double p = g.p_array_[edge_idx];
+        g.p_array_[edge_idx] = 1.0;
+        
+        auto [from, reverse_idx] = g.findReverseEdgeIndices(edge_idx);
+        if (reverse_idx != -1) g.p_array_[reverse_idx] = 1.0;
+        
+        solveM(g, 1, d, current_rel * p);
+        
+        if (reverse_idx != -1) g.p_array_[reverse_idx] = p;
+        g.p_array_[edge_idx] = p;
+        
+        ReliabilityGraph t = g.removeEdge(g.fo_[edge_idx], from);
+        solveM(t, 0, d, current_rel * (1.0 - p));
+    };
+    
+    solveM(*this, 0, lowerBound, 1.0);
+    
+    // Convert to cumulative (results[i] = P(distance <= lowerBound + i))
+    for (int i = 1; i < range; ++i) {
+        results[i] += results[i - 1];
+    }
+    
+    return {results, recursions};
+}
+
 // -----------------------------------------------------------------------------
 // Decomposition Methods
 // -----------------------------------------------------------------------------
@@ -608,8 +667,11 @@ std::vector<double> ReliabilityGraph::solveRecursiveForBlockChain(
     int max_len,
     const std::vector<int>& decomposition,
     const std::vector<int>& block_ids,
-    const std::vector<int>& aps_orig
+    const std::vector<int>& aps_orig,
+    long long& recursion_counter
 ) const {
+    recursion_counter++;
+    
     if (max_len < 0 || current_idx >= block_ids.size()) return {};
     
     int block_id = block_ids[current_idx];
@@ -634,20 +696,10 @@ std::vector<double> ReliabilityGraph::solveRecursiveForBlockChain(
         if (map_orig_to_new[target_node_orig] == -1) return std::vector<double>(max_len + 1, 0.0);
         int t_local = map_orig_to_new[target_node_orig];
         
-        std::vector<double> r_cumulative(max_len + 1, 0.0);
-        // Calculate reliability for d=0..max_len
-        // This is expensive! Should optimize to calculate once for max_len?
-        // Legacy calculates for EACH d.
-        // But here we need CDF?
+        // Use modified factoring - compute ALL diameters in ONE pass
+        auto [r_cumulative, recs] = block_graph.calculateReliabilityMultipleDiameters(s_local, t_local, 0, max_len);
+        recursion_counter += recs;
         
-        for (int d = 0; d <= max_len; ++d) {
-            auto res = block_graph.calculateReliabilityBetweenVertices(s_local, t_local, d);
-            r_cumulative[d] = res.reliability;
-        }
-        // Ensure monotonicity
-        for (int d = 1; d <= max_len; ++d) {
-            if (r_cumulative[d] < r_cumulative[d-1]) r_cumulative[d] = r_cumulative[d-1];
-        }
         return r_cumulative;
     }
     
@@ -659,15 +711,9 @@ std::vector<double> ReliabilityGraph::solveRecursiveForBlockChain(
     if (map_orig_to_new[exit_node_orig] == -1) return std::vector<double>(max_len + 1, 0.0);
     int x_local = map_orig_to_new[exit_node_orig];
     
-    // Calculate S->X in this block
-    std::vector<double> r_cumulative_sx(max_len + 1, 0.0);
-    for (int d = 0; d <= max_len; ++d) {
-        auto res = block_graph.calculateReliabilityBetweenVertices(s_local, x_local, d);
-        r_cumulative_sx[d] = res.reliability;
-    }
-    for (int d = 1; d <= max_len; ++d) {
-        if (r_cumulative_sx[d] < r_cumulative_sx[d-1]) r_cumulative_sx[d] = r_cumulative_sx[d-1];
-    }
+    // Calculate S->X in this block using modified factoring - ONE pass for all diameters
+    auto [r_cumulative_sx, recs_sx] = block_graph.calculateReliabilityMultipleDiameters(s_local, x_local, 0, max_len);
+    recursion_counter += recs_sx;
     
     // Compute PMF from CDF
     std::vector<double> r_pmf_sx(max_len + 1);
@@ -679,7 +725,7 @@ std::vector<double> ReliabilityGraph::solveRecursiveForBlockChain(
     // Recursive call
     std::vector<double> r_cumulative_next = solveRecursiveForBlockChain(
         current_idx + 1, exit_node_orig, target_node_orig, 
-        max_len, decomposition, block_ids, aps_orig
+        max_len, decomposition, block_ids, aps_orig, recursion_counter
     );
     
     // Convolve
@@ -702,12 +748,129 @@ std::vector<double> ReliabilityGraph::solveRecursiveForBlockChain(
     return result;
 }
 
+// =============================================================================
+// LEVEL 1: TRUE NESTED RECURSION (The "Naive" Method)
+// =============================================================================
+// This implements the theoretically correct but INEFFICIENT nested recursion.
+// For each path length L in block_i, we make a RECURSIVE CALL to block_{i+1}.
+// This causes redundant computation (the "memory effect") which is intentional
+// for academic comparison purposes.
+// =============================================================================
+
+double ReliabilityGraph::solveNestedRecursive(
+    int current_idx,
+    int entry_node_orig,
+    int target_node_orig,
+    int remaining_diameter,
+    const std::vector<int>& decomposition,
+    const std::vector<int>& block_ids,
+    const std::vector<int>& aps_orig,
+    long long& recursion_counter
+) const {
+    recursion_counter++;
+    
+    // Base case: invalid parameters
+    if (remaining_diameter < 0 || current_idx >= static_cast<int>(block_ids.size())) {
+        return 0.0;
+    }
+    
+    int block_id = block_ids[current_idx];
+    ReliabilityGraph block_graph;
+    std::vector<int> map_new_to_orig, map_orig_to_new;
+    
+    getBlockGraphAndMap(block_id, decomposition, block_graph, map_new_to_orig, map_orig_to_new);
+    
+    if (block_graph.numVertices() <= 1 || map_orig_to_new[entry_node_orig] == -1) {
+        return 0.0;
+    }
+    
+    int s_local = map_orig_to_new[entry_node_orig];
+    bool is_last = (current_idx == static_cast<int>(block_ids.size()) - 1);
+    
+    // Check if target is in this block
+    bool target_in_block = false;
+    auto target_blocks = getBlocksContainingVertex(target_node_orig, decomposition);
+    for (int b : target_blocks) {
+        if (b == block_id) target_in_block = true;
+    }
+    
+    // LAST BLOCK: Return cumulative reliability P(distance <= remaining_diameter)
+    if (is_last && target_in_block) {
+        if (map_orig_to_new[target_node_orig] == -1) return 0.0;
+        int t_local = map_orig_to_new[target_node_orig];
+        
+        // Standard factoring for single diameter value
+        auto res = block_graph.calculateReliabilityBetweenVertices(s_local, t_local, remaining_diameter);
+        recursion_counter += res.recursions;
+        return res.reliability;
+    }
+    
+    if (is_last && !target_in_block) return 0.0;
+    
+    // Not the last block: need to recurse to next block
+    if (current_idx + 1 >= static_cast<int>(aps_orig.size())) return 0.0;
+    int exit_node_orig = aps_orig[current_idx + 1];
+    
+    if (map_orig_to_new[exit_node_orig] == -1) return 0.0;
+    int x_local = map_orig_to_new[exit_node_orig];
+    
+    // ==========================================================================
+    // NESTED RECURSION: The "Memory Effect"
+    // For each possible path length L in this block, we:
+    //   1. Compute P(distance == L) = P(distance <= L) - P(distance <= L-1)
+    //   2. Make a RECURSIVE CALL for the remaining chain with (remaining_diameter - L)
+    //   3. Accumulate: total += P(exact L) * RecursiveResult
+    // ==========================================================================
+    
+    double total_reliability = 0.0;
+    
+    // Iterate through all possible path lengths in current block
+    for (int len = 0; len <= remaining_diameter; ++len) {
+        // Calculate P(distance <= len) using standard factoring
+        auto res_len = block_graph.calculateReliabilityBetweenVertices(s_local, x_local, len);
+        recursion_counter += res_len.recursions;
+        double val_len = res_len.reliability;
+        
+        // Calculate P(distance <= len-1) for computing exact probability
+        double val_prev = 0.0;
+        if (len > 0) {
+            auto res_prev = block_graph.calculateReliabilityBetweenVertices(s_local, x_local, len - 1);
+            recursion_counter += res_prev.recursions;
+            val_prev = res_prev.reliability;
+        }
+        
+        // P(distance == exactly len) = P(distance <= len) - P(distance <= len-1)
+        double prob_exact = val_len - val_prev;
+        
+        if (prob_exact > 1e-15) {
+            // CRITICAL: Recursive call happens HERE, INSIDE the loop
+            // This triggers re-calculation of the tail for every length L
+            // This is the "memory effect" - intentionally inefficient!
+            double tail_reliability = solveNestedRecursive(
+                current_idx + 1,
+                exit_node_orig,
+                target_node_orig,
+                remaining_diameter - len,
+                decomposition,
+                block_ids,
+                aps_orig,
+                recursion_counter
+            );
+            
+            total_reliability += prob_exact * tail_reliability;
+        }
+    }
+    
+    return total_reliability;
+}
+
 // -----------------------------------------------------------------------------
 // Public Calculation Methods
 // -----------------------------------------------------------------------------
 
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecomposition(VertexId s, VertexId t, int d) const {
     clock_t start = clock();
+    long long recursion_counter = 0;
     
     std::vector<int> decomposition = decomposeIntoKBlocks();
     int num_blocks = decomposition.back();
@@ -777,27 +940,211 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecomposition(Verte
     for(size_t i=0; i<path_aps.size(); ++i) final_aps[i+1] = path_aps[i];
     
     std::vector<double> results = solveRecursiveForBlockChain(
-        0, s, t, d, decomposition, ordered_block_ids, final_aps
+        0, s, t, d, decomposition, ordered_block_ids, final_aps, recursion_counter
     );
     
     double rel = (results.empty()) ? 0.0 : results[std::min((int)results.size()-1, d)];
     double time = (double)(clock() - start) / CLOCKS_PER_SEC;
     
-    return ReliabilityResult(rel, 0, time); // Recursion count?
+    return ReliabilityResult(rel, recursion_counter, time);
 }
 
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithRecursiveDecomposition(VertexId s, VertexId t, int d) const {
-    // Port of ReliabilityDiamConstr2VertRecursiveDecomposition
-    // Similar to M-Decomposition but might use different strategy for blocks?
-    // For now, alias to M-Decomposition as it is the most advanced one.
-    return calculateReliabilityWithMDecomposition(s, t, d);
+    // ==========================================================================
+    // LEVEL 1: Recursive Decomposition (The "Naive" Method)
+    // ==========================================================================
+    // This method uses TRUE NESTED RECURSION where the solver for Block(i) makes
+    // recursive calls to Block(i+1) INSIDE its loop over path lengths.
+    // This is intentionally INEFFICIENT for academic comparison purposes.
+    // ==========================================================================
+    clock_t start = clock();
+    long long recursion_counter = 0;
+    
+    std::vector<int> decomposition = decomposeIntoKBlocks();
+    int num_blocks = decomposition.back();
+    
+    // If single block, fall back to standard factoring
+    if (num_blocks <= 1) {
+        return calculateReliabilityBetweenVertices(s, t, d);
+    }
+    
+    // Build Block Graph
+    std::vector<BlockGraphNode> block_nodes(num_blocks);
+    std::map<int, int> block_id_to_idx;
+    for (int i = 0; i < num_blocks; ++i) {
+        block_nodes[i].original_block_id = i + 1;
+        block_id_to_idx[i + 1] = i;
+    }
+    
+    std::vector<BlockGraphEdge> block_edges;
+    std::vector<bool> ap_processed(numVertices(), false);
+    
+    for (size_t v = 0; v < numVertices(); ++v) {
+        auto blocks = getBlocksContainingVertex(v, decomposition);
+        if (blocks.size() > 1) {
+            if (ap_processed[v]) continue;
+            ap_processed[v] = true;
+            for (size_t i = 0; i < blocks.size(); ++i) {
+                for (size_t j = i + 1; j < blocks.size(); ++j) {
+                    if (block_id_to_idx.count(blocks[i]) && block_id_to_idx.count(blocks[j])) {
+                        block_edges.push_back({
+                            block_id_to_idx[blocks[i]],
+                            block_id_to_idx[blocks[j]],
+                            static_cast<int>(v)
+                        });
+                    }
+                }
+            }
+        }
+    }
+    
+    auto s_blocks = getBlocksContainingVertex(s, decomposition);
+    auto t_blocks = getBlocksContainingVertex(t, decomposition);
+    
+    if (s_blocks.empty() || t_blocks.empty()) {
+        double time = (double)(clock() - start) / CLOCKS_PER_SEC;
+        return ReliabilityResult(0.0, 0, time);
+    }
+    
+    int start_node_idx = block_id_to_idx[s_blocks[0]];
+    int end_node_idx = block_id_to_idx[t_blocks[0]];
+    
+    std::vector<int> path_aps;
+    std::vector<int> block_path_indices = findPathInBlockGraph(
+        start_node_idx, end_node_idx, num_blocks, block_edges, path_aps
+    );
+    
+    if (block_path_indices.empty()) {
+        double time = (double)(clock() - start) / CLOCKS_PER_SEC;
+        return ReliabilityResult(0.0, 0, time);
+    }
+    
+    std::vector<int> ordered_block_ids;
+    for (int idx : block_path_indices) {
+        ordered_block_ids.push_back(block_nodes[idx].original_block_id);
+    }
+    
+    std::vector<int> final_aps(ordered_block_ids.size() + 1, 0);
+    for (size_t i = 0; i < path_aps.size(); ++i) {
+        final_aps[i + 1] = path_aps[i];
+    }
+    
+    // Use TRUE NESTED RECURSION (not convolution!)
+    // The recursive call happens INSIDE the loop over path lengths
+    double reliability = solveNestedRecursive(
+        0, s, t, d, decomposition, ordered_block_ids, final_aps, recursion_counter
+    );
+    
+    double time = (double)(clock() - start) / CLOCKS_PER_SEC;
+    
+    return ReliabilityResult(reliability, recursion_counter, time);
 }
 
-ReliabilityResult ReliabilityGraph::calculateReliabilityWithDecomposition(VertexId s, VertexId t, int d) const {
+ReliabilityResult ReliabilityGraph::calculateReliabilityWithDecomposition(VertexId s, VertexId t, int UpperBound) const {
     // Port of ReliabilityDiamConstr2VertDecomposeSimpleFacto
-    // Decomposes, then factors blocks?
-    // If only 1 block, does standard factoring.
-    return calculateReliabilityWithMDecomposition(s, t, d); 
+    // Uses direct convolution of block reliabilities (Migov's formula)
+    clock_t start = clock();
+    long long recursion_counter = 0;
+    
+    std::vector<int> decomposition = decomposeIntoKBlocks();
+    int BlockNum = decomposition.back();
+    
+    // If single block, fall back to standard factoring
+    if (BlockNum <= 1) {
+        return calculateReliabilityBetweenVertices(s, t, UpperBound);
+    }
+    
+    // Calculate minimum diameter for each block and find target vertices
+    std::vector<int> BlockDiam(BlockNum);
+    std::vector<std::pair<int, int>> BlockTargets(BlockNum); // local s, t for each block
+    int diamsum = 0;
+    
+    for (int i = 0; i < BlockNum; i++) {
+        ReliabilityGraph block_graph;
+        std::vector<int> map_new_to_orig, map_orig_to_new;
+        getBlockGraphAndMap(i + 1, decomposition, block_graph, map_new_to_orig, map_orig_to_new);
+        
+        // Find target vertices in this block
+        int local_s = -1, local_t = -1;
+        for (size_t j = 0; j < block_graph.target_vertices_.size(); ++j) {
+            if (block_graph.target_vertices_[j] == 1) {
+                if (local_s == -1) local_s = j;
+                else if (local_t == -1) local_t = j;
+            }
+        }
+        
+        if (local_s == -1 || local_t == -1) {
+            // Block doesn't have two target vertices - find endpoints via articulation points
+            // Use first and last vertices that connect to other blocks
+            for (size_t j = 0; j < map_new_to_orig.size(); ++j) {
+                int orig_v = map_new_to_orig[j];
+                auto blocks = getBlocksContainingVertex(orig_v, decomposition);
+                if (blocks.size() > 1) {
+                    if (local_s == -1) local_s = j;
+                    else if (local_t == -1 && (int)j != local_s) local_t = j;
+                }
+            }
+        }
+        
+        if (local_s == -1) local_s = 0;
+        if (local_t == -1) local_t = block_graph.numVertices() > 1 ? 1 : 0;
+        
+        BlockTargets[i] = {local_s, local_t};
+        BlockDiam[i] = block_graph.calculateDistance(local_s, local_t, UpperBound);
+        diamsum += BlockDiam[i];
+    }
+    
+    if (diamsum > UpperBound) {
+        double time = (double)(clock() - start) / CLOCKS_PER_SEC;
+        return ReliabilityResult(0.0, recursion_counter, time);
+    }
+    
+    int gap = UpperBound - diamsum;
+    
+    // Compute reliabilities for each block for diameters from BlockDiam[i] to BlockDiam[i] + gap
+    std::vector<std::vector<double>> BlockReliab(BlockNum, std::vector<double>(gap + 1, 0.0));
+    
+    for (int i = 0; i < BlockNum; i++) {
+        ReliabilityGraph block_graph;
+        std::vector<int> map_new_to_orig, map_orig_to_new;
+        getBlockGraphAndMap(i + 1, decomposition, block_graph, map_new_to_orig, map_orig_to_new);
+        
+        int local_s = BlockTargets[i].first;
+        int local_t = BlockTargets[i].second;
+        
+        for (int j = 0; j <= gap; ++j) {
+            auto res = block_graph.calculateReliabilityBetweenVertices(local_s, local_t, BlockDiam[i] + j);
+            BlockReliab[i][j] = res.reliability;
+            recursion_counter += res.recursions;
+        }
+    }
+    
+    // Convert cumulative reliabilities to point reliabilities (PMF) for blocks 0 to BlockNum-2
+    for (int i = 0; i < BlockNum - 1; i++) {
+        for (int j = gap; j > 0; j--) {
+            BlockReliab[i][j] -= BlockReliab[i][j - 1];
+        }
+    }
+    
+    // Convolve block reliabilities from last to first (Migov's formula)
+    std::vector<double> curBlockRel(gap + 1, 0.0);
+    
+    for (int i = BlockNum - 1; i > 0; i--) {
+        for (int diam = 0; diam <= gap; diam++) {
+            for (int j = 0; j <= diam; j++) {
+                curBlockRel[diam] += BlockReliab[i - 1][j] * BlockReliab[i][diam - j];
+            }
+        }
+        for (int j = 0; j <= gap; j++) {
+            BlockReliab[i - 1][j] = curBlockRel[j];
+            curBlockRel[j] = 0.0;
+        }
+    }
+    
+    double reliability = BlockReliab[0][gap];
+    double time = (double)(clock() - start) / CLOCKS_PER_SEC;
+    
+    return ReliabilityResult(reliability, recursion_counter, time);
 }
 
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithParallelMDecomposition(VertexId s, VertexId t, int d) const {

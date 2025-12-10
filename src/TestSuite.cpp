@@ -23,10 +23,10 @@ void TestSuite::setTestConfigurations(const std::map<std::string, std::vector<in
 
 std::vector<std::string> TestSuite::getAvailableMethods() const {
     return {
-        "M-Decomposition",
-        "Recursive Decomposition",
-        "Simple Factoring",
-        "Standard Factoring"
+        "Standard Factoring (Level 0)",
+        "Recursive Decomposition (Level 1)",
+        "Simple Factoring (Level 2)",
+        "M-Decomposition (Level 3)"
     };
 }
 
@@ -55,17 +55,17 @@ TestRunResult TestSuite::runSingleTest(const TestConfiguration& config, int meth
             ReliabilityResult result;
             
             switch (method_id) {
-                case 0: // M-Decomposition
-                    result = graph->calculateReliabilityWithMDecomposition(s, t, config.upper_bound_diameter);
+                case 0: // Level 0: Standard Factoring (Baseline - SLOWEST)
+                    result = graph->calculateReliabilityBetweenVertices(s, t, config.upper_bound_diameter);
                     break;
-                case 1: // Recursive Decomposition
+                case 1: // Level 1: Recursive Decomposition (Nested Recursion - INEFFICIENT)
                     result = graph->calculateReliabilityWithRecursiveDecomposition(s, t, config.upper_bound_diameter);
                     break;
-                case 2: // Simple Factoring
+                case 2: // Level 2: Simple Factoring (Convolution - FAST)
                     result = graph->calculateReliabilityWithDecomposition(s, t, config.upper_bound_diameter);
                     break;
-                case 3: // Standard Factoring
-                    result = graph->calculateReliabilityBetweenVertices(s, t, config.upper_bound_diameter);
+                case 3: // Level 3: M-Decomposition (FASTEST)
+                    result = graph->calculateReliabilityWithMDecomposition(s, t, config.upper_bound_diameter);
                     break;
                 default:
                     std::cerr << "Unknown method ID: " << method_id << std::endl;
