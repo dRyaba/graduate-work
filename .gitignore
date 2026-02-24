@@ -53,6 +53,10 @@ graph_reliability
 # IDE files
 .vscode/
 .idea/
+.cursor/
+.vs/
+*.vcxproj.user
+*.user
 *.swp
 *.swo
 *~
@@ -66,9 +70,10 @@ graph_reliability
 ehthumbs.db
 Thumbs.db
 
-# Test results
+# Test results and output
 test_results.csv
 test_output.csv
+results*.csv
 *.log
 
 # Documentation build
