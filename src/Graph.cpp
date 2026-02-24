@@ -2,11 +2,13 @@
  * @file Graph.cpp
  * @brief Implementation of the Graph class
  * @author Graduate Work Project
- * @date 2024
+ * @date 2026
  */
 
 #include "graph_reliability/Graph.h"
+#include "graph_reliability/Exceptions.h"
 #include <algorithm>
+#include <functional>
 #include <queue>
 #include <stack>
 #include <limits>
@@ -402,10 +404,10 @@ std::vector<int> Graph::decomposeIntoTwoComponents() const {
 }
 
 void Graph::convertEdgeListToKAOFO(const std::string& input_path,
-                                  const std::string& output_path,
-                                  Probability reliability) const {
+                                   const std::string& output_path,
+                                   Probability reliability) const {
     std::ifstream inFile(input_path);
-    if (!inFile) throw std::runtime_error("Cannot open input file: " + input_path);
+    if (!inFile) throw FileNotFoundException(input_path);
 
     std::vector<std::pair<int, int>> edges;
     int u, v;
@@ -430,7 +432,7 @@ void Graph::convertEdgeListToKAOFO(const std::string& input_path,
         }
     }
 
-    if (edges.empty()) throw std::runtime_error("No edges found in input file");
+    if (edges.empty()) throw InvalidFormatException("No edges found in input file");
 
     int maxVertex = 0;
     for (auto& e : edges) maxVertex = std::max(maxVertex, std::max(e.first, e.second));
@@ -475,7 +477,7 @@ void Graph::convertEdgeListToKAOFO(const std::string& input_path,
             legacy_fo[idx++] = neighbor;
 
     std::ofstream outFile(output_path);
-    if (!outFile) throw std::runtime_error("Cannot open output file: " + output_path);
+    if (!outFile) throw FileNotFoundException(output_path);
     
     // Output KAO
     for (int i = 1; i <= n + 1; ++i) outFile << legacy_kao[i] << (i < n + 1 ? ',' : '\n');
@@ -486,9 +488,9 @@ void Graph::convertEdgeListToKAOFO(const std::string& input_path,
 }
 
 void Graph::convertKAOFOToEdgeList(const std::string& input_path,
-                                  const std::string& output_path) const {
+                                   const std::string& output_path) const {
     std::ifstream inFile(input_path);
-    if (!inFile) throw std::runtime_error("Cannot open input file: " + input_path);
+    if (!inFile) throw FileNotFoundException(input_path);
 
     std::string line, token;
     std::vector<int> file_kao;
@@ -505,7 +507,7 @@ void Graph::convertKAOFOToEdgeList(const std::string& input_path,
     }
 
     std::ofstream outFile(output_path);
-    if (!outFile) throw std::runtime_error("Cannot open output file: " + output_path);
+    if (!outFile) throw FileNotFoundException(output_path);
     
     std::set<std::pair<int, int>> seen;
     int n = static_cast<int>(file_kao.size()) - 1;
@@ -538,11 +540,13 @@ void Graph::validateGraph() const {
         return; 
     }
     if (kao_[0] != 0) {
-        throw std::invalid_argument("KAO array must start with 0");
+        throw InvalidGraphException("KAO array must start with 0");
     }
     if (kao_.back() != fo_.size()) {
-        // throw std::invalid_argument("KAO last element must equal FO size");
-        // Warning or strict? Strict is better for reliability.
+        throw InvalidGraphException("KAO last element must equal FO size");
+    }
+    if (fo_.size() != p_array_.size()) {
+        throw InvalidGraphException("FO and probability arrays must have the same size");
     }
 }
 

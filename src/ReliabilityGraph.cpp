@@ -2,11 +2,13 @@
  * @file ReliabilityGraph.cpp
  * @brief Implementation of the ReliabilityGraph class
  * @author Graduate Work Project
- * @date 2024
+ * @date 2026
  */
 
 #include "graph_reliability/ReliabilityGraph.h"
+#include "graph_reliability/Logger.h"
 #include <algorithm>
+#include <functional>
 #include <queue>
 #include <stack>
 #include <iostream>
@@ -15,6 +17,7 @@
 #include <map>
 #include <set>
 #include <cmath>
+#include <chrono>
 
 #ifdef HAVE_OPENMP
 #include <omp.h>
@@ -196,12 +199,27 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithDiameter(int diamete
 }
 
 ReliabilityResult ReliabilityGraph::calculateReliabilityBetweenVertices(VertexId source, VertexId target, int diameter) const {
+    auto start_time = std::chrono::high_resolution_clock::now();
+    LOG_DEBUG("Starting calculateReliabilityBetweenVertices: s={}, t={}, diameter={}", source, target, diameter);
+    
     long long recursions = 0;
     double total_rel = 0.0;
+    
+    #ifdef GRAPH_RELIABILITY_ENABLE_LOGGING
+    static thread_local long long last_logged_recursions = 0;
+    constexpr long long LOG_INTERVAL = 100000; // Log every 100k recursions
+    #endif
     
     std::function<void(ReliabilityGraph, int, double)> solve = 
         [&](ReliabilityGraph g, int variant, double current_rel) {
         recursions++;
+        
+        #ifdef GRAPH_RELIABILITY_ENABLE_LOGGING
+        if (recursions - last_logged_recursions >= LOG_INTERVAL) {
+            LOG_DEBUG("Recursion progress: {} recursions, current_reliability={}", recursions, total_rel);
+            last_logged_recursions = recursions;
+        }
+        #endif
         
         if (!variant) {
             if (g.calculateDistance(source, target, diameter) > diameter) return;
@@ -231,7 +249,17 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityBetweenVertices(VertexId
     
     solve(*this, 0, 1.0);
     
-    return ReliabilityResult(total_rel, recursions, 0.0);
+    auto end_time = std::chrono::high_resolution_clock::now();
+    double execution_time = std::chrono::duration<double>(end_time - start_time).count();
+    
+    LOG_INFO("calculateReliabilityBetweenVertices completed: reliability={}, recursions={}, time={}s",
+             total_rel, recursions, execution_time);
+    
+    #ifdef GRAPH_RELIABILITY_ENABLE_LOGGING
+    last_logged_recursions = 0; // Reset for next call
+    #endif
+    
+    return ReliabilityResult(total_rel, recursions, execution_time);
 }
 
 // Modified factoring - computes reliabilities for ALL diameters from lowerBound to upperBound in ONE pass
@@ -869,14 +897,19 @@ double ReliabilityGraph::solveNestedRecursive(
 // -----------------------------------------------------------------------------
 
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecomposition(VertexId s, VertexId t, int d) const {
+    LOG_INFO("Starting M-Decomposition: s={}, t={}, diameter={}", s, t, d);
+    
     clock_t start = clock();
     long long recursion_counter = 0;
     
+    LOG_DEBUG("Decomposing graph into k-blocks");
     std::vector<int> decomposition = decomposeIntoKBlocks();
     int num_blocks = decomposition.back();
+    LOG_DEBUG("Graph decomposed into {} blocks", num_blocks);
     
     // If single block, fall back to standard factoring
     if (num_blocks <= 1) {
+        LOG_DEBUG("Single block detected, using standard factoring");
         return calculateReliabilityBetweenVertices(s, t, d);
     }
     
@@ -939,12 +972,15 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecomposition(Verte
     std::vector<int> final_aps(ordered_block_ids.size() + 1, 0);
     for(size_t i=0; i<path_aps.size(); ++i) final_aps[i+1] = path_aps[i];
     
+    LOG_DEBUG("Solving block chain with {} blocks", ordered_block_ids.size());
     std::vector<double> results = solveRecursiveForBlockChain(
         0, s, t, d, decomposition, ordered_block_ids, final_aps, recursion_counter
     );
     
     double rel = (results.empty()) ? 0.0 : results[std::min((int)results.size()-1, d)];
     double time = (double)(clock() - start) / CLOCKS_PER_SEC;
+    
+    LOG_INFO("M-Decomposition completed: reliability={}, recursions={}, time={}s", rel, recursion_counter, time);
     
     return ReliabilityResult(rel, recursion_counter, time);
 }
@@ -957,14 +993,18 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithRecursiveDecompositi
     // recursive calls to Block(i+1) INSIDE its loop over path lengths.
     // This is intentionally INEFFICIENT for academic comparison purposes.
     // ==========================================================================
+    LOG_INFO("Starting Recursive Decomposition: s={}, t={}, diameter={}", s, t, d);
     clock_t start = clock();
     long long recursion_counter = 0;
     
+    LOG_DEBUG("Decomposing graph into k-blocks");
     std::vector<int> decomposition = decomposeIntoKBlocks();
     int num_blocks = decomposition.back();
+    LOG_DEBUG("Graph decomposed into {} blocks", num_blocks);
     
     // If single block, fall back to standard factoring
     if (num_blocks <= 1) {
+        LOG_DEBUG("Single block detected, using standard factoring");
         return calculateReliabilityBetweenVertices(s, t, d);
     }
     
@@ -1031,11 +1071,14 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithRecursiveDecompositi
     
     // Use TRUE NESTED RECURSION (not convolution!)
     // The recursive call happens INSIDE the loop over path lengths
+    LOG_DEBUG("Solving nested recursive with {} blocks", ordered_block_ids.size());
     double reliability = solveNestedRecursive(
         0, s, t, d, decomposition, ordered_block_ids, final_aps, recursion_counter
     );
     
     double time = (double)(clock() - start) / CLOCKS_PER_SEC;
+    LOG_INFO("Recursive Decomposition completed: reliability={}, recursions={}, time={}s", 
+             reliability, recursion_counter, time);
     
     return ReliabilityResult(reliability, recursion_counter, time);
 }
@@ -1043,14 +1086,18 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithRecursiveDecompositi
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithDecomposition(VertexId s, VertexId t, int UpperBound) const {
     // Port of ReliabilityDiamConstr2VertDecomposeSimpleFacto
     // Uses direct convolution of block reliabilities (Migov's formula)
+    LOG_INFO("Starting Simple Factoring with Decomposition: s={}, t={}, diameter={}", s, t, UpperBound);
     clock_t start = clock();
     long long recursion_counter = 0;
     
+    LOG_DEBUG("Decomposing graph into k-blocks");
     std::vector<int> decomposition = decomposeIntoKBlocks();
     int BlockNum = decomposition.back();
+    LOG_DEBUG("Graph decomposed into {} blocks", BlockNum);
     
     // If single block, fall back to standard factoring
     if (BlockNum <= 1) {
+        LOG_DEBUG("Single block detected, using standard factoring");
         return calculateReliabilityBetweenVertices(s, t, UpperBound);
     }
     
@@ -1144,11 +1191,14 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithDecomposition(Vertex
     double reliability = BlockReliab[0][gap];
     double time = (double)(clock() - start) / CLOCKS_PER_SEC;
     
+    LOG_INFO("Simple Factoring with Decomposition completed: reliability={}, recursions={}, time={}s",
+             reliability, recursion_counter, time);
     return ReliabilityResult(reliability, recursion_counter, time);
 }
 
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithParallelMDecomposition(VertexId s, VertexId t, int d) const {
     // Parallel version stub - alias to sequential for now
+    LOG_DEBUG("Using parallel M-Decomposition (fallback to sequential)");
     return calculateReliabilityWithMDecomposition(s, t, d);
 }
 

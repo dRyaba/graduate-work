@@ -2,7 +2,7 @@
  * @file graph_reliability.h
  * @brief Main header file for Graph Reliability Analysis Library
  * @author Graduate Work Project
- * @date 2024
+ * @date 2026
  * 
  * This library provides comprehensive tools for network reliability analysis,
  * including graph representation, reliability calculations, and testing frameworks.
@@ -22,6 +22,12 @@
 
 // Utilities
 #include "graph_reliability/GraphOperations.h"
+
+// Logging (conditional compilation)
+#include "graph_reliability/Logger.h"
+
+// Exception handling
+#include "graph_reliability/Exceptions.h"
 
 /**
  * @namespace graph_reliability

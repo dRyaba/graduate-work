@@ -2,10 +2,13 @@
  * @file DataImporter.cpp
  * @brief Implementation of the DataImporter class
  * @author Graduate Work Project
- * @date 2024
+ * @date 2026
  */
 
 #include "graph_reliability/DataImporter.h"
+#include "graph_reliability/Logger.h"
+#include "graph_reliability/Exceptions.h"
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <fstream>
@@ -21,6 +24,7 @@ DataImporter::DataImporter(const std::string& base_data_path)
     if (!base_data_path_.empty() && base_data_path_.back() != '/' && base_data_path_.back() != '\\') {
         base_data_path_ += '/';
     }
+    LOG_DEBUG("DataImporter initialized with base path: {}", base_data_path_);
 }
 
 std::string DataImporter::getFullPath(const std::string& filename) const {
@@ -38,18 +42,27 @@ bool DataImporter::fileExists(const std::string& filename) const {
 
 std::unique_ptr<ReliabilityGraph> DataImporter::loadKAOGraph(const std::string& filename) {
     std::string path = getFullPath(filename);
+    LOG_DEBUG("Loading KAO graph from: {}", path);
     std::ifstream file(path);
     if (!file) {
-        throw std::runtime_error("Cannot open KAO graph file: " + path);
+        LOG_ERROR("Cannot open KAO graph file: {}", path);
+        throw FileNotFoundException(path);
     }
-    return loadKAOFromStream(file);
+    auto graph = loadKAOFromStream(file);
+    LOG_DEBUG("Successfully loaded KAO graph: {} vertices, {} edges", 
+              graph->numVertices(), graph->numEdges());
+    return graph;
 }
 
 std::unique_ptr<ReliabilityGraph> DataImporter::loadKAOFromStream(std::ifstream& input_stream) {
+    LOG_DEBUG("Parsing KAO format from stream");
     std::string line;
     
     // 1. Read KAO (Offsets)
-    if (!std::getline(input_stream, line)) throw std::runtime_error("Empty file or missing KAO line");
+    if (!std::getline(input_stream, line)) {
+        LOG_ERROR("Empty file or missing KAO line");
+        throw InvalidFormatException("Empty file or missing KAO line");
+    }
     std::vector<Graph::VertexId> kao;
     std::stringstream ss_kao(line);
     std::string token;
@@ -58,7 +71,10 @@ std::unique_ptr<ReliabilityGraph> DataImporter::loadKAOFromStream(std::ifstream&
     }
 
     // 2. Read FO (Adjacency)
-    if (!std::getline(input_stream, line)) throw std::runtime_error("Missing FO line");
+    if (!std::getline(input_stream, line)) {
+        LOG_ERROR("Missing FO line");
+        throw InvalidFormatException("Missing FO line");
+    }
     std::vector<Graph::VertexId> fo;
     std::stringstream ss_fo(line);
     while (std::getline(ss_fo, token, ',')) {
@@ -66,7 +82,10 @@ std::unique_ptr<ReliabilityGraph> DataImporter::loadKAOFromStream(std::ifstream&
     }
 
     // 3. Read Targets
-    if (!std::getline(input_stream, line)) throw std::runtime_error("Missing Targets line");
+    if (!std::getline(input_stream, line)) {
+        LOG_ERROR("Missing Targets line");
+        throw InvalidFormatException("Missing Targets line");
+    }
     std::vector<int> targets;
     std::stringstream ss_targets(line);
     while (std::getline(ss_targets, token, ',')) {
@@ -82,7 +101,10 @@ std::unique_ptr<ReliabilityGraph> DataImporter::loadKAOFromStream(std::ifstream&
     // Legacy code: `std::vector<double> Parray(FO.size(), p);`
     // So it expects a single value for all edges usually.
     
-    if (!std::getline(input_stream, line)) throw std::runtime_error("Missing Probability line");
+    if (!std::getline(input_stream, line)) {
+        LOG_ERROR("Missing Probability line");
+        throw InvalidFormatException("Missing Probability line");
+    }
     
     // Handle comma vs dot? Legacy does `line[found] = '.'`.
     size_t found = line.find(',');
@@ -91,6 +113,7 @@ std::unique_ptr<ReliabilityGraph> DataImporter::loadKAOFromStream(std::ifstream&
     }
     
     double reliability = std::stod(line);
+    LOG_DEBUG("Loaded reliability value: {}", reliability);
     std::vector<Graph::Probability> p_array(fo.size(), reliability);
 
     // 5. Create ReliabilityGraph
@@ -128,8 +151,12 @@ std::unique_ptr<ReliabilityGraph> DataImporter::loadEdgeListGraph(const std::str
     // or just parse edge list directly.
     
     std::string path = getFullPath(filename);
+    LOG_DEBUG("Loading EdgeList graph from: {} with reliability={}", path, reliability);
     std::ifstream file(path);
-    if (!file) throw std::runtime_error("Cannot open EdgeList file: " + path);
+    if (!file) {
+        LOG_ERROR("Cannot open EdgeList file: {}", path);
+        throw FileNotFoundException(path);
+    }
     
     // Basic parsing logic similar to Graph::convertEdgeListToKAOFO
     std::vector<std::pair<int, int>> edges;
@@ -177,23 +204,30 @@ std::unique_ptr<ReliabilityGraph> DataImporter::loadEdgeListGraph(const std::str
     std::vector<Graph::Probability> p_array(fo.size(), reliability);
     std::vector<int> targets(n, 0); // Default targets? Or none?
     
+    LOG_DEBUG("Successfully loaded EdgeList graph: {} vertices, {} edges", n, edges.size() * 2);
     return std::make_unique<ReliabilityGraph>(std::move(kao), std::move(fo), std::move(p_array), std::move(targets));
 }
 
 std::vector<std::unique_ptr<ReliabilityGraph>> DataImporter::loadGraphsToMerge() {
     std::string list_file = getFullPath("GraphsToMerge.txt");
+    LOG_INFO("Loading graphs from merge list: {}", list_file);
     std::ifstream file(list_file);
-    if (!file) throw std::runtime_error("Cannot open GraphsToMerge.txt");
+    if (!file) {
+        LOG_ERROR("Cannot open GraphsToMerge.txt: {}", list_file);
+        throw FileNotFoundException(list_file);
+    }
     
     std::vector<std::unique_ptr<ReliabilityGraph>> graphs;
     std::string filename;
     while (std::getline(file, filename)) {
         if (!filename.empty()) {
              // Clean filename (remove \r etc)
-             filename.erase(std::remove(filename.begin(), filename.end(), '\r'), filename.end());
+             filename.erase((std::remove)(filename.begin(), filename.end(), '\r'), filename.end());
+             LOG_DEBUG("Loading graph for merge: {}", filename);
              graphs.push_back(loadKAOGraph(filename));
         }
     }
+    LOG_INFO("Loaded {} graphs for merging", graphs.size());
     return graphs;
 }
 
@@ -219,23 +253,33 @@ void DataImporter::setBasePath(const std::string& new_base_path) {
 void DataImporter::convertEdgeListToKAO(const std::string& input_filename, 
                                        const std::string& output_filename, 
                                        double reliability) {
+    LOG_INFO("Converting EdgeList to KAO: {} -> {} (reliability={})", 
+             input_filename, output_filename, reliability);
     // Use temporary Graph to convert
     // Since convertEdgeListToKAOFO is member of Graph and we need to use it:
     Graph g; // Dummy
     g.convertEdgeListToKAOFO(getFullPath(input_filename), getFullPath(output_filename), reliability);
+    LOG_INFO("Conversion completed successfully");
 }
 
 void DataImporter::convertKAOToEdgeList(const std::string& input_filename, 
                                        const std::string& output_filename) {
+    LOG_INFO("Converting KAO to EdgeList: {} -> {}", input_filename, output_filename);
     Graph g;
     g.convertKAOFOToEdgeList(getFullPath(input_filename), getFullPath(output_filename));
+    LOG_INFO("Conversion completed successfully");
 }
 
 void DataImporter::validateGraph(const ReliabilityGraph* graph, const std::string& filename) const {
-    if (!graph) throw std::runtime_error("Graph is null: " + filename);
-    if (graph->numVertices() == 0 && graph->numEdges() > 0) {
-        throw std::runtime_error("Invalid graph (edges without vertices): " + filename);
+    if (!graph) {
+        LOG_ERROR("Graph validation failed: graph is null for file {}", filename);
+        throw InvalidGraphException("Graph is null: " + filename);
     }
+    if (graph->numVertices() == 0 && graph->numEdges() > 0) {
+        LOG_ERROR("Graph validation failed: edges without vertices for file {}", filename);
+        throw InvalidGraphException("Edges without vertices: " + filename);
+    }
+    LOG_DEBUG("Graph validation passed for file {}", filename);
 }
 
 std::string DataImporter::normalizePath(const std::string& path) const {

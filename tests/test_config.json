@@ -1,0 +1,55 @@
+{
+  "test_graphs": [
+    {
+      "filename": "K4_kao.txt",
+      "source": 0,
+      "target": 3,
+      "diameters": [2, 3, 4],
+      "expected_reliability": 0.9,
+      "description": "Complete graph K4 (4 vertices)"
+    },
+    {
+      "filename": "3_blocks_sausage_3x3_kao.txt",
+      "source": -1,
+      "target": -1,
+      "diameters": [9, 10, 11, 12],
+      "expected_reliability": 0.8,
+      "description": "3 blocks sausage graph 3x3",
+      "auto_detect_st": true
+    },
+    {
+      "filename": "4_blocks_sausage_3x3_kao.txt",
+      "source": -1,
+      "target": -1,
+      "diameters": [13, 14, 15, 16],
+      "expected_reliability": 0.75,
+      "description": "4 blocks sausage graph 3x3",
+      "auto_detect_st": true
+    },
+    {
+      "filename": "5_blocks_sausage_3x3_kao.txt",
+      "source": -1,
+      "target": -1,
+      "diameters": [17, 18, 19, 20],
+      "expected_reliability": 0.7,
+      "description": "5 blocks sausage graph 3x3",
+      "auto_detect_st": true
+    },
+    {
+      "filename": "6_blocks_sausage_3x3_kao.txt",
+      "source": -1,
+      "target": -1,
+      "diameters": [21, 22, 23, 24],
+      "expected_reliability": 0.65,
+      "description": "6 blocks sausage graph 3x3",
+      "auto_detect_st": true
+    }
+  ],
+  "default_repetitions": 1,
+  "test_methods": {
+    "0": "Standard Factoring (Level 0)",
+    "1": "Recursive Decomposition (Level 1)",
+    "2": "Simple Factoring (Level 2)",
+    "3": "M-Decomposition (Level 3)"
+  }
+}
