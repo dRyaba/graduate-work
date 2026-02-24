@@ -2,7 +2,7 @@
  * @file main.cpp
  * @brief Main application for Graph Reliability Analysis
  * @author Graduate Work Project
- * @date 2024
+ * @date 2026
  * 
  * This is the main entry point for the graph reliability analysis application.
  * It provides command-line interface for running reliability tests and
@@ -10,11 +10,13 @@
  */
 
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <vector>
 #include <map>
 #include <exception>
 #include "graph_reliability.h"
+#include "graph_reliability/Logger.h"
 
 using namespace graph_reliability;
 
@@ -40,11 +42,13 @@ void printUsage() {
     std::cout << "  <file>    - Graph file path (KAO format)\n";
     std::cout << "  <s>       - Source vertex (0-based index, or -1 to auto-detect from targets)\n";
     std::cout << "  <t>       - Target vertex (0-based index, or -1 to auto-detect from targets)\n";
+    std::cout << "  --1-based - If present before <file>, s and t are interpreted as 1-based (as in VKR/course work)\n";
     std::cout << "  <d>       - Diameter upper bound\n";
     std::cout << "  <method>  - Method ID (0-3)\n";
     std::cout << "  [reps]    - Number of repetitions (default: 1)\n\n";
     std::cout << "Examples:\n";
     std::cout << "  ./graph_reliability --run graphs_data/K4_kao.txt 0 3 2 3\n";
+    std::cout << "  ./graph_reliability --run --1-based graphs_data/Geant2004_kao.txt 12 96 8 3  # 1-based (VKR)\n";
     std::cout << "  ./graph_reliability --run graphs_data/3_blocks_sausage_3x3_kao.txt -1 -1 10 3 5\n";
     std::cout << "  ./graph_reliability --test 3 results.csv\n";
     std::cout << "  ./graph_reliability --convert edge2kao input.edgelist output.kao 0.9\n";
@@ -56,40 +60,56 @@ void printUsage() {
  * @return Exit code
  */
 int handleRun(const std::vector<std::string>& args) {
-    // --run <file> <s> <t> <d> <method> [reps]
-    if (args.size() < 6) {
+    // --run [--1-based] <file> <s> <t> <d> <method> [reps]
+    bool one_based = false;
+    size_t arg_offset = 1;
+    if (args.size() >= 7 && args[1] == "--1-based") {
+        one_based = true;
+        arg_offset = 2;
+    }
+    if (args.size() < 5 + arg_offset) {
+        LOG_ERROR("Insufficient arguments for --run");
         std::cerr << "Error: Insufficient arguments for --run\n";
-        std::cerr << "Usage: --run <file> <s> <t> <d> <method> [reps]\n";
+        std::cerr << "Usage: --run [--1-based] <file> <s> <t> <d> <method> [reps]\n";
         return 1;
     }
 
-    const std::string& filename = args[1];
+    const std::string& filename = args[arg_offset];
     int s_vertex, t_vertex, diameter, method_id;
     int repetitions = 1;
 
     try {
-        s_vertex = std::stoi(args[2]);
-        t_vertex = std::stoi(args[3]);
-        diameter = std::stoi(args[4]);
-        method_id = std::stoi(args[5]);
+        s_vertex = std::stoi(args[arg_offset + 1]);
+        t_vertex = std::stoi(args[arg_offset + 2]);
+        diameter = std::stoi(args[arg_offset + 3]);
+        method_id = std::stoi(args[arg_offset + 4]);
         
-        if (args.size() > 6) {
-            repetitions = std::stoi(args[6]);
+        if (args.size() > arg_offset + 5) {
+            repetitions = std::stoi(args[arg_offset + 5]);
+        }
+        
+        if (one_based && s_vertex != -1 && t_vertex != -1) {
+            s_vertex--;
+            t_vertex--;
         }
 
         if (method_id < 0 || method_id > 3) {
+            LOG_ERROR("Method ID must be between 0 and 3, got: {}", method_id);
             std::cerr << "Error: Method ID must be between 0 and 3\n";
             return 1;
         }
         if (diameter < 1) {
+            LOG_ERROR("Diameter must be positive, got: {}", diameter);
             std::cerr << "Error: Diameter must be positive\n";
             return 1;
         }
         if (repetitions < 1) {
+            LOG_ERROR("Repetitions must be positive, got: {}", repetitions);
             std::cerr << "Error: Repetitions must be positive\n";
             return 1;
         }
-    } catch (const std::exception&) {
+    } catch (const std::exception& e) {
+        LOG_ERROR("Invalid numeric argument: {}", e.what());
         std::cerr << "Error: Invalid numeric argument\n";
         return 1;
     }
@@ -105,11 +125,15 @@ int handleRun(const std::vector<std::string>& args) {
         DataImporter importer(base_path.empty() ? "./" : base_path);
         std::string file_only = (last_sep != std::string::npos) ? filename.substr(last_sep + 1) : filename;
         
+        LOG_INFO("Loading graph from: {}", filename);
         auto graph = importer.loadKAOGraph(file_only);
         if (!graph) {
+            LOG_ERROR("Could not load graph: {}", filename);
             std::cerr << "Error: Could not load graph: " << filename << "\n";
             return 1;
         }
+        LOG_DEBUG("Graph loaded successfully: {} vertices, {} edges", 
+                  graph->numVertices(), graph->numEdges());
 
         // Auto-detect source and target from Targets array if -1
         if (s_vertex == -1 || t_vertex == -1) {
@@ -124,9 +148,11 @@ int handleRun(const std::vector<std::string>& args) {
             if (t_vertex == -1) t_vertex = detected_t;
             
             if (s_vertex == -1 || t_vertex == -1) {
+                LOG_ERROR("Could not auto-detect source/target vertices");
                 std::cerr << "Error: Could not auto-detect source/target vertices\n";
                 return 1;
             }
+            LOG_INFO("Auto-detected source={}, target={}", s_vertex, t_vertex);
             std::cout << "Auto-detected: s=" << s_vertex << ", t=" << t_vertex << "\n";
         }
 
@@ -137,6 +163,8 @@ int handleRun(const std::vector<std::string>& args) {
             "M-Decomposition (Level 3)"
         };
 
+        LOG_INFO("Starting reliability calculation: file={}, s={}, t={}, diameter={}, method={}, reps={}",
+                 filename, s_vertex, t_vertex, diameter, method_names[method_id], repetitions);
         std::cout << "Running test on: " << filename << "\n";
         std::cout << "  Source: " << s_vertex << ", Target: " << t_vertex << "\n";
         std::cout << "  Diameter: " << diameter << ", Method: " << method_names[method_id] << "\n";
@@ -147,31 +175,39 @@ int handleRun(const std::vector<std::string>& args) {
         long long total_recs = 0;
 
         for (int rep = 0; rep < repetitions; ++rep) {
+            LOG_DEBUG("Repetition {}/{}", rep + 1, repetitions);
             // Reload graph for each repetition to ensure clean state
             auto g = importer.loadKAOGraph(file_only);
             
             ReliabilityResult result;
             switch (method_id) {
                 case 0:  // Level 0: Global Standard Factoring (Baseline - SLOWEST)
+                    LOG_DEBUG("Using Standard Factoring method");
                     result = g->calculateReliabilityBetweenVertices(s_vertex, t_vertex, diameter);
                     break;
                 case 1:  // Level 1: Recursive Decomposition (Nested Recursion - INEFFICIENT)
+                    LOG_DEBUG("Using Recursive Decomposition method");
                     result = g->calculateReliabilityWithRecursiveDecomposition(s_vertex, t_vertex, diameter);
                     break;
                 case 2:  // Level 2: Iterative Decomp + Simple Facto (Convolution - FAST)
+                    LOG_DEBUG("Using Simple Factoring method");
                     result = g->calculateReliabilityWithDecomposition(s_vertex, t_vertex, diameter);
                     break;
                 case 3:  // Level 3: Iterative Decomp + Modified Facto (FASTEST)
+                    LOG_DEBUG("Using M-Decomposition method");
                     result = g->calculateReliabilityWithMDecomposition(s_vertex, t_vertex, diameter);
                     break;
             }
+            
+            LOG_INFO("Repetition {} completed: reliability={}, time={}s, recursions={}",
+                     rep + 1, result.reliability, result.execution_time_sec, result.recursions);
             
             total_time += result.execution_time_sec;
             total_rel += result.reliability;
             total_recs += result.recursions;
             
             if (repetitions > 1) {
-                std::cout << "  Rep " << (rep + 1) << ": Reliability=" << result.reliability 
+                std::cout << "  Rep " << (rep + 1) << ": Reliability=" << std::fixed << std::setprecision(15) << result.reliability 
                           << ", Time=" << result.execution_time_sec << "s\n";
             }
         }
@@ -180,12 +216,15 @@ int handleRun(const std::vector<std::string>& args) {
         double avg_rel = total_rel / repetitions;
         long long avg_recs = total_recs / repetitions;
 
+        LOG_INFO("All repetitions completed: avg_reliability={}, avg_time={}s, avg_recursions={}",
+                  avg_rel, avg_time, avg_recs);
         std::cout << "\nResults:\n";
-        std::cout << "  Reliability: " << avg_rel << "\n";
+        std::cout << "  Reliability: " << std::fixed << std::setprecision(15) << avg_rel << "\n";
         std::cout << "  Avg Time:    " << avg_time << " seconds\n";
         std::cout << "  Avg Recs:    " << avg_recs << "\n";
 
     } catch (const std::exception& e) {
+        LOG_ERROR("Exception in handleRun: {}", e.what());
         std::cerr << "Error: " << e.what() << "\n";
         return 1;
     }
@@ -200,6 +239,7 @@ int handleRun(const std::vector<std::string>& args) {
  */
 int handleConversion(const std::vector<std::string>& args) {
     if (args.size() < 4) {
+        LOG_ERROR("Insufficient arguments for conversion");
         std::cerr << "Error: Insufficient arguments for conversion\n";
         return 1;
     }
@@ -208,23 +248,32 @@ int handleConversion(const std::vector<std::string>& args) {
     const std::string& input_file = args[2];
     const std::string& output_file = args[3];
 
+    LOG_INFO("Starting conversion: type={}, input={}, output={}", conversion_type, input_file, output_file);
+
     try {
         if (conversion_type == "edge2kao") {
             if (args.size() < 5) {
+                LOG_ERROR("Missing reliability value for edge2kao conversion");
                 std::cerr << "Error: Missing reliability value for edge2kao conversion\n";
                 return 1;
             }
             double reliability = std::stod(args[4]);
+            LOG_DEBUG("Converting Edge List to KAO with reliability={}", reliability);
             GraphOperations::convertEdgeListToKAOFO(input_file, output_file, reliability);
+            LOG_INFO("Successfully converted Edge List to KAO format");
             std::cout << "Successfully converted Edge List to KAO format\n";
         } else if (conversion_type == "kao2edge") {
+            LOG_DEBUG("Converting KAO to Edge List");
             GraphOperations::convertKAOFOToEdgeList(input_file, output_file);
+            LOG_INFO("Successfully converted KAO format to Edge List");
             std::cout << "Successfully converted KAO format to Edge List\n";
         } else {
+            LOG_ERROR("Unknown conversion type: {}", conversion_type);
             std::cerr << "Error: Unknown conversion type: " << conversion_type << "\n";
             return 1;
         }
     } catch (const std::exception& e) {
+        LOG_ERROR("Exception during conversion: {}", e.what());
         std::cerr << "Error during conversion: " << e.what() << "\n";
         return 1;
     }
@@ -273,16 +322,20 @@ int handleTesting(const std::vector<std::string>& args) {
         };
         test_suite.setTestConfigurations(test_configs);
 
+        LOG_INFO("Running comprehensive tests with method {}", method_id);
         std::cout << "Running comprehensive tests with method " << method_id << "...\n";
         bool success = test_suite.runComprehensiveTests(method_id, output_file);
         
         if (success) {
+            LOG_INFO("All tests completed successfully. Results saved to {}", output_file);
             std::cout << "All tests completed successfully. Results saved to " << output_file << "\n";
         } else {
+            LOG_ERROR("Some tests failed");
             std::cerr << "Some tests failed. Check the output for details.\n";
             return 1;
         }
     } catch (const std::exception& e) {
+        LOG_ERROR("Exception during testing: {}", e.what());
         std::cerr << "Error during testing: " << e.what() << "\n";
         return 1;
     }
@@ -297,27 +350,64 @@ int handleTesting(const std::vector<std::string>& args) {
  * @return Exit code
  */
 int main(int argc, char* argv[]) {
+    // Initialize logger if logging is enabled
+    #ifdef GRAPH_RELIABILITY_ENABLE_LOGGING
+    // Check for verbose flag
+    bool verbose = false;
     std::vector<std::string> args(argv + 1, argv + argc);
+    for (const auto& arg : args) {
+        if (arg == "--verbose" || arg == "-v") {
+            verbose = true;
+            break;
+        }
+    }
+    
+    graph_reliability::Logger::initialize();
+    if (verbose) {
+        graph_reliability::Logger::setLevel("debug");
+    } else {
+        graph_reliability::Logger::setLevel("info");
+    }
+    LOG_INFO("Graph Reliability Analysis Tool v{} started", graph_reliability::getVersion());
+    #else
+    std::vector<std::string> args(argv + 1, argv + argc);
+    #endif
 
     if (args.empty() || args[0] == "--help") {
         printUsage();
+        #ifdef GRAPH_RELIABILITY_ENABLE_LOGGING
+        graph_reliability::Logger::shutdown();
+        #endif
         return 0;
     }
 
     try {
+        int result = 0;
         if (args[0] == "--convert") {
-            return handleConversion(args);
+            result = handleConversion(args);
         } else if (args[0] == "--test") {
-            return handleTesting(args);
+            result = handleTesting(args);
         } else if (args[0] == "--run") {
-            return handleRun(args);
+            result = handleRun(args);
         } else {
+            LOG_ERROR("Unknown command: {}", args[0]);
             std::cerr << "Error: Unknown command: " << args[0] << "\n";
             std::cerr << "Use --help for usage information.\n";
-            return 1;
+            result = 1;
         }
+        
+        #ifdef GRAPH_RELIABILITY_ENABLE_LOGGING
+        LOG_INFO("Application exiting with code {}", result);
+        graph_reliability::Logger::shutdown();
+        #endif
+        
+        return result;
     } catch (const std::exception& e) {
+        LOG_CRITICAL("Fatal error: {}", e.what());
         std::cerr << "Fatal error: " << e.what() << "\n";
-        return 1;
+        #ifdef GRAPH_RELIABILITY_ENABLE_LOGGING
+        graph_reliability::Logger::shutdown();
+        #endif
+        return 2;
     }
 }

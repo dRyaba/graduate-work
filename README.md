@@ -12,36 +12,92 @@ A comprehensive C++ library for network reliability analysis, providing efficien
 - **Flexible Graph Representation**: CSR (Compressed Sparse Row) format for memory efficiency
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 - **Professional API**: Clean, well-documented C++17 interface
-- **Comprehensive Testing**: Built-in test suite with configurable parameters
+- **Comprehensive Testing**: Unit tests (Google Test) and integration tests with configurable parameters
 - **Format Conversion**: Convert between Edge List and KAO formats
 - **Parallel Processing**: OpenMP support for performance-critical operations
+- **Logging System**: Conditional compilation logging (zero overhead in Release builds)
+- **Custom Exceptions**: Hierarchical exception system for better error handling
+- **Extensive Documentation**: Architecture, algorithms, and user guides
 
 ## Quick Start
 
 ### Building the Project
 
-```bash
-# Clone the repository
-git clone <repository-url>
-cd graduate-work
+#### Предварительная проверка окружения
 
-# Create build directory
-mkdir build && cd build
-
-# Configure with CMake
-cmake ..
-
-# Build the project
-make -j$(nproc)
-
-# Run tests
-make run_tests
+**Windows:**
+```powershell
+# Проверьте наличие всех инструментов
+.\check_environment.ps1
 ```
+
+**Linux/Mac:**
+```bash
+# Проверьте наличие компилятора и CMake
+g++ --version
+cmake --version
+```
+
+#### Установка зависимостей (если нужно)
+
+**Windows (рекомендуется MinGW-w64):**
+1. Установите MSYS2: https://www.msys2.org/
+2. В MSYS2 выполните: `pacman -S --needed base-devel mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake`
+3. Добавьте `C:\msys64\mingw64\bin` в PATH
+
+Подробные инструкции см. в **[SETUP.md](SETUP.md)**
+
+#### Debug Build (with logging)
+
+**Windows (MinGW):**
+```powershell
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Debug -G "MinGW Makefiles"
+cmake --build . -j8
+```
+
+**Linux/Mac:**
+```bash
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+cmake --build . -j$(nproc)
+```
+
+#### Release Build (optimized, no logging overhead)
+
+**Windows (MinGW):**
+```powershell
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles"
+cmake --build . -j8
+```
+
+**Linux/Mac:**
+```bash
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . -j$(nproc)
+```
+
+#### Debug Build with Sanitizers
+
+**Linux/Mac:**
+```bash
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON ..
+cmake --build . -j$(nproc)
+```
+
+**Windows:** Санитайзеры работают только с Clang на Windows
 
 ### Basic Usage
 
 ```cpp
 #include "graph_reliability.h"
+#include <iomanip>
+#include <iostream>
 
 using namespace graph_reliability;
 
@@ -54,7 +110,7 @@ auto graph = importer.loadKAOGraph("K4_kao.txt");
 // Calculate reliability
 auto result = graph->calculateReliabilityWithMDecomposition(1, 10, 15);
 
-std::cout << "Reliability: " << result.reliability << std::endl;
+std::cout << "Reliability: " << std::fixed << std::setprecision(15) << result.reliability << std::endl;
 std::cout << "Execution time: " << result.execution_time_sec << " seconds" << std::endl;
 ```
 
@@ -159,27 +215,64 @@ The library is optimized for performance with:
 
 ## Testing
 
+### Unit Tests
+
+Run unit tests using Google Test:
+
+```bash
+cd build
+cmake --build . --target graph_reliability_tests
+./tests/graph_reliability_tests
+
+# Or use CTest
+ctest
+```
+
+### Integration Tests
+
 Run the comprehensive test suite:
 
 ```bash
-# Run all tests with method 0 (M-Decomposition)
+# Run all tests with method 3 (M-Decomposition)
+./graph_reliability --test 3 results.csv
+
+# Run tests with method 0 (Standard Factoring)
 ./graph_reliability --test 0
 
 # Run tests with custom output file
-./graph_reliability --test 1 my_results.csv
+./graph_reliability --test 2 my_results.csv
 ```
 
+### Test Configuration
+
+Test configurations can be customized in `tests/test_config.json`.
+
 ## Documentation
+
+### User Documentation
+
+- **[User Guide](docs/USER_GUIDE.md)**: Complete guide for using the library
+- **[Architecture](docs/ARCHITECTURE.md)**: System architecture and design
+- **[Algorithms](docs/ALGORITHMS.md)**: Detailed algorithm descriptions
+
+### API Documentation
 
 Generate API documentation:
 
 ```bash
 # Build documentation (requires Doxygen)
-make docs
+cmake --build . --target docs
 
 # View documentation
 open docs/html/index.html
 ```
+
+### Debugging Tips
+
+- Use Debug builds with `--verbose` flag for detailed logging
+- Check `graph_reliability.log` for log output (Debug builds only)
+- Use sanitizers for memory error detection: `-DENABLE_SANITIZERS=ON`
+- Release builds have zero logging overhead for production use
 
 ## Requirements
 
@@ -187,14 +280,29 @@ open docs/html/index.html
 - **CMake 3.16+**
 - **OpenMP** (optional, for parallel processing)
 - **Doxygen** (optional, for documentation)
+- **spdlog** (automatically fetched via CMake, only for Debug builds)
+- **Google Test** (automatically fetched via CMake, for unit tests)
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Make your changes
+4. Add unit tests for new functionality
+5. Ensure all tests pass (`ctest`)
+6. Update documentation if needed
+7. Commit your changes (`git commit -m 'Add amazing feature'`)
+8. Push to the branch (`git push origin feature/amazing-feature`)
+9. Open a Pull Request
+
+### Code Style
+
+- Follow C++17 best practices
+- Use const correctness
+- Prefer RAII and smart pointers
+- Add logging for key operations (Debug builds only)
+- Use custom exceptions for error handling
+- Write unit tests for new features
 
 ## Acknowledgments
 
