@@ -46,15 +46,17 @@ cmake --build .
 ```
 
 **Parameters:**
+
 - `--1-based`: (optional) If present, s and t are 1-based (as in VKR/course work documents)
 - `file`: Graph file path (KAO format)
 - `s`: Source vertex (0-based, or -1 to auto-detect)
 - `t`: Target vertex (0-based, or -1 to auto-detect)
 - `d`: Diameter upper bound
-- `method`: Method ID (0-3)
+- `method`: Method ID (0-4)
 - `reps`: Number of repetitions (optional, default: 1)
 
 **Example:**
+
 ```bash
 ./graph_reliability --run graphs_data/K4_kao.txt 0 3 2 3
 ./graph_reliability --run --1-based graphs_data/Geant2004_kao.txt 12 96 8 3  # 1-based (VKR)
@@ -68,6 +70,7 @@ cmake --build .
 ```
 
 **Example:**
+
 ```bash
 ./graph_reliability --test 3 results.csv
 ```
@@ -75,11 +78,13 @@ cmake --build .
 #### Convert Formats
 
 **Edge List to KAO:**
+
 ```bash
 ./graph_reliability --convert edge2kao input.edgelist output.kao 0.9
 ```
 
 **KAO to Edge List:**
+
 ```bash
 ./graph_reliability --convert kao2edge input.kao output.edgelist
 ```
@@ -98,6 +103,7 @@ cmake --build .
 | 1 | Recursive Decomposition | Nested recursion | Academic comparison |
 | 2 | Simple Factoring | Convolution + simple factoring | Medium graphs |
 | 3 | M-Decomposition | Convolution + modified factoring | Large graphs (recommended) |
+| 4 | Cancela-Petingi | Path-based factoring with SPT | Alternative, decomposed structures |
 
 ## Input Data Formats
 
@@ -111,6 +117,7 @@ cmake --build .
 ```
 
 **Format:**
+
 - Line 1: KAO offsets (comma-separated)
 - Line 2: FO adjacency list (comma-separated, 1-based)
 - Line 3: Target vertices (comma-separated, with leading 0)
@@ -126,6 +133,7 @@ cmake --build .
 ```
 
 **Format:**
+
 - One edge per line: `u -- v`
 - Comments start with `//`
 - Vertices are 1-based
@@ -147,6 +155,7 @@ Results:
 ```
 
 **Fields:**
+
 - **Reliability**: Probability of path existence (0.0 to 1.0)
 - **Avg Time**: Average execution time in seconds
 - **Avg Recs**: Average number of recursive calls
@@ -169,6 +178,7 @@ cmake --build . --target graph_reliability_tests
 ```
 
 Or use CMake test target:
+
 ```bash
 cd build
 ctest
@@ -213,6 +223,7 @@ cmake --build . --target run_tests
 ### Debug Mode
 
 Enable verbose logging in Debug builds:
+
 ```bash
 ./graph_reliability --verbose --run <file> <s> <t> <d> <method>
 ```

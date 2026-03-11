@@ -12,9 +12,15 @@
    - DecomposeOnBlocksK, RestoreBlockK, Factoring2Vert
    - Файл: `papers/24153-РябининДВ-курс-текст.pdf`
 
-## Ссылка на метод
+## Ссылки на методы
 
 - **Мигов Д.А.** Расчет надежности сети с ограничением на диаметр с применением точек сочленения // Автоматика и телемеханика. 2011. №7. С. 69–74.
+
+- **Cancela H., Petingi L.** Diameter constrained network reliability: exact evaluation by factorization and bounds. Path-based formulation, recursive factoring.
+  - Файл: `papers/TR0103.pdf` (при наличии)
+
+- **Nesterov S., Migov D.** Series-parallel transformation for diameter constrained network reliability computation. SPT, ESS, ISPT на каждом рекурсивном вызове CPFM.
+  - Файл: `papers/NesterovMigov.pdf` (при наличии)
 
 ## Соответствие кода алгоритму
 

@@ -72,6 +72,26 @@ Given a graph G(V, E) with edge reliabilities p(e) ∈ [0, 1], source vertex s, 
 
 **Use Case**: Large graphs, production use
 
+### Method 4: Cancela-Petingi (Level 4)
+
+**Description**: Path-based factoring method. Operates on path lists instead of graphs; uses series-parallel transformation (SPT), edge selection strategy (ESS), and improved SPT on each recursive call (ISPT).
+
+**Algorithm**:
+1. Apply series transformation: remove 2-degree non-terminal chains
+2. Enumerate all paths Pst(d) of length ≤ d between s and t
+3. Build P(e) for each edge: paths containing e
+4. FACTO: select pivot e (max |P(e)|), apply ISPT, Contract/Delete branches
+5. R = re × RContract + (1-re) × RDelete
+
+**Key Optimizations**:
+- ESS: pivot edge with maximum |P(e)|
+- SPT: chain reduction before path enumeration
+- ISPT: merge edges with P(e)=P(f) on each recursive call
+
+**Complexity**: O(2^m × paths) with early termination; typically fewer recursions than graph-based factoring
+
+**Use Case**: Alternative to graph-based methods; can accelerate decomposed structures (Method 5, future)
+
 ## Block Decomposition
 
 ### K-Blocks
@@ -123,6 +143,7 @@ Used for distance constraint checking:
 | Recursive Decomposition | O(B × 2^E) | Academic comparison |
 | Simple Factoring | O(B × E × D) | Medium graphs |
 | M-Decomposition | O(B × E × D) | Large graphs |
+| Cancela-Petingi | O(2^m × paths) | Path-based, SPT acceleration |
 
 ## Implementation Details
 
@@ -155,6 +176,8 @@ The algorithms are based on the following works:
 - **Рябинин Д.В.** ВКР бакалавр. Разработка метода расчёта надёжности сети с ограничением на диаметр. (Algorithm 1: Modified Factoring, Algorithm 2: ReliabilityDiamConstr2VertMDecompose)
 - **Рябинин Д.В.** Курсовая работа (магистратура). Декомпозиционный подход к расчёту надёжности сети с ограничением на диаметр. (Обобщённая формула (2.3), итеративная свёртка)
 - **Мигов Д.А.** Расчет надежности сети с ограничением на диаметр с применением точек сочленения // Автоматика и телемеханика. 2011. №7. С. 69–74.
+- **Cancela H., Petingi L.** Diameter constrained network reliability: exact evaluation by factorization and bounds. (Path-based formulation, recursive factoring with path lists)
+- **Nesterov S., Migov D.** Series-parallel transformation for diameter constrained network reliability computation. (SPT, ESS, ISPT on each recursive call of CPFM)
 
 See [docs/references/README.md](references/README.md) for full references and [docs/references/algorithm_checklist.md](references/algorithm_checklist.md) for implementation correspondence.
 
