@@ -45,6 +45,9 @@ target_sources(graph_reliability_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/DataImporter.cpp
     ${CMAKE_SOURCE_DIR}/src/GraphOperations.cpp
     ${CMAKE_SOURCE_DIR}/src/Logger.cpp
+    ${CMAKE_SOURCE_DIR}/src/PathEnumerator.cpp
+    ${CMAKE_SOURCE_DIR}/src/CancelaPetingiState.cpp
+    ${CMAKE_SOURCE_DIR}/src/SeriesParallelTransform.cpp
 )
 
 # Set C++ standard

@@ -100,6 +100,9 @@ set(SOURCES
     src/GraphOperations.cpp
     src/TestSuite.cpp
     src/Logger.cpp
+    src/PathEnumerator.cpp
+    src/CancelaPetingiState.cpp
+    src/SeriesParallelTransform.cpp
 )
 
 # Header files
@@ -112,6 +115,9 @@ set(HEADERS
     include/graph_reliability/TestSuite.h
     include/graph_reliability/Logger.h
     include/graph_reliability/Exceptions.h
+    include/graph_reliability/PathEnumerator.h
+    include/graph_reliability/CancelaPetingiState.h
+    include/graph_reliability/SeriesParallelTransform.h
 )
 
 # Create executable
@@ -180,6 +186,17 @@ enable_testing()
 
 # Add subdirectory for unit tests
 add_subdirectory(tests)
+
+# Nesterov CPFM harness for comparison
+add_executable(nesterov_harness
+    tools/nesterov_harness/main.cpp
+    tools/nesterov_harness/NesterovGraph.cpp
+)
+target_include_directories(nesterov_harness PRIVATE tools/nesterov_harness)
+set_target_properties(nesterov_harness PROPERTIES
+    CXX_STANDARD 17
+    OUTPUT_NAME "nesterov_harness"
+)
 
 # Add test for basic functionality
 add_test(NAME BasicFunctionality

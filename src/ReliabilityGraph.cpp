@@ -7,6 +7,9 @@
 
 #include "graph_reliability/ReliabilityGraph.h"
 #include "graph_reliability/Logger.h"
+#include "graph_reliability/PathEnumerator.h"
+#include "graph_reliability/CancelaPetingiState.h"
+#include "graph_reliability/SeriesParallelTransform.h"
 #include <algorithm>
 #include <functional>
 #include <queue>
@@ -260,6 +263,66 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityBetweenVertices(VertexId
     #endif
     
     return ReliabilityResult(total_rel, recursions, execution_time);
+}
+
+// Cancela-Petingi path-based factoring (Method 4)
+// Optimized with global ISPT (compares feasible paths only) + per-pivot ISPT
+ReliabilityResult ReliabilityGraph::calculateReliabilityCancelaPetingi(VertexId source,
+                                                                       VertexId target,
+                                                                       int diameter) const {
+    auto start_time = std::chrono::high_resolution_clock::now();
+    long long recursions = 0;
+
+    auto paths = PathEnumerator::enumeratePaths(*this, source, target, diameter);
+    if (paths.empty()) {
+        auto end_time = std::chrono::high_resolution_clock::now();
+        double execution_time = std::chrono::duration<double>(end_time - start_time).count();
+        return ReliabilityResult(0.0, 0, execution_time);
+    }
+
+    CancelaPetingiState state(paths, *this);
+    
+    state.applyGlobalISPT();
+
+    std::function<double(CancelaPetingiState&)> facto = 
+        [&](CancelaPetingiState& st) -> double {
+        
+        if (st.isTerminalSuccess()) return 1.0;
+        if (st.isTerminalFail()) return 0.0;
+        
+        EdgeId e = st.selectPivotEdge();
+        if (e == static_cast<EdgeId>(-1)) {
+            return st.isTerminalSuccess() ? 1.0 : 0.0;
+        }
+        
+        recursions++;
+        
+        st.applyISPT(e);
+        double re = st.edge_reliability_[e];
+        
+        CancelaPetingiState st_contract(st);
+        st_contract.applyContract(e);
+        st_contract.edge_reliability_[e] = 1.0;
+        double RContract = facto(st_contract);
+        
+        CancelaPetingiState st_delete(st);
+        st_delete.applyDelete(e);
+        st_delete.edge_reliability_.erase(e);
+        st_delete.P_of_edge_.erase(e);
+        double RDelete = facto(st_delete);
+        
+        return re * RContract + (1.0 - re) * RDelete;
+    };
+
+    double reliability = facto(state);
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    double execution_time = std::chrono::duration<double>(end_time - start_time).count();
+
+    LOG_INFO("calculateReliabilityCancelaPetingi completed: reliability={}, recursions={}, time={}s",
+             reliability, recursions, execution_time);
+
+    return ReliabilityResult(reliability, recursions, execution_time);
 }
 
 // Modified factoring - computes reliabilities for ALL diameters from lowerBound to upperBound in ONE pass
