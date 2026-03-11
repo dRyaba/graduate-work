@@ -8,7 +8,7 @@ A comprehensive C++ library for network reliability analysis, providing efficien
 
 ## Features
 
-- **Multiple Reliability Algorithms**: Support for M-decomposition, recursive decomposition, simple factoring, and standard factoring
+- **Multiple Reliability Algorithms**: Support for M-decomposition, recursive decomposition, simple factoring, standard factoring, and Cancela-Petingi path-based method
 - **Flexible Graph Representation**: CSR (Compressed Sparse Row) format for memory efficiency
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 - **Professional API**: Clean, well-documented C++17 interface
@@ -26,12 +26,14 @@ A comprehensive C++ library for network reliability analysis, providing efficien
 #### Предварительная проверка окружения
 
 **Windows:**
+
 ```powershell
 # Проверьте наличие всех инструментов
 .\check_environment.ps1
 ```
 
 **Linux/Mac:**
+
 ```bash
 # Проверьте наличие компилятора и CMake
 g++ --version
@@ -41,7 +43,8 @@ cmake --version
 #### Установка зависимостей (если нужно)
 
 **Windows (рекомендуется MinGW-w64):**
-1. Установите MSYS2: https://www.msys2.org/
+
+1. Установите MSYS2: <https://www.msys2.org/>
 2. В MSYS2 выполните: `pacman -S --needed base-devel mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake`
 3. Добавьте `C:\msys64\mingw64\bin` в PATH
 
@@ -50,6 +53,7 @@ cmake --version
 #### Debug Build (with logging)
 
 **Windows (MinGW):**
+
 ```powershell
 mkdir build
 cd build
@@ -58,6 +62,7 @@ cmake --build . -j8
 ```
 
 **Linux/Mac:**
+
 ```bash
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Debug ..
@@ -67,6 +72,7 @@ cmake --build . -j$(nproc)
 #### Release Build (optimized, no logging overhead)
 
 **Windows (MinGW):**
+
 ```powershell
 mkdir build
 cd build
@@ -75,6 +81,7 @@ cmake --build . -j8
 ```
 
 **Linux/Mac:**
+
 ```bash
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
@@ -84,6 +91,7 @@ cmake --build . -j$(nproc)
 #### Debug Build with Sanitizers
 
 **Linux/Mac:**
+
 ```bash
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON ..
@@ -116,18 +124,27 @@ std::cout << "Execution time: " << result.execution_time_sec << " seconds" << st
 
 ### Command Line Interface
 
-```bash
+```powershell
+# From project root (Windows)
+.\build\graph_reliability.exe --help
+
+# Run reliability calculation
+.\build\graph_reliability.exe --run graphs_data\K4_kao.txt 0 3 3 4 1
+
 # Convert Edge List to KAO format
-./graph_reliability --convert edge2kao input.edgelist output.kao 0.9
+.\build\graph_reliability.exe --convert edge2kao input.edgelist output.kao 0.9
 
 # Convert KAO to Edge List format
-./graph_reliability --convert kao2edge input.kao output.edgelist
+.\build\graph_reliability.exe --convert kao2edge input.kao output.edgelist
 
 # Run comprehensive tests
-./graph_reliability --test 0 results.csv
+.\build\graph_reliability.exe --test 3 results.csv
+```
 
-# Show help
-./graph_reliability --help
+On Linux/macOS:
+
+```bash
+./build/graph_reliability --help
 ```
 
 ## Project Structure
@@ -178,10 +195,17 @@ Comprehensive testing framework for different reliability calculation methods.
 
 ### Reliability Calculation Methods
 
-1. **M-Decomposition** (`method_id = 0`): Advanced decomposition with M-factorization
-2. **Recursive Decomposition** (`method_id = 1`): Recursive decomposition with simple factoring
-3. **Simple Factoring** (`method_id = 2`): Basic factoring with decomposition
-4. **Standard Factoring** (`method_id = 3`): Traditional factoring method
+| Method ID | Name | Description | Speed |
+|-----------|------|-------------|-------|
+| 0 | **Standard Factoring** | Baseline: direct edge factoring without decomposition. R = p×R(contract) + (1-p)×R(delete) | Slowest |
+| 1 | **Recursive Decomposition** | Block decomposition with nested recursion. Academic comparison only | Very slow |
+| 2 | **Simple Factoring** | Block decomposition + convolution + simple factoring | Fast |
+| 3 | **M-Decomposition** | Block decomposition + modified factoring (computes all diameters in one pass) | Fastest |
+| 4 | **Cancela-Petingi** | Path-based factoring with SPT/ISPT optimizations. Operates on path lists, not graphs | Efficient |
+
+**Recommended**: Use Method 3 (M-Decomposition) for production, Method 4 (Cancela-Petingi) for path-based analysis.
+
+See [docs/ALGORITHMS.md](docs/ALGORITHMS.md) for detailed algorithm descriptions.
 
 ## Data Formats
 
