@@ -27,7 +27,8 @@ std::vector<std::string> TestSuite::getAvailableMethods() const {
         "Standard Factoring (Level 0)",
         "Recursive Decomposition (Level 1)",
         "Simple Factoring (Level 2)",
-        "M-Decomposition (Level 3)"
+        "M-Decomposition (Level 3)",
+        "Cancela-Petingi (Level 4)"
     };
 }
 
@@ -76,6 +77,10 @@ TestRunResult TestSuite::runSingleTest(const TestConfiguration& config, int meth
                 case 3: // Level 3: M-Decomposition (FASTEST)
                     LOG_DEBUG("Using M-Decomposition method");
                     result = graph->calculateReliabilityWithMDecomposition(s, t, config.upper_bound_diameter);
+                    break;
+                case 4: // Level 4: Cancela-Petingi path-based factoring
+                    LOG_DEBUG("Using Cancela-Petingi method");
+                    result = graph->calculateReliabilityCancelaPetingi(s, t, config.upper_bound_diameter);
                     break;
                 default:
                     LOG_ERROR("Unknown method ID: {}", method_id);

@@ -26,7 +26,11 @@ using namespace graph_reliability;
 void printUsage() {
     std::cout << "Graph Reliability Analysis Tool v" << getVersion() << "\n\n";
     std::cout << "Usage:\n";
-    std::cout << "  ./graph_reliability [options]\n\n";
+#ifdef _WIN32
+    std::cout << "  .\\build\\graph_reliability.exe [options]\n\n";
+#else
+    std::cout << "  ./build/graph_reliability [options]\n\n";
+#endif
     std::cout << "Options:\n";
     std::cout << "  --run <file> <s> <t> <d> <method> [reps]           Run test on specific graph file\n";
     std::cout << "  --test <method_id> [output_file]                   Run comprehensive tests on predefined graphs\n";
@@ -37,21 +41,28 @@ void printUsage() {
     std::cout << "  0 - Standard Factoring      (Level 0: Global, No Decomposition - SLOWEST)\n";
     std::cout << "  1 - Recursive Decomposition (Level 1: Nested Recursion - INEFFICIENT)\n";
     std::cout << "  2 - Simple Factoring        (Level 2: Convolution + Simple Facto - FAST)\n";
-    std::cout << "  3 - M-Decomposition         (Level 3: Convolution + Modified Facto - FASTEST)\n\n";
+    std::cout << "  3 - M-Decomposition         (Level 3: Convolution + Modified Facto - FASTEST)\n";
+    std::cout << "  4 - Cancela-Petingi         (Level 4: Path-based factoring with SPT)\n\n";
     std::cout << "Parameters for --run:\n";
     std::cout << "  <file>    - Graph file path (KAO format)\n";
     std::cout << "  <s>       - Source vertex (0-based index, or -1 to auto-detect from targets)\n";
     std::cout << "  <t>       - Target vertex (0-based index, or -1 to auto-detect from targets)\n";
     std::cout << "  --1-based - If present before <file>, s and t are interpreted as 1-based (as in VKR/course work)\n";
     std::cout << "  <d>       - Diameter upper bound\n";
-    std::cout << "  <method>  - Method ID (0-3)\n";
+    std::cout << "  <method>  - Method ID (0-4)\n";
     std::cout << "  [reps]    - Number of repetitions (default: 1)\n\n";
     std::cout << "Examples:\n";
-    std::cout << "  ./graph_reliability --run graphs_data/K4_kao.txt 0 3 2 3\n";
-    std::cout << "  ./graph_reliability --run --1-based graphs_data/Geant2004_kao.txt 12 96 8 3  # 1-based (VKR)\n";
-    std::cout << "  ./graph_reliability --run graphs_data/3_blocks_sausage_3x3_kao.txt -1 -1 10 3 5\n";
-    std::cout << "  ./graph_reliability --test 3 results.csv\n";
-    std::cout << "  ./graph_reliability --convert edge2kao input.edgelist output.kao 0.9\n";
+#ifdef _WIN32
+    std::cout << "  .\\build\\graph_reliability.exe --run graphs_data\\K4_kao.txt 0 3 3 4 1\n";
+    std::cout << "  .\\build\\graph_reliability.exe --run graphs_data\\3_blocks_sausage_3x3_kao.txt -1 -1 12 4 1\n";
+    std::cout << "  .\\build\\graph_reliability.exe --test 3 results.csv\n";
+    std::cout << "  .\\build\\graph_reliability.exe --convert edge2kao input.edgelist output.kao 0.9\n";
+#else
+    std::cout << "  ./build/graph_reliability --run graphs_data/K4_kao.txt 0 3 3 4 1\n";
+    std::cout << "  ./build/graph_reliability --run graphs_data/3_blocks_sausage_3x3_kao.txt -1 -1 12 4 1\n";
+    std::cout << "  ./build/graph_reliability --test 3 results.csv\n";
+    std::cout << "  ./build/graph_reliability --convert edge2kao input.edgelist output.kao 0.9\n";
+#endif
 }
 
 /**
@@ -93,9 +104,9 @@ int handleRun(const std::vector<std::string>& args) {
             t_vertex--;
         }
 
-        if (method_id < 0 || method_id > 3) {
-            LOG_ERROR("Method ID must be between 0 and 3, got: {}", method_id);
-            std::cerr << "Error: Method ID must be between 0 and 3\n";
+        if (method_id < 0 || method_id > 4) {
+            LOG_ERROR("Method ID must be between 0 and 4, got: {}", method_id);
+            std::cerr << "Error: Method ID must be between 0 and 4\n";
             return 1;
         }
         if (diameter < 1) {
@@ -135,6 +146,8 @@ int handleRun(const std::vector<std::string>& args) {
         LOG_DEBUG("Graph loaded successfully: {} vertices, {} edges", 
                   graph->numVertices(), graph->numEdges());
 
+        int num_vertices = static_cast<int>(graph->numVertices());
+        
         // Auto-detect source and target from Targets array if -1
         if (s_vertex == -1 || t_vertex == -1) {
             int detected_s = -1, detected_t = -1;
@@ -155,12 +168,29 @@ int handleRun(const std::vector<std::string>& args) {
             LOG_INFO("Auto-detected source={}, target={}", s_vertex, t_vertex);
             std::cout << "Auto-detected: s=" << s_vertex << ", t=" << t_vertex << "\n";
         }
+        
+        // Validate vertex indices
+        if (s_vertex < 0 || s_vertex >= num_vertices) {
+            std::cerr << "Error: Source vertex " << s_vertex << " is out of range [0, " 
+                      << (num_vertices - 1) << "]\n";
+            return 1;
+        }
+        if (t_vertex < 0 || t_vertex >= num_vertices) {
+            std::cerr << "Error: Target vertex " << t_vertex << " is out of range [0, " 
+                      << (num_vertices - 1) << "]\n";
+            return 1;
+        }
+        if (s_vertex == t_vertex) {
+            std::cerr << "Error: Source and target vertices must be different\n";
+            return 1;
+        }
 
         std::vector<std::string> method_names = {
             "Standard Factoring (Level 0)",
             "Recursive Decomposition (Level 1)", 
             "Simple Factoring (Level 2)",
-            "M-Decomposition (Level 3)"
+            "M-Decomposition (Level 3)",
+            "Cancela-Petingi (Level 4)"
         };
 
         LOG_INFO("Starting reliability calculation: file={}, s={}, t={}, diameter={}, method={}, reps={}",
@@ -196,6 +226,10 @@ int handleRun(const std::vector<std::string>& args) {
                 case 3:  // Level 3: Iterative Decomp + Modified Facto (FASTEST)
                     LOG_DEBUG("Using M-Decomposition method");
                     result = g->calculateReliabilityWithMDecomposition(s_vertex, t_vertex, diameter);
+                    break;
+                case 4:  // Level 4: Cancela-Petingi path-based factoring
+                    LOG_DEBUG("Using Cancela-Petingi method");
+                    result = g->calculateReliabilityCancelaPetingi(s_vertex, t_vertex, diameter);
                     break;
             }
             
@@ -295,8 +329,8 @@ int handleTesting(const std::vector<std::string>& args) {
     int method_id;
     try {
         method_id = std::stoi(args[1]);
-        if (method_id < 0 || method_id > 3) {
-            std::cerr << "Error: Method ID must be between 0 and 3\n";
+        if (method_id < 0 || method_id > 4) {
+            std::cerr << "Error: Method ID must be between 0 and 4\n";
             return 1;
         }
     } catch (const std::exception&) {
