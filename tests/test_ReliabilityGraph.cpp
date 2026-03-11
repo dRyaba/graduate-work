@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 #include "graph_reliability/ReliabilityGraph.h"
+#include "graph_reliability/DataImporter.h"
 #include "graph_reliability/Exceptions.h"
 
 using namespace graph_reliability;
@@ -106,6 +107,56 @@ TEST_F(ReliabilityGraphTest, CalculateReliabilityWithDecomposition) {
     EXPECT_LE(result.reliability, 1.0);
     EXPECT_GE(result.recursions, 0);
     EXPECT_GT(result.execution_time_sec, 0.0);
+}
+
+TEST_F(ReliabilityGraphTest, CalculateReliabilityCancelaPetingi) {
+    ReliabilityGraph graph(kao_, fo_, p_array_, targets_);
+    
+    auto result = graph.calculateReliabilityCancelaPetingi(0, 2, 2);
+    
+    EXPECT_GE(result.reliability, 0.0);
+    EXPECT_LE(result.reliability, 1.0);
+    EXPECT_GE(result.recursions, 0);
+    EXPECT_GT(result.execution_time_sec, 0.0);
+}
+
+TEST_F(ReliabilityGraphTest, CancelaPetingiMatchesStandardFactoring) {
+    ReliabilityGraph graph(kao_, fo_, p_array_, targets_);
+    
+    auto cp_result = graph.calculateReliabilityCancelaPetingi(0, 2, 2);
+    auto std_result = graph.calculateReliabilityBetweenVertices(0, 2, 2);
+    
+    EXPECT_NEAR(cp_result.reliability, std_result.reliability, 1e-10);
+}
+
+TEST_F(ReliabilityGraphTest, CancelaPetingiK4RecursionCount) {
+    DataImporter importer("graphs_data/");
+    if (!importer.fileExists("K4_kao.txt")) {
+        GTEST_SKIP() << "K4_kao.txt not found";
+    }
+    auto graph = importer.loadKAOGraph("K4_kao.txt");
+    ASSERT_TRUE(graph);
+
+    auto result = graph->calculateReliabilityCancelaPetingi(0, 3, 3);
+
+    EXPECT_NEAR(result.reliability, 0.997848, 1e-10);
+    EXPECT_EQ(result.recursions, 17);  // Optimized with corrected ISPT
+}
+
+TEST_F(ReliabilityGraphTest, CancelaPetingiK5RecursionCount) {
+    DataImporter importer("graphs_data/");
+    if (!importer.fileExists("K5_kao.txt")) {
+        GTEST_SKIP() << "K5_kao.txt not found";
+    }
+    auto graph = importer.loadKAOGraph("K5_kao.txt");
+    ASSERT_TRUE(graph);
+
+    auto result1 = graph->calculateReliabilityCancelaPetingi(0, 4, 4);
+    auto result2 = graph->calculateReliabilityCancelaPetingi(0, 4, 4);
+
+    EXPECT_NEAR(result1.reliability, 0.9997948026, 1e-10);
+    EXPECT_EQ(result1.recursions, result2.recursions) << "Recursion count must be deterministic";
+    EXPECT_EQ(result1.recursions, 206);  // Optimized with corrected ISPT
 }
 
 TEST_F(ReliabilityGraphTest, EmptyGraph) {
