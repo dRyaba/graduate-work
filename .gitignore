@@ -42,7 +42,7 @@ Makefile
 *.exe
 *.out
 *.app
-graph_reliability
+/graph_reliability
 
 # Debug files
 *.dSYM/
