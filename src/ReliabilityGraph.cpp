@@ -732,6 +732,86 @@ struct BlockGraphEdge {
     int articulation_point_original_id;
 };
 
+// Forward declaration (defined below)
+std::vector<int> findPathInBlockGraph(
+    int start_block_node_idx,
+    int end_block_node_idx,
+    int num_block_nodes,
+    const std::vector<BlockGraphEdge>& block_edges,
+    std::vector<int>& out_path_articulation_points
+);
+
+// Build block chain decomposition for a given (s, t) pair.
+// Shared by m2, m3, m5 — avoids ~60 lines of duplicated setup code in each method.
+ReliabilityGraph::BlockChain ReliabilityGraph::buildBlockChain(VertexId s, VertexId t) const {
+    BlockChain result;
+
+    result.decomposition = decomposeIntoBlocks();
+    result.num_blocks    = result.decomposition.back();
+
+    if (result.num_blocks <= 1) {
+        result.valid = false;
+        return result;           // caller should fall back to single-block method
+    }
+
+    // Build block graph: nodes = blocks, edges = articulation points shared by 2 blocks
+    std::vector<BlockGraphNode> block_nodes(result.num_blocks);
+    std::map<int, int> block_id_to_idx;
+    for (int i = 0; i < result.num_blocks; ++i) {
+        block_nodes[i].original_block_id = i + 1;
+        block_id_to_idx[i + 1] = i;
+    }
+
+    std::vector<BlockGraphEdge> block_edges;
+    std::vector<bool> ap_processed(numVertices(), false);
+    for (size_t v = 0; v < numVertices(); ++v) {
+        auto blocks = getBlocksContainingVertex(v, result.decomposition);
+        if (blocks.size() > 1) {
+            if (ap_processed[v]) continue;
+            ap_processed[v] = true;
+            for (size_t i = 0; i < blocks.size(); ++i)
+                for (size_t j = i + 1; j < blocks.size(); ++j)
+                    if (block_id_to_idx.count(blocks[i]) && block_id_to_idx.count(blocks[j]))
+                        block_edges.push_back({block_id_to_idx[blocks[i]],
+                                               block_id_to_idx[blocks[j]],
+                                               static_cast<int>(v)});
+        }
+    }
+
+    auto s_blocks = getBlocksContainingVertex(s, result.decomposition);
+    auto t_blocks = getBlocksContainingVertex(t, result.decomposition);
+    if (s_blocks.empty() || t_blocks.empty()) {
+        result.valid = false;
+        return result;
+    }
+
+    int start_node_idx = block_id_to_idx[s_blocks[0]];
+    int end_node_idx   = block_id_to_idx[t_blocks[0]];
+
+    std::vector<int> path_aps;
+    std::vector<int> block_path_indices = findPathInBlockGraph(
+        start_node_idx, end_node_idx, result.num_blocks, block_edges, path_aps
+    );
+
+    if (block_path_indices.empty()) {
+        result.valid = false;
+        return result;
+    }
+
+    for (int idx : block_path_indices)
+        result.ordered_block_ids.push_back(block_nodes[idx].original_block_id);
+
+    int chain_len = static_cast<int>(result.ordered_block_ids.size());
+    result.final_aps.assign(chain_len + 1, 0);
+    result.final_aps[0]         = static_cast<int>(s);
+    for (int i = 0; i < static_cast<int>(path_aps.size()); ++i)
+        result.final_aps[i + 1] = path_aps[i];
+    result.final_aps[chain_len] = static_cast<int>(t);
+
+    result.valid = true;
+    return result;
+}
+
 // Helper to find path in block graph
 std::vector<int> findPathInBlockGraph(
     int start_block_node_idx,
@@ -1188,86 +1268,29 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecomposition(Verte
     clock_t start = clock();
     long long recursion_counter = 0;
 
-    LOG_DEBUG("Decomposing graph into blocks");
-    std::vector<int> decomposition = decomposeIntoBlocks();
-    int num_blocks = decomposition.back();
-    LOG_DEBUG("Graph decomposed into {} blocks", num_blocks);
-    
-    // If single block, fall back to standard factoring
-    if (num_blocks <= 1) {
-        LOG_DEBUG("Single block detected, using standard factoring");
-        return calculateReliabilityBetweenVertices(s, t, d);
-    }
-    
-    // Build Block Graph
-    std::vector<BlockGraphNode> block_nodes(num_blocks);
-    std::map<int, int> block_id_to_idx;
-    for(int i=0; i<num_blocks; ++i) {
-        block_nodes[i].original_block_id = i + 1;
-        block_id_to_idx[i+1] = i;
-    }
-    
-    std::vector<BlockGraphEdge> block_edges;
-    std::vector<bool> ap_processed(numVertices(), false);
-    
-    for (size_t v = 0; v < numVertices(); ++v) {
-        auto blocks = getBlocksContainingVertex(v, decomposition);
-        if (blocks.size() > 1) {
-            if (ap_processed[v]) continue;
-            ap_processed[v] = true;
-            for(size_t i=0; i<blocks.size(); ++i) {
-                for(size_t j=i+1; j<blocks.size(); ++j) {
-                    if (block_id_to_idx.count(blocks[i]) && block_id_to_idx.count(blocks[j])) {
-                        block_edges.push_back({
-                            block_id_to_idx[blocks[i]],
-                            block_id_to_idx[blocks[j]],
-                            static_cast<int>(v)
-                        });
-                    }
-                }
-            }
+    auto chain = buildBlockChain(s, t);
+    if (!chain.valid) {
+        if (chain.num_blocks <= 1) {
+            LOG_DEBUG("Single block detected, using standard factoring");
+            return calculateReliabilityBetweenVertices(s, t, d);
         }
-    }
-    
-    auto s_blocks = getBlocksContainingVertex(s, decomposition);
-    auto t_blocks = getBlocksContainingVertex(t, decomposition);
-    
-    if (s_blocks.empty() || t_blocks.empty()) {
-         double time = (double)(clock() - start) / CLOCKS_PER_SEC;
-         return ReliabilityResult(0.0, 0, time);
-    }
-    
-    int start_node_idx = block_id_to_idx[s_blocks[0]];
-    int end_node_idx = block_id_to_idx[t_blocks[0]];
-    
-    std::vector<int> path_aps;
-    std::vector<int> block_path_indices = findPathInBlockGraph(
-        start_node_idx, end_node_idx, num_blocks, block_edges, path_aps
-    );
-    
-    if (block_path_indices.empty()) {
         double time = (double)(clock() - start) / CLOCKS_PER_SEC;
         return ReliabilityResult(0.0, 0, time);
     }
-    
-    std::vector<int> ordered_block_ids;
-    for (int idx : block_path_indices) {
-        ordered_block_ids.push_back(block_nodes[idx].original_block_id);
-    }
-    
-    std::vector<int> final_aps(ordered_block_ids.size() + 1, 0);
-    for(size_t i=0; i<path_aps.size(); ++i) final_aps[i+1] = path_aps[i];
-    
-    LOG_DEBUG("Solving block chain with {} blocks", ordered_block_ids.size());
+
+    LOG_DEBUG("Graph decomposed into {} blocks, chain length={}", chain.num_blocks,
+              chain.ordered_block_ids.size());
+
+    LOG_DEBUG("Solving block chain with {} blocks", chain.ordered_block_ids.size());
     std::vector<double> results = solveRecursiveForBlockChain(
-        0, s, t, d, decomposition, ordered_block_ids, final_aps, recursion_counter
+        0, s, t, d, chain.decomposition, chain.ordered_block_ids, chain.final_aps, recursion_counter
     );
-    
+
     double rel = (results.empty()) ? 0.0 : results[std::min((int)results.size()-1, d)];
     double time = (double)(clock() - start) / CLOCKS_PER_SEC;
-    
+
     LOG_INFO("M-Decomposition completed: reliability={}, recursions={}, time={}s", rel, recursion_counter, time);
-    
+
     return ReliabilityResult(rel, recursion_counter, time);
 }
 
@@ -1352,95 +1375,39 @@ static std::vector<double> solveBlockChainIterative(
 
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecompositionCPFM(VertexId s, VertexId t, int d) const {
     LOG_INFO("Starting M-Decomposition + CPFM (Method 5): s={}, t={}, diameter={}", s, t, d);
-    
+
     PROFILE_RESET();
     auto total_start = std::chrono::high_resolution_clock::now();
     long long recursion_counter = 0;
-    
+
     PROFILE_START(decomp);
-    LOG_DEBUG("Decomposing graph into blocks");
-    std::vector<int> decomposition = decomposeIntoBlocks();
-    int num_blocks = decomposition.back();
+    auto chain = buildBlockChain(s, t);
     PROFILE_END(decomp, decomposition_time);
-    LOG_DEBUG("Graph decomposed into {} blocks", num_blocks);
-    
+
 #ifdef PROFILE_METHOD5
-    g_profile.num_blocks = num_blocks;
+    g_profile.num_blocks = chain.num_blocks;
 #endif
-    
-    if (num_blocks <= 1) {
-        LOG_DEBUG("Single block detected, using CPFM directly");
-        return calculateReliabilityCancelaPetingi(s, t, d);
-    }
-    
-    PROFILE_START(block_graph);
-    std::vector<BlockGraphNode> block_nodes(num_blocks);
-    std::map<int, int> block_id_to_idx;
-    for (int i = 0; i < num_blocks; ++i) {
-        block_nodes[i].original_block_id = i + 1;
-        block_id_to_idx[i + 1] = i;
-    }
-    
-    std::vector<BlockGraphEdge> block_edges;
-    std::vector<bool> ap_processed(numVertices(), false);
-    
-    for (size_t v = 0; v < numVertices(); ++v) {
-        auto blocks = getBlocksContainingVertex(v, decomposition);
-        if (blocks.size() > 1) {
-            if (ap_processed[v]) continue;
-            ap_processed[v] = true;
-            for (size_t i = 0; i < blocks.size(); ++i) {
-                for (size_t j = i + 1; j < blocks.size(); ++j) {
-                    if (block_id_to_idx.count(blocks[i]) && block_id_to_idx.count(blocks[j])) {
-                        block_edges.push_back({
-                            block_id_to_idx[blocks[i]],
-                            block_id_to_idx[blocks[j]],
-                            static_cast<int>(v)
-                        });
-                    }
-                }
-            }
+
+    if (!chain.valid) {
+        if (chain.num_blocks <= 1) {
+            LOG_DEBUG("Single block detected, using CPFM directly");
+            return calculateReliabilityCancelaPetingi(s, t, d);
         }
-    }
-    PROFILE_END(block_graph, block_graph_build_time);
-    
-    auto s_blocks = getBlocksContainingVertex(s, decomposition);
-    auto t_blocks = getBlocksContainingVertex(t, decomposition);
-    
-    if (s_blocks.empty() || t_blocks.empty()) {
         auto total_end = std::chrono::high_resolution_clock::now();
         double time = std::chrono::duration<double>(total_end - total_start).count();
         return ReliabilityResult(0.0, 0, time);
     }
-    
-    PROFILE_START(path_find);
-    int start_node_idx = block_id_to_idx[s_blocks[0]];
-    int end_node_idx = block_id_to_idx[t_blocks[0]];
-    
-    std::vector<int> path_aps;
-    std::vector<int> block_path_indices = findPathInBlockGraph(
-        start_node_idx, end_node_idx, num_blocks, block_edges, path_aps
-    );
-    PROFILE_END(path_find, path_finding_time);
-    
-    if (block_path_indices.empty()) {
-        auto total_end = std::chrono::high_resolution_clock::now();
-        double time = std::chrono::duration<double>(total_end - total_start).count();
-        return ReliabilityResult(0.0, 0, time);
-    }
-    
-    std::vector<int> ordered_block_ids;
-    for (int idx : block_path_indices) {
-        ordered_block_ids.push_back(block_nodes[idx].original_block_id);
-    }
+
+    LOG_DEBUG("Graph decomposed into {} blocks, chain length={}", chain.num_blocks,
+              chain.ordered_block_ids.size());
 
     // If any block in the chain is too large for per-block CPFM, fall back to global CPFM (m4)
     // Threshold: >50 edges means per-block CPFM becomes exponentially expensive
     const int CPFM_BLOCK_EDGE_THRESHOLD = 50;
-    for (int bid : ordered_block_ids) {
+    for (int bid : chain.ordered_block_ids) {
         ReliabilityGraph blk;
         std::vector<int> m2o, m2n;
-        getBlockGraphAndMap(bid, decomposition, blk, m2o, m2n);
+        getBlockGraphAndMap(bid, chain.decomposition, blk, m2o, m2n);
         if (static_cast<int>(blk.numEdges()) > CPFM_BLOCK_EDGE_THRESHOLD) {
             LOG_DEBUG("Block {} has {} edges > threshold, falling back to global CPFM (m4)",
                       bid, blk.numEdges());
@@ -1448,13 +1415,9 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecompositionCPFM(V
         }
     }
 
-    std::vector<int> final_aps(ordered_block_ids.size() + 1, 0);
-    final_aps[0] = s;  // source vertex as first entry point
-    for (size_t i = 0; i < path_aps.size(); ++i) {
-        final_aps[i + 1] = path_aps[i];
-    }
-
     // Calculate d_min for each block (formula 2.3 from thesis)
+    const auto& ordered_block_ids = chain.ordered_block_ids;
+    const auto& final_aps         = chain.final_aps;
     std::vector<int> d_min_per_block(ordered_block_ids.size());
     int total_d_min = 0;
     
@@ -1471,7 +1434,7 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecompositionCPFM(V
             exit = final_aps[i + 1];
         }
         
-        int d_min_k = calculateMinBlockDiameter(block_id, decomposition, entry, exit);
+        int d_min_k = calculateMinBlockDiameter(block_id, chain.decomposition, entry, exit);
         if (d_min_k < 0) {
             // Unreachable - should not happen in a valid block path
             auto total_end = std::chrono::high_resolution_clock::now();
@@ -1501,7 +1464,7 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecompositionCPFM(V
 
     for (int i = 0; i < chain_len; ++i) {
         std::vector<int> m2o, o2n;
-        getBlockGraphAndMap(ordered_block_ids[i], decomposition,
+        getBlockGraphAndMap(ordered_block_ids[i], chain.decomposition,
                             chain_block_graphs[i], m2o, o2n);
 
         int entry = final_aps[i];
@@ -1641,86 +1604,34 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithRecursiveDecompositi
 
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithDecomposition(VertexId s, VertexId t, int UpperBound) const {
     // Uses block decomposition with simple (one-diameter-at-a-time) factoring per block.
-    // Block chain is found via BFS on the block graph from s_block to t_block,
-    // so this method correctly handles any (s,t) pair regardless of target_vertices_.
     LOG_INFO("Starting Simple Factoring with Decomposition: s={}, t={}, diameter={}", s, t, UpperBound);
     clock_t start = clock();
     long long recursion_counter = 0;
 
-    LOG_DEBUG("Decomposing graph into blocks");
-    std::vector<int> decomposition = decomposeIntoBlocks();
-    int num_blocks = decomposition.back();
-    LOG_DEBUG("Graph decomposed into {} blocks", num_blocks);
-
-    // If single block, fall back to standard factoring
-    if (num_blocks <= 1) {
-        LOG_DEBUG("Single block detected, using standard factoring");
-        return calculateReliabilityBetweenVertices(s, t, UpperBound);
-    }
-
-    // Build block graph (same as method 3)
-    std::vector<BlockGraphNode> block_nodes(num_blocks);
-    std::map<int, int> block_id_to_idx;
-    for (int i = 0; i < num_blocks; ++i) {
-        block_nodes[i].original_block_id = i + 1;
-        block_id_to_idx[i + 1] = i;
-    }
-
-    std::vector<BlockGraphEdge> block_edges;
-    std::vector<bool> ap_processed(numVertices(), false);
-    for (size_t v = 0; v < numVertices(); ++v) {
-        auto blocks = getBlocksContainingVertex(v, decomposition);
-        if (blocks.size() > 1) {
-            if (ap_processed[v]) continue;
-            ap_processed[v] = true;
-            for (size_t i = 0; i < blocks.size(); ++i)
-                for (size_t j = i + 1; j < blocks.size(); ++j)
-                    if (block_id_to_idx.count(blocks[i]) && block_id_to_idx.count(blocks[j]))
-                        block_edges.push_back({block_id_to_idx[blocks[i]],
-                                               block_id_to_idx[blocks[j]],
-                                               static_cast<int>(v)});
+    auto chain = buildBlockChain(s, t);
+    if (!chain.valid) {
+        if (chain.num_blocks <= 1) {
+            LOG_DEBUG("Single block detected, using standard factoring");
+            return calculateReliabilityBetweenVertices(s, t, UpperBound);
         }
-    }
-
-    auto s_blocks = getBlocksContainingVertex(s, decomposition);
-    auto t_blocks = getBlocksContainingVertex(t, decomposition);
-    if (s_blocks.empty() || t_blocks.empty()) {
         double time = (double)(clock() - start) / CLOCKS_PER_SEC;
         return ReliabilityResult(0.0, 0, time);
     }
 
-    int start_block_idx = block_id_to_idx[s_blocks[0]];
-    int end_block_idx   = block_id_to_idx[t_blocks[0]];
+    LOG_DEBUG("Graph decomposed into {} blocks, chain length={}", chain.num_blocks,
+              chain.ordered_block_ids.size());
 
-    std::vector<int> path_aps;
-    std::vector<int> block_path_indices = findPathInBlockGraph(
-        start_block_idx, end_block_idx, num_blocks, block_edges, path_aps);
+    const auto& ordered_block_ids = chain.ordered_block_ids;
+    const auto& final_aps         = chain.final_aps;
+    int chain_len = static_cast<int>(ordered_block_ids.size());
 
-    if (block_path_indices.empty()) {
-        double time = (double)(clock() - start) / CLOCKS_PER_SEC;
-        return ReliabilityResult(0.0, 0, time);
-    }
-
-    // Build ordered block chain: block IDs and articulation points (entry/exit)
-    // final_aps[0] = s, final_aps[k] = AP between block k-1 and k, final_aps[N] = t
-    int chain_len = static_cast<int>(block_path_indices.size());
-    std::vector<int> ordered_block_ids;
-    for (int idx : block_path_indices)
-        ordered_block_ids.push_back(block_nodes[idx].original_block_id);
-
-    std::vector<int> final_aps(chain_len + 1, 0);
-    final_aps[0] = s;
-    for (int i = 0; i < static_cast<int>(path_aps.size()); ++i)
-        final_aps[i + 1] = path_aps[i];
-    final_aps[chain_len] = t;
-
-    // Compute minimum diameter and reliability for each block in the chain
+    // Compute minimum diameter for each block in the chain
     std::vector<int> BlockDiam(chain_len, 0);
     int diamsum = 0;
     for (int i = 0; i < chain_len; ++i) {
         ReliabilityGraph block_graph;
         std::vector<int> map_new_to_orig, map_orig_to_new;
-        getBlockGraphAndMap(ordered_block_ids[i], decomposition, block_graph,
+        getBlockGraphAndMap(ordered_block_ids[i], chain.decomposition, block_graph,
                             map_new_to_orig, map_orig_to_new);
 
         int orig_entry = final_aps[i];
@@ -1749,7 +1660,7 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithDecomposition(Vertex
     for (int i = 0; i < chain_len; ++i) {
         ReliabilityGraph block_graph;
         std::vector<int> map_new_to_orig, map_orig_to_new;
-        getBlockGraphAndMap(ordered_block_ids[i], decomposition, block_graph,
+        getBlockGraphAndMap(ordered_block_ids[i], chain.decomposition, block_graph,
                             map_new_to_orig, map_orig_to_new);
 
         int ls = map_orig_to_new[final_aps[i]];

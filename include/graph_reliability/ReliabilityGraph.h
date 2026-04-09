@@ -349,6 +349,29 @@ public:
 
 private:
     /**
+     * @brief Result of block chain decomposition for a given (s, t) pair.
+     *
+     * Contains everything downstream methods need:
+     *   - decomposition   : block labels from decomposeIntoBlocks()
+     *   - ordered_block_ids: block IDs along the s→t path
+     *   - final_aps       : entry/exit vertices per block,
+     *                       final_aps[0]=s, final_aps[i]=AP between block i-1 and i,
+     *                       final_aps[N]=t
+     *   - num_blocks      : total number of blocks in the graph
+     *   - valid           : false when single-block graph, s/t unreachable, or path not found
+     */
+    struct BlockChain {
+        std::vector<int> decomposition;
+        std::vector<int> ordered_block_ids;
+        std::vector<int> final_aps;
+        int num_blocks = 0;
+        bool valid     = false;
+    };
+
+    /** @brief Build block chain for a given (s, t) pair. */
+    BlockChain buildBlockChain(VertexId s, VertexId t) const;
+
+    /**
      * @brief Recursive solver for block chain reliability (uses MODIFIED factoring)
      */
     std::vector<double> solveRecursiveForBlockChain(
