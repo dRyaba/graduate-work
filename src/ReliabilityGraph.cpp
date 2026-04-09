@@ -1271,6 +1271,85 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecomposition(Verte
     return ReliabilityResult(rel, recursion_counter, time);
 }
 
+// Iterative block chain solver for Method 5 (replaces recursive version).
+// Processes blocks from last to first (backward pass), accumulating CDF via convolution.
+// Advantages over recursive version:
+//   - No stack frame overhead or vector-by-value returns
+//   - Precomputed block graphs (each constructed once)
+//   - Suffix sums of d_min computed upfront
+//
+// Parameters:
+//   block_graphs   — preextracted subgraph for each block in chain
+//   s_local[i]     — entry vertex in block i (local numbering)
+//   x_local[i]     — exit vertex in block i  (local numbering; for last block = t_local)
+//   d_min_per_block — shortest s_local→x_local distance in block i
+//   gap            — D − sum(d_min): extra "budget" shared across all blocks
+static std::vector<double> solveBlockChainIterative(
+    const std::vector<ReliabilityGraph>& block_graphs,
+    const std::vector<int>& s_local,
+    const std::vector<int>& x_local,
+    const std::vector<int>& d_min_per_block,
+    int gap,
+    long long& recursion_counter
+) {
+    int n = static_cast<int>(block_graphs.size());
+    if (n == 0) return {};
+
+    // Precompute suffix sums: suffix[i] = d_min[i] + ... + d_min[n-1]
+    std::vector<int> suffix(n + 1, 0);
+    for (int i = n - 1; i >= 0; --i)
+        suffix[i] = suffix[i + 1] + d_min_per_block[i];
+
+    std::vector<double> acc_cdf;  // CDF of blocks [i .. n-1], grows leftward
+
+    for (int i = n - 1; i >= 0; --i) {
+        int d_min_k    = d_min_per_block[i];
+        int max_len_k  = d_min_k + gap;           // max this block can consume
+        int max_total  = suffix[i] + gap;          // max total for blocks [i..n-1]
+
+        // CPFM: CDF for path length in [d_min_k, max_len_k] within this block
+        auto [r_partial, recs] = block_graphs[i].calculateReliabilityCancelaPetingiMulti(
+            s_local[i], x_local[i], d_min_k, max_len_k);
+        recursion_counter += recs;
+
+        if (i == n - 1) {
+            // Last block — initialise acc_cdf directly
+            acc_cdf.assign(max_total + 1, 0.0);
+            for (int d = d_min_k; d <= max_len_k && d <= max_total; ++d)
+                acc_cdf[d] = r_partial[d - d_min_k];
+        } else {
+            // Convert partial CDF → PMF for this block
+            std::vector<double> pmf(max_len_k + 1, 0.0);
+            pmf[d_min_k] = r_partial[0];
+            for (int d = d_min_k + 1; d <= max_len_k; ++d)
+                pmf[d] = r_partial[d - d_min_k] - r_partial[d - d_min_k - 1];
+
+            // Convolve: new_cdf[d] = sum_k pmf[k] * acc_cdf[d - k]
+            std::vector<double> new_cdf(max_total + 1, 0.0);
+            for (int d = d_min_k; d <= max_total; ++d) {
+                double sum = 0.0;
+                int k_hi = std::min(d, max_len_k);
+                for (int k = d_min_k; k <= k_hi; ++k) {
+                    if (pmf[k] > 0.0) {
+                        int rem = d - k;
+                        if (rem < static_cast<int>(acc_cdf.size()))
+                            sum += pmf[k] * acc_cdf[rem];
+                    }
+                }
+                new_cdf[d] = sum;
+            }
+            acc_cdf = std::move(new_cdf);
+        }
+
+        // Enforce cumulative (non-decreasing) property
+        for (int d = 1; d <= max_total; ++d)
+            if (acc_cdf[d] < acc_cdf[d - 1]) acc_cdf[d] = acc_cdf[d - 1];
+    }
+
+    return acc_cdf;
+}
+
+// Legacy recursive helper — kept for reference, no longer called
 // Helper for Method 5: CPFM-based block chain solver with gap optimization
 // Uses d_min_per_block to optimize the CDF calculation range per block
 // max_d: total maximum diameter for the entire chain (= D from user)
@@ -1637,23 +1716,45 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecompositionCPFM(V
     
     int gap = d - total_d_min;
     LOG_DEBUG("Gap optimization: D={}, total_d_min={}, gap={}", d, total_d_min, gap);
-    
+
     if (gap < 0) {
-        // Diameter constraint is too tight - no valid path exists
         auto total_end = std::chrono::high_resolution_clock::now();
         double time = std::chrono::duration<double>(total_end - total_start).count();
         LOG_INFO("M-Decomposition + CPFM: gap<0, returning 0");
         return ReliabilityResult(0.0, 0, time);
     }
-    
-    LOG_DEBUG("Solving block chain with {} blocks using CPFM (gap={})", ordered_block_ids.size(), gap);
-    
-    // For gap optimization, we use the total max_len = d (which equals total_d_min + gap)
-    // Each block computes CDF for range [0, max_len] but skips computing for 
-    // diameters below d_min_k since those are always 0
-    std::vector<double> results = solveBlockChainCPFMWithGap(
-        *this, 0, s, t, d_min_per_block[0], gap, decomposition, ordered_block_ids, 
-        final_aps, d_min_per_block, recursion_counter
+
+    // Precompute block subgraphs and local vertex indices once — avoids repeated
+    // extraction inside the chain solver and eliminates temporary allocations per block.
+    int chain_len = static_cast<int>(ordered_block_ids.size());
+    std::vector<ReliabilityGraph> chain_block_graphs(chain_len);
+    std::vector<int>              chain_s_local(chain_len);
+    std::vector<int>              chain_x_local(chain_len);
+
+    for (int i = 0; i < chain_len; ++i) {
+        std::vector<int> m2o, o2n;
+        getBlockGraphAndMap(ordered_block_ids[i], decomposition,
+                            chain_block_graphs[i], m2o, o2n);
+
+        int entry = final_aps[i];
+        int exit_v = (i == chain_len - 1) ? t : final_aps[i + 1];
+
+        if (entry  >= static_cast<int>(o2n.size()) || o2n[entry]  == -1 ||
+            exit_v >= static_cast<int>(o2n.size()) || o2n[exit_v] == -1) {
+            auto total_end = std::chrono::high_resolution_clock::now();
+            double time = std::chrono::duration<double>(total_end - total_start).count();
+            return ReliabilityResult(0.0, 0, time);
+        }
+        chain_s_local[i] = o2n[entry];
+        chain_x_local[i] = o2n[exit_v];
+    }
+
+    LOG_DEBUG("Solving block chain ({} blocks, gap={}) using iterative CPFM solver",
+              chain_len, gap);
+
+    std::vector<double> results = solveBlockChainIterative(
+        chain_block_graphs, chain_s_local, chain_x_local,
+        d_min_per_block, gap, recursion_counter
     );
     
     // The result is indexed by total path length, so we need results[d]
