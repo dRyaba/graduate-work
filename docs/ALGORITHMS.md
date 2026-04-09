@@ -230,39 +230,66 @@ All benchmarks were run on a single CPU core (Release build, -O3). Timeout = 300
 | IEEE 118-node | 118 | 168 | 14 | 12 | 144 |
 | UPS Russia | 63 | 108 | 17 | 12 | 85 |
 
-### Sausage Chain Graphs (d = d_min)
+### Sausage Chain Graphs — at d = d_min (gap = 0)
 
-| Graph | d | m3 time | m4 time | m5 time | m5 recs | Speedup m5/m3 |
+| Graph | d | m3 | m4 | **m5** | Speedup m5/m3 |
+|---|---|---|---|---|---|
+| 2-block 3×3 | 8 | 16 ms | 37 ms | **2.6 ms** | ×6 |
+| 3-block 3×3 | 10 | 565 ms | 0.08 ms | **0.11 ms** | **×4961** |
+| 3-block 4×4 | 13 | TIMEOUT | 0.86 ms | **0.86 ms** | — |
+| 4-block 3×3 | 14 | 1137 ms | 0.82 ms | **0.17 ms** | **×6741** |
+| 5-block 3×3 | 18 | 1562 ms | 12.7 ms | **0.20 ms** | **×7854** |
+| 6-block 3×3 | 22 | 2056 ms | 208 ms | **0.26 ms** | **×7880** |
+
+### Sausage Chain Graphs — effect of increasing d (gap > 0)
+
+Key finding: m4 degrades exponentially for d > d_min on sausage chains. m5 degrades gracefully.
+
+| Graph | d | gap | m3 | m4 | m5 | m5/m3 |
 |---|---|---|---|---|---|---|
-| 2-block 3×3 | 8 | 16 ms | 37 ms | 2.6 ms | 626 | ×6 |
-| 3-block 3×3 | 10 | 581 ms | 0.12 ms | 0.20 ms | 12 | **×2905** |
-| 3-block 4×4 | 13 | TIMEOUT | 0.86 ms | 0.86 ms | 5 | — |
-| 4-block 3×3 | 14 | 1084 ms | 0.91 ms | 0.24 ms | 20 | **×4517** |
-| 5-block 3×3 | 18 | 1626 ms | 14.7 ms | 0.26 ms | 28 | **×6254** |
-| 6-block 3×3 | 22 | 2161 ms | 220 ms | 0.34 ms | 36 | **×6356** |
+| 3-block 3×3 | 10 | 0 | 565 ms | 0.08 ms | **0.11 ms** | ×4961 |
+| 3-block 3×3 | 11 | 1 | 564 ms | 11 ms | 305 ms | ×2 |
+| 3-block 3×3 | 12 | 2 | 562 ms | 763 ms | 450 ms | ×1.3 |
+| 5-block 3×3 | 18 | 0 | 1562 ms | 12.7 ms | **0.20 ms** | ×7854 |
+| 5-block 3×3 | 19 | 1 | 1563 ms | **TIMEOUT** | 904 ms | ×1.7 |
+| 5-block 3×3 | 20 | 2 | 1569 ms | **TIMEOUT** | 1278 ms | ×1.2 |
+| 6-block 3×3 | 22 | 0 | 2056 ms | 208 ms | **0.26 ms** | ×7880 |
+| 6-block 3×3 | 23 | 1 | 2067 ms | **TIMEOUT** | 1189 ms | ×1.7 |
+| 6-block 3×3 | 24 | 2 | 2058 ms | **TIMEOUT** | 1688 ms | ×1.2 |
 
 All methods produce identical reliability values (tolerance < 1e-9).
 
 **Observations:**
-- m5 scales almost linearly with chain length (26→34 µs for 2→6 blocks) — dominated by CPFM with gap optimisation.
-- m4 grows fast as diameter and chain length increase (×1429 recursions for 6-block vs ×4 for 3-block).
-- m3 grows roughly linearly in chain length (~530 ms per added 3×3 block) and times out on 4×4 blocks.
+- At gap=0 (d = d_min): m5 is ×4961–×7880 faster than m3. Gap optimisation reduces per-block CPFM to a single CDF point.
+- At gap=1: m4 begins to time out on longer chains; m5 is ~×2 vs m3.
+- At gap=2: m4 completely unavailable for chains ≥ 5 blocks; m5 ≈ m3 (gap budget spread across all blocks makes per-block CPFM expensive).
+- **m5 is the only method applicable for all d values on sausage chains.** It is never worse than m3, and vastly superior at tight diameter constraints.
 
 ### Real-World Networks
 
-| Graph | d | m3 time | m4 time | m5 time | Note |
+| Graph | d | m3 | **m4** | m5 | Note |
 |---|---|---|---|---|---|
-| GEANT 2004 | 6 | 3 ms | **0.07 ms** | 0.70 ms | Small blocks → no fallback |
-| GEANT 2009 | 12 | TIMEOUT | **0.07 ms** | 0.06 ms | Fallback to m4 (block 238 e) |
-| IEEE 118-node | 10 | 36.8 s | **0.08 ms** | 0.06 ms | Fallback to m4 (block 144 e) |
+| GEANT 2004 | 6 | 3 ms | **0.03 ms** | 0.15 ms | Small blocks (max 25 e), no fallback |
+| GEANT 2004 | 8 | — | 0.37 ms | 1.55 ms | Per-block CPFM costlier than global |
+| GEANT 2009 | 12 | TIMEOUT | **0.04 ms** | 0.04 ms | Fallback to m4 (block 238 e) |
+| IEEE 118-node | 10 | 36.8 s | **0.04 ms** | 0.04 ms | Fallback to m4 (block 144 e) |
+| IEEE 118-node | 12 | — | 8.8 ms | 9.3 ms | — |
 | UPS Russia | 18 | TIMEOUT | 158 ms | 160 ms | Fallback to m4 (block 85 e) |
 
 **Observations:**
-- For graphs dominated by one large biconnected component (IEEE-118, UPS, GEANT2009), m4 is optimal; m5 automatically falls back to m4.
-- m3's CPFM fallback (for blocks > 30 edges) reduces worst-case from "immediate hang" to a finite result on IEEE-118 (36.8 s), but remains impractical.
-- GEANT2004 is well-structured for decomposition (50 blocks, max 25 edges): m3=3 ms, m4=0.07 ms, m5=0.7 ms.
+- For graphs with large biconnected components (IEEE-118, UPS, GEANT2009): m5 auto-falls back to m4; both methods behave identically.
+- GEANT2004 has small blocks (max 25 edges): m4 wins here because global ESS/ISPT is more effective than per-block CPFM at d > d_min.
+- m3 is completely impractical on real networks with large blocks.
 
 ### Conclusion
+
+| Use case | Recommended method | Reason |
+|---|---|---|
+| Sausage chains, d = d_min | **m5** | Gap=0 optimisation: ×4961–×7880 vs m3 |
+| Sausage chains, d > d_min | **m5** | m4 times out; m5 degrades gracefully |
+| Real networks, large blocks | **m4** | Global ESS/ISPT more effective per-block CPFM |
+| Real networks, small blocks | **m4** | Global CPFM beats per-block at d > d_min |
+| Universal safe choice | **m5** | Automatically falls back to m4 when blocks are large |
 
 | Use case | Recommended method |
 |---|---|
