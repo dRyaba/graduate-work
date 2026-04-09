@@ -1,5 +1,6 @@
 # Build directories
 build/
+build*/
 bin/
 lib/
 out/
@@ -55,6 +56,7 @@ Makefile
 .idea/
 .cursor/
 .vs/
+.claude/
 *.vcxproj.user
 *.user
 *.swp
@@ -74,7 +76,12 @@ Thumbs.db
 test_results.csv
 test_output.csv
 results*.csv
+method*_results.csv
+profile_results*.csv
+output_nesterov.txt
 *.log
+*.txt
+*.csv
 
 # Documentation build
 docs/html/

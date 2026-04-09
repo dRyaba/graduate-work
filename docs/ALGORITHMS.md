@@ -90,7 +90,35 @@ Given a graph G(V, E) with edge reliabilities p(e) ∈ [0, 1], source vertex s, 
 
 **Complexity**: O(2^m × paths) with early termination; typically fewer recursions than graph-based factoring
 
-**Use Case**: Alternative to graph-based methods; can accelerate decomposed structures (Method 5, future)
+**Use Case**: Alternative to graph-based methods; single-block calculations
+
+### Method 5: M-Decomposition + CPFM (Level 5)
+
+**Description**: Hybrid method combining block decomposition (M-Decomposition) with path-based factoring (Cancela-Petingi). Uses CPFM inside each block for efficiency, then convolves block reliabilities using Migov's formula.
+
+**Algorithm**:
+1. Decompose graph into k-blocks
+2. Build block graph and find path through it
+3. For each block in path:
+   - Enumerate all paths within the block
+   - Apply global ISPT for series-parallel transformation
+   - Use multi-diameter CPFM to compute CDF for all diameters in one pass
+   - CDF[d] = P(exists path of length ≤ d)
+4. Convert CDF to PMF and convolve block reliabilities
+
+**Key Innovations**:
+- Multi-diameter CPFM: computes reliability for all diameters [0, D] simultaneously
+- No early termination on success: ensures correct CDF computation for all lengths
+- ISPT acceleration: reduces number of edges to factor
+
+**Complexity**: O(B × 2^E_block × paths) where B=blocks, E_block=edges per block
+
+**Advantages**:
+- Fewer recursions than Method 3 due to ISPT
+- Exact computation (no approximation)
+- Combines benefits of decomposition and path-based approach
+
+**Use Case**: Block-structured graphs, production use with ISPT benefits
 
 ## Block Decomposition
 
@@ -143,7 +171,8 @@ Used for distance constraint checking:
 | Recursive Decomposition | O(B × 2^E) | Academic comparison |
 | Simple Factoring | O(B × E × D) | Medium graphs |
 | M-Decomposition | O(B × E × D) | Large graphs |
-| Cancela-Petingi | O(2^m × paths) | Path-based, SPT acceleration |
+| Cancela-Petingi | O(2^m × paths) | Single-block graphs |
+| M-Decomp + CPFM | O(B × 2^E × paths) | Block-structured with ISPT |
 
 ## Implementation Details
 
@@ -180,6 +209,67 @@ The algorithms are based on the following works:
 - **Nesterov S., Migov D.** Series-parallel transformation for diameter constrained network reliability computation. (SPT, ESS, ISPT on each recursive call of CPFM)
 
 See [docs/references/README.md](references/README.md) for full references and [docs/references/algorithm_checklist.md](references/algorithm_checklist.md) for implementation correspondence.
+
+## Experimental Results
+
+All benchmarks were run on a single CPU core (Release build, -O3). Timeout = 300 s.  
+"d_min" denotes the minimum diameter for which a path exists between the chosen s–t pair.
+
+### Test Graph Properties
+
+| Graph | V | E | Blocks | Bridges | Max block edges |
+|---|---|---|---|---|---|
+| 2-block 3×3 sausage | 18 | 26 | 2 | 0 | 12 |
+| 3-block 3×3 sausage | 27 | 39 | 3 | 0 | 12 |
+| 3-block 4×4 sausage | 38 | 60 | 3 | 0 | 24 |
+| 4-block 3×3 sausage | 36 | 52 | 4 | 0 | 12 |
+| 5-block 3×3 sausage | 45 | 65 | 5 | 0 | 12 |
+| 6-block 3×3 sausage | 54 | 78 | 6 | 0 | 12 |
+| GEANT 2004 | 103 | 127 | 50 | 41 | 25 |
+| GEANT 2009 | 390 | 503 | 91 | 75 | 238 |
+| IEEE 118-node | 118 | 168 | 14 | 12 | 144 |
+| UPS Russia | 63 | 108 | 17 | 12 | 85 |
+
+### Sausage Chain Graphs (d = d_min)
+
+| Graph | d | m3 time | m4 time | m5 time | m5 recs | Speedup m5/m3 |
+|---|---|---|---|---|---|---|
+| 2-block 3×3 | 8 | 16 ms | 37 ms | 2.6 ms | 626 | ×6 |
+| 3-block 3×3 | 10 | 581 ms | 0.12 ms | 0.20 ms | 12 | **×2905** |
+| 3-block 4×4 | 13 | TIMEOUT | 0.86 ms | 0.86 ms | 5 | — |
+| 4-block 3×3 | 14 | 1084 ms | 0.91 ms | 0.24 ms | 20 | **×4517** |
+| 5-block 3×3 | 18 | 1626 ms | 14.7 ms | 0.26 ms | 28 | **×6254** |
+| 6-block 3×3 | 22 | 2161 ms | 220 ms | 0.34 ms | 36 | **×6356** |
+
+All methods produce identical reliability values (tolerance < 1e-9).
+
+**Observations:**
+- m5 scales almost linearly with chain length (26→34 µs for 2→6 blocks) — dominated by CPFM with gap optimisation.
+- m4 grows fast as diameter and chain length increase (×1429 recursions for 6-block vs ×4 for 3-block).
+- m3 grows roughly linearly in chain length (~530 ms per added 3×3 block) and times out on 4×4 blocks.
+
+### Real-World Networks
+
+| Graph | d | m3 time | m4 time | m5 time | Note |
+|---|---|---|---|---|---|
+| GEANT 2004 | 6 | 3 ms | **0.07 ms** | 0.70 ms | Small blocks → no fallback |
+| GEANT 2009 | 12 | TIMEOUT | **0.07 ms** | 0.06 ms | Fallback to m4 (block 238 e) |
+| IEEE 118-node | 10 | 36.8 s | **0.08 ms** | 0.06 ms | Fallback to m4 (block 144 e) |
+| UPS Russia | 18 | TIMEOUT | 158 ms | 160 ms | Fallback to m4 (block 85 e) |
+
+**Observations:**
+- For graphs dominated by one large biconnected component (IEEE-118, UPS, GEANT2009), m4 is optimal; m5 automatically falls back to m4.
+- m3's CPFM fallback (for blocks > 30 edges) reduces worst-case from "immediate hang" to a finite result on IEEE-118 (36.8 s), but remains impractical.
+- GEANT2004 is well-structured for decomposition (50 blocks, max 25 edges): m3=3 ms, m4=0.07 ms, m5=0.7 ms.
+
+### Conclusion
+
+| Use case | Recommended method |
+|---|---|
+| Sausage chains / multi-block structured graphs | **m5** |
+| Real networks with large biconnected components | **m4** |
+| Small single-block graphs | m4 (or m0 for reference) |
+| Theoretical comparison | m3 (modified factoring baseline) |
 
 ## Future Improvements
 

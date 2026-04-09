@@ -10,5 +10,4 @@ reliabcalc Time(ms): 0
 Recursions: 21687858
 Decompose Parallel Facto Time(sec): 26.648
 Decompose Facto Time(sec): 27.575
-один из блоков значительно больше остальных, прироста нет
 0.8390168500180898

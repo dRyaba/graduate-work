@@ -159,6 +159,74 @@ TEST_F(ReliabilityGraphTest, CancelaPetingiK5RecursionCount) {
     EXPECT_EQ(result1.recursions, 206);  // Optimized with corrected ISPT
 }
 
+TEST_F(ReliabilityGraphTest, CancelaPetingiMultiMatchesModifiedFactoring) {
+    DataImporter importer("graphs_data/");
+    if (!importer.fileExists("K4_kao.txt")) {
+        GTEST_SKIP() << "K4_kao.txt not found";
+    }
+    auto graph = importer.loadKAOGraph("K4_kao.txt");
+    ASSERT_TRUE(graph);
+
+    // Compare CDF from both methods for K4 with diameter 3
+    auto [cdf_modified, recs_mod] = graph->calculateReliabilityMultipleDiameters(0, 3, 0, 3);
+    auto [cdf_cpfm, recs_cpfm] = graph->calculateReliabilityCancelaPetingiMulti(0, 3, 0, 3);
+
+    ASSERT_EQ(cdf_modified.size(), cdf_cpfm.size());
+    for (size_t i = 0; i < cdf_modified.size(); ++i) {
+        EXPECT_NEAR(cdf_modified[i], cdf_cpfm[i], 1e-9) 
+            << "CDF mismatch at d=" << i;
+    }
+}
+
+TEST_F(ReliabilityGraphTest, Method5MatchesMethod3) {
+    DataImporter importer("graphs_data/");
+    if (!importer.fileExists("2_3x3_blocks_kao.txt")) {
+        GTEST_SKIP() << "2_3x3_blocks_kao.txt not found";
+    }
+    auto graph = importer.loadKAOGraph("2_3x3_blocks_kao.txt");
+    ASSERT_TRUE(graph);
+
+    auto result3 = graph->calculateReliabilityWithMDecomposition(0, 16, 8);
+    auto result5 = graph->calculateReliabilityWithMDecompositionCPFM(0, 16, 8);
+
+    EXPECT_NEAR(result3.reliability, result5.reliability, 1e-9)
+        << "Method 5 should match Method 3";
+}
+
+TEST_F(ReliabilityGraphTest, Method5MatchesMethod4OnSingleBlock) {
+    DataImporter importer("graphs_data/");
+    if (!importer.fileExists("K5_kao.txt")) {
+        GTEST_SKIP() << "K5_kao.txt not found";
+    }
+    auto graph = importer.loadKAOGraph("K5_kao.txt");
+    ASSERT_TRUE(graph);
+
+    auto result4 = graph->calculateReliabilityCancelaPetingi(0, 4, 4);
+    auto result5 = graph->calculateReliabilityWithMDecompositionCPFM(0, 4, 4);
+
+    EXPECT_NEAR(result4.reliability, result5.reliability, 1e-9)
+        << "Method 5 should match Method 4 on single-block graph";
+}
+
+TEST_F(ReliabilityGraphTest, Method5OnThreeBlockGraph) {
+    DataImporter importer("graphs_data/");
+    if (!importer.fileExists("3_blocks_sausage_3x3_kao.txt")) {
+        GTEST_SKIP() << "3_blocks_sausage_3x3_kao.txt not found";
+    }
+    auto graph = importer.loadKAOGraph("3_blocks_sausage_3x3_kao.txt");
+    ASSERT_TRUE(graph);
+
+    auto result3 = graph->calculateReliabilityWithMDecomposition(0, 28, 12);
+    auto result5 = graph->calculateReliabilityWithMDecompositionCPFM(0, 28, 12);
+
+    EXPECT_NEAR(result3.reliability, result5.reliability, 1e-9)
+        << "Method 5 should match Method 3 on 3-block graph";
+    
+    // Method 5 should use fewer recursions due to ISPT
+    EXPECT_LT(result5.recursions, result3.recursions)
+        << "Method 5 should use fewer recursions than Method 3";
+}
+
 TEST_F(ReliabilityGraphTest, EmptyGraph) {
     ReliabilityGraph empty({0}, {}, {}, {});
     

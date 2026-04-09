@@ -124,4 +124,114 @@ private:
     size_t countFeasiblePathsInP(EdgeId e) const;
 };
 
+/**
+ * @brief Multi-diameter state for Cancela-Petingi factoring
+ *
+ * Extension of CancelaPetingiState that tracks path lengths and computes
+ * reliability CDF (cumulative distribution function) for multiple diameters
+ * in a single factoring pass. Used in M-Decomposition + CPFM hybrid (Method 5).
+ */
+class CancelaPetingiStateMulti {
+public:
+    using EdgeId = PathEnumerator::EdgeId;
+    using Path = PathEnumerator::Path;
+
+    /** Paths Pst(d) - list of paths between s and t */
+    std::vector<Path> paths_;
+
+    /** Length of each path (number of edges) */
+    std::vector<int> path_lengths_;
+
+    /** P(e): for each edge e, indices of paths in paths_ that contain e */
+    std::map<EdgeId, std::vector<size_t>> P_of_edge_;
+
+    /** linksp: for each path, number of non-perfect (unreliable) edges */
+    std::vector<int> linksp_;
+
+    /** feasiblep: for each path, true if path has no failed edges */
+    std::vector<bool> feasible_;
+
+    /** npst_by_length_[len] = number of feasible paths of exactly this length */
+    std::vector<int> npst_by_length_;
+
+    /** connected_by_length_[len] = true if there's a perfect path of this length */
+    std::vector<bool> connected_by_length_;
+
+    /** Minimum length of any perfect path (or max_diameter_+1 if none) */
+    int min_perfect_path_length_;
+
+    /** Maximum diameter being computed */
+    int max_diameter_;
+
+    /** edge_reliability_: current reliability for each edge */
+    std::map<EdgeId, double> edge_reliability_;
+
+    /**
+     * @brief Build state from enumerated paths and graph edge probabilities
+     * @param paths Paths from PathEnumerator::enumeratePaths
+     * @param graph Graph for edge probabilities and structure
+     * @param max_diameter Maximum diameter for CDF computation
+     */
+    CancelaPetingiStateMulti(const std::vector<Path>& paths, const Graph& graph, int max_diameter);
+
+    CancelaPetingiStateMulti() = default;
+    CancelaPetingiStateMulti(const CancelaPetingiStateMulti&) = default;
+    CancelaPetingiStateMulti& operator=(const CancelaPetingiStateMulti&) = default;
+    CancelaPetingiStateMulti(CancelaPetingiStateMulti&&) = default;
+    CancelaPetingiStateMulti& operator=(CancelaPetingiStateMulti&&) = default;
+
+    /**
+     * @brief Apply Contract branch: edge e is reliable
+     * Updates linksp, connected_by_length_ for paths in P(e)
+     */
+    void applyContract(EdgeId e);
+
+    /**
+     * @brief Apply Delete branch: edge e is failed
+     * Updates feasible_, npst_by_length_ for paths in P(e)
+     */
+    void applyDelete(EdgeId e);
+
+    /** @brief Check if there's any perfect path of length <= d */
+    bool isTerminalSuccess(int d) const;
+
+    /** @brief Check if there's any perfect path at all */
+    bool hasAnyPerfectPath() const { return min_perfect_path_length_ <= max_diameter_; }
+
+    /** @brief Get minimum length of perfect paths */
+    int minPerfectPathLength() const { return min_perfect_path_length_; }
+
+    /** @brief Check if all feasible paths have length > d */
+    bool isTerminalFail(int d) const;
+
+    /** @brief Check if all paths are infeasible */
+    bool allPathsInfeasible() const;
+
+    /** @brief Get minimum length among all feasible paths */
+    int minFeasiblePathLength() const;
+
+    /**
+     * @brief Select pivot edge: max |P(e)| among active edges
+     * @return EdgeId or -1 if no active edge
+     */
+    EdgeId selectPivotEdge() const;
+
+    /**
+     * @brief Apply ISPT: merge edges f where P(f) == P(e) into e
+     * @return Number of edges merged
+     */
+    int applyISPT(EdgeId e);
+
+    /**
+     * @brief Apply global ISPT: merge ALL edges with identical P(e) sets
+     * @return Total number of edges merged
+     */
+    int applyGlobalISPT();
+
+private:
+    void buildPOfEdge(const std::vector<Path>& paths);
+    size_t countFeasiblePathsInP(EdgeId e) const;
+    void updateConnectedByLength();
+};
+
 } // namespace graph_reliability

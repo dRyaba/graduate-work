@@ -171,6 +171,40 @@ public:
                                                         int diameter) const;
 
     /**
+     * @brief Calculate reliability CDF with Cancela-Petingi for multiple diameters
+     * @param source_vertex Source vertex (0-based)
+     * @param target_vertex Target vertex (0-based)
+     * @param lower_bound Lower bound for diameter
+     * @param upper_bound Upper bound for diameter
+     * @return Pair of (cumulative reliabilities vector, recursion count)
+     *
+     * Multi-diameter CPFM: computes R(d) for d in [lower_bound, upper_bound] in ONE pass.
+     * Used in M-Decomposition + CPFM hybrid (Method 5).
+     */
+    std::pair<std::vector<double>, long long> calculateReliabilityCancelaPetingiMulti(
+        VertexId source_vertex,
+        VertexId target_vertex,
+        int lower_bound,
+        int upper_bound) const;
+
+    /**
+     * @brief Calculate reliability with M-Decomposition + CPFM hybrid (Method 5)
+     * @param source_vertex Source vertex (0-based)
+     * @param target_vertex Target vertex (0-based)
+     * @param upper_bound_diameter Upper bound for diameter constraint
+     * @return Reliability result
+     *
+     * Combines block decomposition (M-Decomposition) with path-based factoring (CPFM).
+     * Uses CPFM inside each block for efficiency, then convolves block reliabilities.
+     *
+     * @complexity O(B × 2^E_block × paths) where B=blocks, E_block=edges per block
+     * @see calculateReliabilityCancelaPetingiMulti for the core CPFM optimization
+     */
+    ReliabilityResult calculateReliabilityWithMDecompositionCPFM(VertexId source_vertex,
+                                                                 VertexId target_vertex,
+                                                                 int upper_bound_diameter) const;
+
+    /**
      * @brief Check if graph is k-connected
      * @return True if graph is k-connected, false otherwise
      */
@@ -275,6 +309,44 @@ public:
      */
     ReliabilityGraph swapVertices(VertexId vertex1, VertexId vertex2) const;
 
+    /**
+     * @brief Extract block graph and vertex mappings
+     * @param block_id Block ID
+     * @param decomposition Block decomposition vector
+     * @param out_graph Output block subgraph
+     * @param map_new_to_orig Mapping from new to original vertex IDs
+     * @param map_orig_to_new Mapping from original to new vertex IDs
+     */
+    void getBlockGraphAndMap(
+        int block_id,
+        const std::vector<int>& decomposition,
+        ReliabilityGraph& out_graph,
+        std::vector<int>& map_new_to_orig,
+        std::vector<int>& map_orig_to_new
+    ) const;
+
+    /**
+     * @brief Get list of blocks containing a specific vertex
+     * @param v Vertex ID
+     * @param decomposition Block decomposition vector
+     * @return List of block IDs
+     */
+    std::vector<int> getBlocksContainingVertex(VertexId v, const std::vector<int>& decomposition) const;
+
+    /**
+     * @brief Calculate minimum path length (d_k^0) within a block
+     * @param block_id Block ID
+     * @param decomposition Block decomposition vector
+     * @param entry Entry vertex (original graph index)
+     * @param exit Exit vertex (original graph index)
+     * @return Minimum path length from entry to exit within the block, or -1 if unreachable
+     * 
+     * Uses BFS to find shortest path in the block graph.
+     * Used in gap optimization for Method 5.
+     */
+    int calculateMinBlockDiameter(int block_id, const std::vector<int>& decomposition,
+                                   VertexId entry, VertexId exit) const;
+
 private:
     /**
      * @brief Recursive solver for block chain reliability (uses MODIFIED factoring)
@@ -307,22 +379,6 @@ private:
         const std::vector<int>& aps_orig,
         long long& recursion_counter
     ) const;
-
-    /**
-     * @brief Extract block graph and vertex mappings
-     */
-    void getBlockGraphAndMap(
-        int block_id,
-        const std::vector<int>& decomposition,
-        ReliabilityGraph& out_graph,
-        std::vector<int>& map_new_to_orig,
-        std::vector<int>& map_orig_to_new
-    ) const;
-
-    /**
-     * @brief Get list of blocks containing a specific vertex
-     */
-    std::vector<int> getBlocksContainingVertex(VertexId v, const std::vector<int>& decomposition) const;
 
     /**
      * @brief Internal factoring algorithm

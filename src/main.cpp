@@ -42,14 +42,15 @@ void printUsage() {
     std::cout << "  1 - Recursive Decomposition (Level 1: Nested Recursion - INEFFICIENT)\n";
     std::cout << "  2 - Simple Factoring        (Level 2: Convolution + Simple Facto - FAST)\n";
     std::cout << "  3 - M-Decomposition         (Level 3: Convolution + Modified Facto - FASTEST)\n";
-    std::cout << "  4 - Cancela-Petingi         (Level 4: Path-based factoring with SPT)\n\n";
+    std::cout << "  4 - Cancela-Petingi         (Level 4: Path-based factoring with SPT)\n";
+    std::cout << "  5 - M-Decomp + CPFM         (Level 5: Decomposition + Path-based factoring)\n\n";
     std::cout << "Parameters for --run:\n";
     std::cout << "  <file>    - Graph file path (KAO format)\n";
     std::cout << "  <s>       - Source vertex (0-based index, or -1 to auto-detect from targets)\n";
     std::cout << "  <t>       - Target vertex (0-based index, or -1 to auto-detect from targets)\n";
     std::cout << "  --1-based - If present before <file>, s and t are interpreted as 1-based (as in VKR/course work)\n";
     std::cout << "  <d>       - Diameter upper bound\n";
-    std::cout << "  <method>  - Method ID (0-4)\n";
+    std::cout << "  <method>  - Method ID (0-5)\n";
     std::cout << "  [reps]    - Number of repetitions (default: 1)\n\n";
     std::cout << "Examples:\n";
 #ifdef _WIN32
@@ -104,9 +105,9 @@ int handleRun(const std::vector<std::string>& args) {
             t_vertex--;
         }
 
-        if (method_id < 0 || method_id > 4) {
-            LOG_ERROR("Method ID must be between 0 and 4, got: {}", method_id);
-            std::cerr << "Error: Method ID must be between 0 and 4\n";
+        if (method_id < 0 || method_id > 5) {
+            LOG_ERROR("Method ID must be between 0 and 5, got: {}", method_id);
+            std::cerr << "Error: Method ID must be between 0 and 5\n";
             return 1;
         }
         if (diameter < 1) {
@@ -190,7 +191,8 @@ int handleRun(const std::vector<std::string>& args) {
             "Recursive Decomposition (Level 1)", 
             "Simple Factoring (Level 2)",
             "M-Decomposition (Level 3)",
-            "Cancela-Petingi (Level 4)"
+            "Cancela-Petingi (Level 4)",
+            "M-Decomp + CPFM (Level 5)"
         };
 
         LOG_INFO("Starting reliability calculation: file={}, s={}, t={}, diameter={}, method={}, reps={}",
@@ -230,6 +232,10 @@ int handleRun(const std::vector<std::string>& args) {
                 case 4:  // Level 4: Cancela-Petingi path-based factoring
                     LOG_DEBUG("Using Cancela-Petingi method");
                     result = g->calculateReliabilityCancelaPetingi(s_vertex, t_vertex, diameter);
+                    break;
+                case 5:  // Level 5: M-Decomposition + Cancela-Petingi hybrid
+                    LOG_DEBUG("Using M-Decomp + CPFM method");
+                    result = g->calculateReliabilityWithMDecompositionCPFM(s_vertex, t_vertex, diameter);
                     break;
             }
             
@@ -329,8 +335,8 @@ int handleTesting(const std::vector<std::string>& args) {
     int method_id;
     try {
         method_id = std::stoi(args[1]);
-        if (method_id < 0 || method_id > 4) {
-            std::cerr << "Error: Method ID must be between 0 and 4\n";
+        if (method_id < 0 || method_id > 5) {
+            std::cerr << "Error: Method ID must be between 0 and 5\n";
             return 1;
         }
     } catch (const std::exception&) {

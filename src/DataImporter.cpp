@@ -57,7 +57,9 @@ std::unique_ptr<ReliabilityGraph> DataImporter::loadKAOGraph(const std::string& 
 std::unique_ptr<ReliabilityGraph> DataImporter::loadKAOFromStream(std::ifstream& input_stream) {
     LOG_DEBUG("Parsing KAO format from stream");
     std::string line;
-    
+
+    try {
+
     // 1. Read KAO (Offsets)
     if (!std::getline(input_stream, line)) {
         LOG_ERROR("Empty file or missing KAO line");
@@ -141,6 +143,13 @@ std::unique_ptr<ReliabilityGraph> DataImporter::loadKAOFromStream(std::ifstream&
     }
 
     return std::make_unique<ReliabilityGraph>(std::move(kao), std::move(fo), std::move(p_array), std::move(targets));
+
+    } catch (const InvalidFormatException&) {
+        throw;
+    } catch (const std::exception& e) {
+        LOG_ERROR("Invalid KAO format: {}", e.what());
+        throw InvalidFormatException(std::string("Invalid KAO format: ") + e.what());
+    }
 }
 
 std::unique_ptr<ReliabilityGraph> DataImporter::loadEdgeListGraph(const std::string& filename, double reliability) {

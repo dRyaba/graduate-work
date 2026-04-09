@@ -52,7 +52,7 @@ cmake --build .
 - `s`: Source vertex (0-based, or -1 to auto-detect)
 - `t`: Target vertex (0-based, or -1 to auto-detect)
 - `d`: Diameter upper bound
-- `method`: Method ID (0-4)
+- `method`: Method ID (0-5)
 - `reps`: Number of repetitions (optional, default: 1)
 
 **Example:**
@@ -103,7 +103,8 @@ cmake --build .
 | 1 | Recursive Decomposition | Nested recursion | Academic comparison |
 | 2 | Simple Factoring | Convolution + simple factoring | Medium graphs |
 | 3 | M-Decomposition | Convolution + modified factoring | Large graphs (recommended) |
-| 4 | Cancela-Petingi | Path-based factoring with SPT | Alternative, decomposed structures |
+| 4 | Cancela-Petingi | Path-based factoring with SPT | Single-block graphs |
+| 5 | M-Decomp + CPFM | Hybrid: decomposition + path-based | ISPT-effective graphs |
 
 ## Input Data Formats
 

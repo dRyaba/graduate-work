@@ -202,8 +202,9 @@ Comprehensive testing framework for different reliability calculation methods.
 | 2 | **Simple Factoring** | Block decomposition + convolution + simple factoring | Fast |
 | 3 | **M-Decomposition** | Block decomposition + modified factoring (computes all diameters in one pass) | Fastest |
 | 4 | **Cancela-Petingi** | Path-based factoring with SPT/ISPT optimizations. Operates on path lists, not graphs | Efficient |
+| 5 | **M-Decomp + CPFM** | Hybrid: block decomposition + multi-diameter path-based factoring inside blocks | Efficient |
 
-**Recommended**: Use Method 3 (M-Decomposition) for production, Method 4 (Cancela-Petingi) for path-based analysis.
+**Recommended**: Use Method 3 (M-Decomposition) for production, Method 5 (M-Decomp + CPFM) for graphs with many paths where ISPT is effective.
 
 See [docs/ALGORITHMS.md](docs/ALGORITHMS.md) for detailed algorithm descriptions.
 
@@ -230,12 +231,41 @@ See [docs/ALGORITHMS.md](docs/ALGORITHMS.md) for detailed algorithm descriptions
 
 ## Performance
 
-The library is optimized for performance with:
+### Benchmark Results (April 2026, Release build, -O3)
+
+#### Sausage chain graphs at d = d_min
+
+| Graph | d | m3 | m4 | **m5** | Speedup m5/m3 |
+|---|---|---|---|---|---|
+| 2-block 3×3 | 8 | 16 ms | 37 ms | 2.6 ms | ×6 |
+| 3-block 3×3 | 10 | 581 ms | 0.12 ms | **0.20 ms** | **×2905** |
+| 3-block 4×4 | 13 | TIMEOUT | 0.86 ms | **0.86 ms** | — |
+| 4-block 3×3 | 14 | 1084 ms | 0.91 ms | **0.24 ms** | **×4517** |
+| 5-block 3×3 | 18 | 1626 ms | 14.7 ms | **0.26 ms** | **×6254** |
+| 6-block 3×3 | 22 | 2161 ms | 220 ms | **0.34 ms** | **×6356** |
+
+#### Real-world networks at d = d_min
+
+| Graph | V | E | d | m3 | **m4** | m5 |
+|---|---|---|---|---|---|---|
+| GEANT 2004 | 103 | 127 | 6 | 3 ms | **0.07 ms** | 0.70 ms |
+| GEANT 2009 | 390 | 503 | 12 | TIMEOUT | **0.07 ms** | 0.06 ms |
+| IEEE 118-node | 118 | 168 | 10 | 36.8 s | **0.08 ms** | 0.06 ms |
+| UPS Russia | 63 | 108 | 18 | TIMEOUT | 158 ms | 160 ms |
+
+All methods produce identical reliability values (|R_i − R_j| < 10⁻⁹).
+
+**Key takeaway**: m5 (M-Decomp + CPFM) is optimal for structured sausage chains (up to ×6356 vs m3). m4 (Cancela-Petingi) is optimal for real-world networks with large biconnected components. m5 automatically falls back to m4 when any block exceeds the CPFM efficiency threshold.
+
+See [docs/ALGORITHMS.md](docs/ALGORITHMS.md#experimental-results) for full analysis.
+
+### Implementation optimizations
 
 - CSR format for memory efficiency
 - OpenMP parallelization for CPU-intensive operations
-- Efficient algorithms with complexity analysis
-- Minimal memory allocations
+- Gap optimization in m5: each block only computes CDF for its relevant diameter range
+- ISPT / ESS / GlobalISPT path pruning in CPFM (m4, m5)
+- Automatic fallback from m5 → m4 for graphs with large biconnected components
 
 ## Testing
 
