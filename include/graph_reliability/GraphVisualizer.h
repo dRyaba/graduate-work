@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Graph.h"
+#include "ReliabilityGraph.h"
 #include <string>
 #include <vector>
 
@@ -8,7 +8,7 @@ namespace graph_reliability {
 
 /** Options for GraphVisualizer — defined outside the class to allow default arguments. */
 struct GraphVisualizerOptions {
-    int  width         = 900;   ///< SVG canvas width in pixels
+    int  width         = 900;   ///< SVG canvas width in pixels (auto-scaled for large graphs)
     int  height        = 700;   ///< SVG canvas height in pixels
     int  iterations    = 500;   ///< FR algorithm iterations
     int  vertex_radius = 14;    ///< Vertex circle radius in pixels
@@ -18,43 +18,38 @@ struct GraphVisualizerOptions {
 };
 
 /**
- * @brief Graph visualization: Fruchterman-Reingold layout → SVG / DOT export.
+ * @brief Graph visualization: two-level block-aware FR layout → SVG / DOT.
  *
- * Usage:
- *   GraphVisualizerOptions opts;
- *   opts.source = 11; opts.target = 95;
- *   GraphVisualizer::exportSVG(*graph, "output.svg", opts);
+ * Layout algorithm:
+ *   1. Decompose graph into biconnected blocks.
+ *   2. Run FR on the block graph to place block centres.
+ *   3. Arrange vertices within each block on a local circle.
+ *   4. Short FR refinement pass on the full graph.
+ *   5. Iterative overlap resolution (min gap between vertex boundaries).
+ *
+ * Vertex colours: blue = regular, green = source, red = target, orange = AP.
+ * Block backgrounds drawn as coloured circles.
  */
 class GraphVisualizer {
 public:
     using Options = GraphVisualizerOptions;
 
-    /**
-     * @brief Compute Fruchterman-Reingold layout and write SVG.
-     * @param g     Graph in CSR format
-     * @param path  Output file path (e.g. "graph.svg")
-     * @param opts  Rendering options
-     */
-    static void exportSVG(const Graph& g,
+    /** Two-level block FR layout → SVG file. */
+    static void exportSVG(const ReliabilityGraph& g,
                           const std::string& path,
                           const Options& opts = Options{});
 
-    /**
-     * @brief Write Graphviz DOT file.
-     *        Run: neato -Tsvg graph.dot -o graph.svg
-     * @param g     Graph in CSR format
-     * @param path  Output file path (e.g. "graph.dot")
-     * @param opts  Options (source/target highlighting in node attributes)
-     */
-    static void exportDot(const Graph& g,
+    /** Graphviz DOT file with cluster subgraphs per block.
+     *  Run: neato -Tsvg graph.dot -o graph.svg */
+    static void exportDot(const ReliabilityGraph& g,
                           const std::string& path,
                           const Options& opts = Options{});
 
     struct Vec2 { double x = 0.0, y = 0.0; };
 
 private:
-    /** Run Fruchterman-Reingold spring-embedder. Returns positions in [0,W]×[0,H]. */
-    static std::vector<Vec2> computeLayout(const Graph& g,
+    /** Two-level block-aware FR layout. Returns positions in canvas space. */
+    static std::vector<Vec2> computeLayout(const ReliabilityGraph& g,
                                            double W, double H,
                                            int iterations);
 };
