@@ -103,6 +103,7 @@ set(SOURCES
     src/PathEnumerator.cpp
     src/CancelaPetingiState.cpp
     src/SeriesParallelTransform.cpp
+    src/GraphVisualizer.cpp
 )
 
 # Header files
@@ -118,6 +119,7 @@ set(HEADERS
     include/graph_reliability/PathEnumerator.h
     include/graph_reliability/CancelaPetingiState.h
     include/graph_reliability/SeriesParallelTransform.h
+    include/graph_reliability/GraphVisualizer.h
 )
 
 # Create executable

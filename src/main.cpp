@@ -17,6 +17,7 @@
 #include <exception>
 #include "graph_reliability.h"
 #include "graph_reliability/Logger.h"
+#include "graph_reliability/GraphVisualizer.h"
 
 using namespace graph_reliability;
 
@@ -36,6 +37,7 @@ void printUsage() {
     std::cout << "  --test <method_id> [output_file]                   Run comprehensive tests on predefined graphs\n";
     std::cout << "  --convert edge2kao <input> <output> <reliability>  Convert Edge List to KAO format\n";
     std::cout << "  --convert kao2edge <input> <output>                Convert KAO format to Edge List\n";
+    std::cout << "  --visualize <graph_file> <output_file> [opts]      Visualize graph (SVG or DOT)\n";
     std::cout << "  --help                                             Show this help message\n\n";
     std::cout << "Test Methods (aligned with Optimization Levels):\n";
     std::cout << "  0 - Standard Factoring      (Level 0: Global, No Decomposition - SLOWEST)\n";
@@ -58,12 +60,26 @@ void printUsage() {
     std::cout << "  .\\build\\graph_reliability.exe --run graphs_data\\3_blocks_sausage_3x3_kao.txt -1 -1 12 4 1\n";
     std::cout << "  .\\build\\graph_reliability.exe --test 3 results.csv\n";
     std::cout << "  .\\build\\graph_reliability.exe --convert edge2kao input.edgelist output.kao 0.9\n";
+    std::cout << "  .\\build\\graph_reliability.exe --visualize graphs_data\\K4_kao.txt k4.svg --probs\n";
+    std::cout << "  .\\build\\graph_reliability.exe --visualize graphs_data\\Geant2004_kao.txt geant.svg --s 11 --t 95\n";
+    std::cout << "  .\\build\\graph_reliability.exe --visualize graphs_data\\Geant2004_kao.txt geant.dot --dot\n";
 #else
     std::cout << "  ./build/graph_reliability --run graphs_data/K4_kao.txt 0 3 3 4 1\n";
     std::cout << "  ./build/graph_reliability --run graphs_data/3_blocks_sausage_3x3_kao.txt -1 -1 12 4 1\n";
     std::cout << "  ./build/graph_reliability --test 3 results.csv\n";
     std::cout << "  ./build/graph_reliability --convert edge2kao input.edgelist output.kao 0.9\n";
+    std::cout << "  ./build/graph_reliability --visualize graphs_data/K4_kao.txt k4.svg --probs\n";
+    std::cout << "  ./build/graph_reliability --visualize graphs_data/Geant2004_kao.txt geant.svg --s 11 --t 95\n";
+    std::cout << "  ./build/graph_reliability --visualize graphs_data/Geant2004_kao.txt geant.dot --dot\n";
 #endif
+    std::cout << "\nParameters for --visualize:\n";
+    std::cout << "  <graph_file>  - Input graph (KAO format)\n";
+    std::cout << "  <output_file> - Output path (.svg or .dot)\n";
+    std::cout << "  --s <n>       - Source vertex index (highlighted green)\n";
+    std::cout << "  --t <n>       - Target vertex index (highlighted red)\n";
+    std::cout << "  --dot         - Write Graphviz DOT instead of SVG\n";
+    std::cout << "  --probs       - Label edges with probabilities\n";
+    std::cout << "  --iter <n>    - FR layout iterations (default 500)\n";
 }
 
 /**
@@ -384,6 +400,87 @@ int handleTesting(const std::vector<std::string>& args) {
 }
 
 /**
+ * @brief Handle --visualize command: layout + SVG/DOT export
+ * @param args Command line arguments (args[0] == "--visualize")
+ * @return Exit code
+ */
+int handleVisualize(const std::vector<std::string>& args) {
+    // --visualize <graph_file> <output_file> [--s <n>] [--t <n>] [--dot] [--probs] [--iter <n>]
+    if (args.size() < 3) {
+        std::cerr << "Error: Insufficient arguments for --visualize\n";
+        std::cerr << "Usage: --visualize <graph_file> <output_file> [--s <n>] [--t <n>] [--dot] [--probs] [--iter <n>]\n";
+        return 1;
+    }
+
+    const std::string& filename    = args[1];
+    const std::string& output_path = args[2];
+
+    GraphVisualizer::Options opts;
+    bool output_dot = false;
+
+    for (size_t i = 3; i < args.size(); ++i) {
+        if (args[i] == "--dot") {
+            output_dot = true;
+        } else if (args[i] == "--probs") {
+            opts.show_probs = true;
+        } else if (args[i] == "--s" && i + 1 < args.size()) {
+            opts.source = std::stoi(args[++i]);
+        } else if (args[i] == "--t" && i + 1 < args.size()) {
+            opts.target = std::stoi(args[++i]);
+        } else if (args[i] == "--iter" && i + 1 < args.size()) {
+            opts.iterations = std::stoi(args[++i]);
+        }
+    }
+
+    try {
+        // Load graph
+        std::string base_path;
+        size_t last_sep = filename.find_last_of("/\\");
+        if (last_sep != std::string::npos)
+            base_path = filename.substr(0, last_sep + 1);
+
+        DataImporter importer(base_path.empty() ? "./" : base_path);
+        std::string file_only = (last_sep != std::string::npos)
+                                ? filename.substr(last_sep + 1) : filename;
+
+        auto graph = importer.loadKAOGraph(file_only);
+        if (!graph) {
+            std::cerr << "Error: Could not load graph: " << filename << "\n";
+            return 1;
+        }
+
+        // Auto-detect s/t from target_vertices_ if not provided
+        if (opts.source < 0 || opts.target < 0) {
+            int detected_s = -1, detected_t = -1;
+            for (size_t i = 0; i < graph->target_vertices_.size(); ++i) {
+                if (graph->target_vertices_[i] == 1) {
+                    if (detected_s < 0) detected_s = static_cast<int>(i);
+                    else if (detected_t < 0) detected_t = static_cast<int>(i);
+                }
+            }
+            if (opts.source < 0) opts.source = detected_s;
+            if (opts.target < 0) opts.target = detected_t;
+        }
+
+        if (output_dot)
+            GraphVisualizer::exportDot(*graph, output_path, opts);
+        else
+            GraphVisualizer::exportSVG(*graph, output_path, opts);
+
+        std::cout << "Exported " << graph->numVertices() << " vertices, "
+                  << (graph->fo_.size() / 2) << " edges"
+                  << " → " << output_path << "\n";
+        if (opts.source >= 0)
+            std::cout << "  s=" << opts.source << " (green)  t=" << opts.target << " (red)\n";
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << "\n";
+        return 1;
+    }
+
+    return 0;
+}
+
+/**
  * @brief Main application entry point
  * @param argc Argument count
  * @param argv Argument vector
@@ -429,6 +526,8 @@ int main(int argc, char* argv[]) {
             result = handleTesting(args);
         } else if (args[0] == "--run") {
             result = handleRun(args);
+        } else if (args[0] == "--visualize") {
+            result = handleVisualize(args);
         } else {
             LOG_ERROR("Unknown command: {}", args[0]);
             std::cerr << "Error: Unknown command: " << args[0] << "\n";
