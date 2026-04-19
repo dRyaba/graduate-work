@@ -50,9 +50,9 @@ public:
                           const std::string& path,
                           const Options& opts = Options{});
 
-private:
     struct Vec2 { double x = 0.0, y = 0.0; };
 
+private:
     /** Run Fruchterman-Reingold spring-embedder. Returns positions in [0,W]×[0,H]. */
     static std::vector<Vec2> computeLayout(const Graph& g,
                                            double W, double H,

@@ -101,6 +101,42 @@ GraphVisualizer::computeLayout(const Graph& g, double W, double H, int iteration
 }
 
 // ---------------------------------------------------------------------------
+// Overlap resolution (post-processing after FR)
+// ---------------------------------------------------------------------------
+// Iteratively pushes pairs of vertices apart until all boundaries are at
+// least min_gap pixels away from each other.
+// min_dist = 2*radius + min_gap (center-to-center threshold).
+
+static void resolveOverlaps(std::vector<GraphVisualizer::Vec2>& pos,
+                             double min_dist,
+                             double W, double H, double pad,
+                             int max_iter = 300)
+{
+    const int n = static_cast<int>(pos.size());
+    for (int iter = 0; iter < max_iter; ++iter) {
+        bool any = false;
+        for (int i = 0; i < n; ++i) {
+            for (int j = i + 1; j < n; ++j) {
+                double dx = pos[j].x - pos[i].x;
+                double dy = pos[j].y - pos[i].y;
+                double d  = std::hypot(dx, dy);
+                if (d >= min_dist) continue;
+                any = true;
+                // Push each vertex half the required separation
+                double need = (min_dist - d) * 0.5 + 0.5;  // +0.5 避免 float drift
+                if (d < 0.01) { dx = 1.0; dy = 0.0; d = 1.0; }  // coincident
+                double nx = dx / d, ny = dy / d;
+                pos[i].x = std::clamp(pos[i].x - nx * need, pad, W - pad);
+                pos[i].y = std::clamp(pos[i].y - ny * need, pad, H - pad);
+                pos[j].x = std::clamp(pos[j].x + nx * need, pad, W - pad);
+                pos[j].y = std::clamp(pos[j].y + ny * need, pad, H - pad);
+            }
+        }
+        if (!any) break;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // SVG export
 // ---------------------------------------------------------------------------
 
@@ -117,29 +153,56 @@ void GraphVisualizer::exportSVG(const Graph& g,
     const int n = static_cast<int>(g.numVertices());
     if (n == 0) throw std::invalid_argument("Graph has no vertices");
 
-    auto pos = computeLayout(g, opts.width, opts.height, opts.iterations);
-    const int r = opts.vertex_radius;
+    const double r        = opts.vertex_radius;
+    const double min_gap  = 5.0;                // minimum pixels between boundaries
+    const double min_dist = 2.0 * r + min_gap;  // minimum center-to-center distance
+    const double pad      = r + min_gap;
+
+    // Auto-scale canvas so there is theoretically enough room for all vertices
+    // without overlap (each needs a square of side min_dist).
+    double W = opts.width, H = opts.height;
+    if (n > 1) {
+        double needed = static_cast<double>(n) * min_dist * min_dist * 1.8;
+        if (needed > W * H) {
+            double scale = std::sqrt(needed / (W * H));
+            W *= scale;
+            H *= scale;
+        }
+    }
+
+    auto pos = computeLayout(g, W, H, opts.iterations);
+
+    // Post-process: push overlapping vertices apart until all gaps ≥ min_gap.
+    resolveOverlaps(pos, min_dist, W, H, pad + r);
 
     std::ofstream f(path);
     if (!f) throw std::runtime_error("Cannot open output file: " + path);
 
-    // SVG header
+    // SVG header — use actual (possibly scaled) dimensions
     f << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
       << "<svg xmlns=\"http://www.w3.org/2000/svg\""
-      << " width=\"" << opts.width << "\" height=\"" << opts.height << "\""
-      << " viewBox=\"0 0 " << opts.width << " " << opts.height << "\">\n"
+      << " width=\"" << static_cast<int>(W) << "\" height=\"" << static_cast<int>(H) << "\""
+      << " viewBox=\"0 0 " << static_cast<int>(W) << " " << static_cast<int>(H) << "\">\n"
       << "<rect width=\"100%\" height=\"100%\" fill=\"#f8f9fa\"/>\n";
 
-    // --- Edges ---
+    // --- Edges (trimmed to vertex boundary so lines never pass through circles) ---
     f << "<g stroke=\"#adb5bd\" stroke-width=\"1.5\">\n";
     for (int u = 0; u < n; ++u) {
         for (size_t i = g.kao_[u]; i < g.kao_[u + 1]; ++i) {
             int v = g.fo_[i];
             if (v <= u) continue;
-            double mx = (pos[u].x + pos[v].x) / 2.0;
-            double my = (pos[u].y + pos[v].y) / 2.0;
-            f << "  <line x1=\"" << pos[u].x << "\" y1=\"" << pos[u].y << "\""
-              << " x2=\"" << pos[v].x << "\" y2=\"" << pos[v].y << "\"/>\n";
+            double dx   = pos[v].x - pos[u].x;
+            double dy   = pos[v].y - pos[u].y;
+            double dist = std::hypot(dx, dy);
+            if (dist < 0.01) continue;  // skip coincident (shouldn't happen after resolveOverlaps)
+            double nx = dx / dist, ny = dy / dist;
+            // Start/end at circle boundary, not at center
+            double x1 = pos[u].x + nx * r, y1 = pos[u].y + ny * r;
+            double x2 = pos[v].x - nx * r, y2 = pos[v].y - ny * r;
+            double mx  = (pos[u].x + pos[v].x) / 2.0;
+            double my  = (pos[u].y + pos[v].y) / 2.0;
+            f << "  <line x1=\"" << x1 << "\" y1=\"" << y1 << "\""
+              << " x2=\"" << x2 << "\" y2=\"" << y2 << "\"/>\n";
             if (opts.show_probs) {
                 double prob = g.p_array_[i];
                 f << "  <text x=\"" << mx << "\" y=\"" << my
