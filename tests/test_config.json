@@ -50,6 +50,8 @@
     "0": "Standard Factoring (Level 0)",
     "1": "Recursive Decomposition (Level 1)",
     "2": "Simple Factoring (Level 2)",
-    "3": "M-Decomposition (Level 3)"
+    "3": "M-Decomposition (Level 3)",
+    "4": "Cancela-Petingi (Level 4)",
+    "5": "M-Decomp + CPFM (Level 5)"
   }
 }

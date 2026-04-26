@@ -9,6 +9,13 @@
 #include "graph_reliability/ReliabilityGraph.h"
 #include "graph_reliability/DataImporter.h"
 #include "graph_reliability/Exceptions.h"
+#include "graph_reliability/TestSuite.h"
+
+#include <array>
+#include <cctype>
+#include <functional>
+#include <optional>
+#include <string>
 
 using namespace graph_reliability;
 
@@ -226,6 +233,94 @@ TEST_F(ReliabilityGraphTest, Method5OnThreeBlockGraph) {
     EXPECT_LT(result5.recursions, result3.recursions)
         << "Method 5 should use fewer recursions than Method 3";
 }
+
+// --- Parameterized cross-method agreement test ----------------------------
+
+struct AgreementCase {
+    std::string graph_file;
+    int s;
+    int t;
+    int diameter;
+    int timeout_sec;
+};
+
+class MethodsAgreementTest : public ::testing::TestWithParam<AgreementCase> {};
+
+TEST_P(MethodsAgreementTest, AllMethodsAgreeWithinTolerance) {
+    const AgreementCase tc = GetParam();
+    DataImporter importer("graphs_data/");
+    if (!importer.fileExists(tc.graph_file)) {
+        GTEST_SKIP() << tc.graph_file << " not found";
+    }
+
+    constexpr int kMethods = 6;
+    std::array<std::optional<ReliabilityResult>, kMethods> results{};
+    std::array<std::string, kMethods> errors{};
+
+    for (int method_id = 0; method_id < kMethods; ++method_id) {
+        auto graph = importer.loadKAOGraph(tc.graph_file);
+        ASSERT_TRUE(graph) << "Could not load " << tc.graph_file;
+        ReliabilityGraph* gptr = graph.get();
+        const int s = tc.s, t = tc.t, d = tc.diameter;
+
+        std::function<ReliabilityResult()> calc;
+        switch (method_id) {
+            case 0: calc = [gptr, s, t, d]() { return gptr->calculateReliabilityBetweenVertices(s, t, d); }; break;
+            case 1: calc = [gptr, s, t, d]() { return gptr->calculateReliabilityWithRecursiveDecomposition(s, t, d); }; break;
+            case 2: calc = [gptr, s, t, d]() { return gptr->calculateReliabilityWithDecomposition(s, t, d); }; break;
+            case 3: calc = [gptr, s, t, d]() { return gptr->calculateReliabilityWithMDecomposition(s, t, d); }; break;
+            case 4: calc = [gptr, s, t, d]() { return gptr->calculateReliabilityCancelaPetingi(s, t, d); }; break;
+            case 5: calc = [gptr, s, t, d]() { return gptr->calculateReliabilityWithMDecompositionCPFM(s, t, d); }; break;
+        }
+
+        // Keep the graph alive across a possible timeout detach.
+        auto keeper = std::make_shared<std::unique_ptr<ReliabilityGraph>>(std::move(graph));
+        std::function<ReliabilityResult()> wrapped = [calc, keeper]() { return calc(); };
+
+        std::string err;
+        results[method_id] = TestSuite::runWithTimeout(wrapped, tc.timeout_sec, &err);
+        errors[method_id] = err;
+    }
+
+    if (!results[0].has_value()) {
+        GTEST_SKIP() << "baseline m0 did not finish in " << tc.timeout_sec
+                     << "s (err=" << errors[0] << ")";
+    }
+
+    const double baseline = results[0]->reliability;
+    for (int m = 1; m < kMethods; ++m) {
+        if (!results[m].has_value()) {
+            // Don't fail the test on method timeout — just record it. The
+            // cross-check CSV run is where we're strict about completion; unit
+            // tests only fail on genuine numerical disagreement.
+            GTEST_LOG_(INFO) << "m" << m << " did not finish (err=" << errors[m] << ")";
+            continue;
+        }
+        EXPECT_NEAR(results[m]->reliability, baseline, 1e-10)
+            << "Method " << m << " disagrees with m0 on "
+            << tc.graph_file << " d=" << tc.diameter;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    CrossMethodAgreement,
+    MethodsAgreementTest,
+    ::testing::Values(
+        AgreementCase{"K4_kao.txt",                   0, 3, 2,  10},
+        AgreementCase{"K4_kao.txt",                   0, 3, 3,  10},
+        AgreementCase{"3_blocks_sausage_3x3_kao.txt", 0, 28, 9,  10},
+        AgreementCase{"3_blocks_sausage_3x3_kao.txt", 0, 28, 10, 10}
+    ),
+    [](const ::testing::TestParamInfo<AgreementCase>& info) {
+        std::string base = info.param.graph_file;
+        auto suffix = base.find("_kao.txt");
+        if (suffix != std::string::npos) base.erase(suffix);
+        // GoogleTest allows only [A-Za-z0-9_] in generated names.
+        for (char& c : base) {
+            if (!std::isalnum(static_cast<unsigned char>(c))) c = '_';
+        }
+        return base + "_d" + std::to_string(info.param.diameter);
+    });
 
 TEST_F(ReliabilityGraphTest, EmptyGraph) {
     ReliabilityGraph empty({0}, {}, {}, {});

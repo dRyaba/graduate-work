@@ -48,6 +48,7 @@ target_sources(graph_reliability_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/PathEnumerator.cpp
     ${CMAKE_SOURCE_DIR}/src/CancelaPetingiState.cpp
     ${CMAKE_SOURCE_DIR}/src/SeriesParallelTransform.cpp
+    ${CMAKE_SOURCE_DIR}/src/TestSuite.cpp
 )
 
 # Set C++ standard
@@ -61,6 +62,7 @@ add_test(NAME GraphTests COMMAND graph_reliability_tests --gtest_filter=GraphTes
 add_test(NAME ReliabilityGraphTests COMMAND graph_reliability_tests --gtest_filter=ReliabilityGraphTest.*)
 add_test(NAME DataImporterTests COMMAND graph_reliability_tests --gtest_filter=DataImporterTest.*)
 add_test(NAME GraphOperationsTests COMMAND graph_reliability_tests --gtest_filter=GraphOperationsTest.*)
+add_test(NAME MethodsAgreementTests COMMAND graph_reliability_tests --gtest_filter=CrossMethodAgreement/MethodsAgreementTest.*)
 
 # Set working directory for tests (so they can find graphs_data/)
 set_tests_properties(
@@ -68,6 +70,7 @@ set_tests_properties(
     ReliabilityGraphTests
     DataImporterTests
     GraphOperationsTests
+    MethodsAgreementTests
     PROPERTIES
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
