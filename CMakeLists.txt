@@ -189,17 +189,6 @@ enable_testing()
 # Add subdirectory for unit tests
 add_subdirectory(tests)
 
-# Nesterov CPFM harness for comparison
-add_executable(nesterov_harness
-    tools/nesterov_harness/main.cpp
-    tools/nesterov_harness/NesterovGraph.cpp
-)
-target_include_directories(nesterov_harness PRIVATE tools/nesterov_harness)
-set_target_properties(nesterov_harness PROPERTIES
-    CXX_STANDARD 17
-    OUTPUT_NAME "nesterov_harness"
-)
-
 # Add test for basic functionality
 add_test(NAME BasicFunctionality
          COMMAND ${PROJECT_NAME} --help)
