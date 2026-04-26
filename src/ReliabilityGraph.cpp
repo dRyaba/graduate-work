@@ -267,6 +267,13 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithDiameter(int diamete
     return ReliabilityResult(total_rel, recursions, 0.0);
 }
 
+/**
+ * @brief Method 0 — Standard Factoring (baseline, slowest).
+ *
+ * Enumerates every edge subset via edge-state branching without any
+ * decomposition. Serves as the arithmetic ground truth for m1..m5.
+ * @see docs/ALGORITHMS.md section on Standard Factoring.
+ */
 ReliabilityResult ReliabilityGraph::calculateReliabilityBetweenVertices(VertexId source, VertexId target, int diameter) const {
     auto start_time = std::chrono::high_resolution_clock::now();
     LOG_DEBUG("Starting calculateReliabilityBetweenVertices: s={}, t={}, diameter={}", source, target, diameter);
@@ -333,6 +340,15 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityBetweenVertices(VertexId
 
 // Cancela-Petingi path-based factoring (Method 4)
 // Optimized with global ISPT (compares feasible paths only) + per-pivot ISPT
+/**
+ * @brief Method 4 — Cancela-Petingi path-based factoring.
+ *
+ * Enumerates elementary s-t paths up to length `diameter` and folds them
+ * via inclusion-exclusion over intersecting path groups (ESS / ISPT /
+ * GlobalISPT state). Strong on graphs with few short s-t paths
+ * (Geant2004, K4) but can blow up on heavily connected blocks.
+ * @see docs/ALGORITHMS.md section on Cancela-Petingi (CPFM).
+ */
 ReliabilityResult ReliabilityGraph::calculateReliabilityCancelaPetingi(VertexId source,
                                                                        VertexId target,
                                                                        int diameter) const {
@@ -1071,22 +1087,42 @@ std::vector<double> ReliabilityGraph::solveRecursiveForBlockChain(
     // For large blocks, fall back to CPFM to avoid exponential blowup in modified factoring
     const bool use_cpfm_fallback = (block_graph.numEdges() > 30);
 
+    // Per-block d_min lower bound for the inner factoring: for d < dist
+    // inside the block, R is provably 0 and the multi-diameter solver would
+    // just enumerate combinations that cancel. Restricting [d_min_block, max_len]
+    // shrinks the inner factoring grid without changing the result; outputs
+    // are zero-padded back to the absolute [0, max_len] indexing the chain
+    // convolution downstream relies on.
+    auto run_block_solver = [&](int s_loc, int x_loc) {
+        std::vector<double> padded(max_len + 1, 0.0);
+        if (s_loc == x_loc) {
+            // Trivial intra-block segment: every diameter trivially achievable.
+            for (int d = 0; d <= max_len; ++d) padded[d] = 1.0;
+            return padded;
+        }
+        int d_min_block = block_graph.calculateDistance(s_loc, x_loc, max_len + 1);
+        if (d_min_block <= 0 || d_min_block > max_len) return padded;
+        long long recs = 0;
+        std::vector<double> partial;
+        if (use_cpfm_fallback) {
+            auto [rc, r] = block_graph.calculateReliabilityCancelaPetingiMulti(
+                s_loc, x_loc, d_min_block, max_len);
+            partial = std::move(rc); recs = r;
+        } else {
+            auto [rc, r] = block_graph.calculateReliabilityMultipleDiameters(
+                s_loc, x_loc, d_min_block, max_len);
+            partial = std::move(rc); recs = r;
+        }
+        recursion_counter += recs;
+        for (int i = 0; i + d_min_block <= max_len && i < (int)partial.size(); ++i)
+            padded[d_min_block + i] = partial[i];
+        return padded;
+    };
+
     if (is_last && target_in_block) {
         if (map_orig_to_new[target_node_orig] == -1) return std::vector<double>(max_len + 1, 0.0);
         int t_local = map_orig_to_new[target_node_orig];
-
-        std::vector<double> r_cumulative;
-        long long recs = 0;
-        if (use_cpfm_fallback) {
-            auto [rc, r] = block_graph.calculateReliabilityCancelaPetingiMulti(s_local, t_local, 0, max_len);
-            r_cumulative = std::move(rc); recs = r;
-        } else {
-            auto [rc, r] = block_graph.calculateReliabilityMultipleDiameters(s_local, t_local, 0, max_len);
-            r_cumulative = std::move(rc); recs = r;
-        }
-        recursion_counter += recs;
-
-        return r_cumulative;
+        return run_block_solver(s_local, t_local);
     }
 
     if (is_last && !target_in_block) return std::vector<double>(max_len + 1, 0.0);
@@ -1097,17 +1133,8 @@ std::vector<double> ReliabilityGraph::solveRecursiveForBlockChain(
     if (map_orig_to_new[exit_node_orig] == -1) return std::vector<double>(max_len + 1, 0.0);
     int x_local = map_orig_to_new[exit_node_orig];
 
-    // Calculate S->X in this block — for large blocks use CPFM fallback
-    std::vector<double> r_cumulative_sx;
-    long long recs_sx = 0;
-    if (use_cpfm_fallback) {
-        auto [rc, r] = block_graph.calculateReliabilityCancelaPetingiMulti(s_local, x_local, 0, max_len);
-        r_cumulative_sx = std::move(rc); recs_sx = r;
-    } else {
-        auto [rc, r] = block_graph.calculateReliabilityMultipleDiameters(s_local, x_local, 0, max_len);
-        r_cumulative_sx = std::move(rc); recs_sx = r;
-    }
-    recursion_counter += recs_sx;
+    // S->X in this block: shares the lower-bound logic above.
+    std::vector<double> r_cumulative_sx = run_block_solver(s_local, x_local);
     
     // Compute PMF from CDF
     std::vector<double> r_pmf_sx(max_len + 1);
@@ -1262,6 +1289,15 @@ double ReliabilityGraph::solveNestedRecursive(
 // Public Calculation Methods
 // -----------------------------------------------------------------------------
 
+/**
+ * @brief Method 3 — M-Decomposition (reference workhorse).
+ *
+ * Splits the graph at articulation points into blocks, solves each block
+ * independently with modified factoring, and convolves block results
+ * along the block chain. Best time/accuracy trade-off on sausage and
+ * mid-size real-world networks.
+ * @see docs/ALGORITHMS.md section on M-Decomposition.
+ */
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecomposition(VertexId s, VertexId t, int d) const {
     LOG_INFO("Starting M-Decomposition: s={}, t={}, diameter={}", s, t, d);
 
@@ -1373,6 +1409,16 @@ static std::vector<double> solveBlockChainIterative(
 }
 
 
+/**
+ * @brief Method 5 — M-Decomposition + Cancela-Petingi hybrid.
+ *
+ * Same block decomposition as m3, but each block is solved with CPFM
+ * (m4) when the block edge count exceeds an internal threshold
+ * (sausage-friendly) or with modified factoring otherwise. Falls back
+ * to the global CPFM path if a block is too dense for block-local
+ * decomposition.
+ * @see docs/ALGORITHMS.md section on the hybrid method.
+ */
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecompositionCPFM(VertexId s, VertexId t, int d) const {
     LOG_INFO("Starting M-Decomposition + CPFM (Method 5): s={}, t={}, diameter={}", s, t, d);
 
@@ -1504,6 +1550,188 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecompositionCPFM(V
     return ReliabilityResult(rel, recursion_counter, time);
 }
 
+// ---- Multi-diameter (CDF) public APIs ------------------------------------
+//
+// These return R(G, s, t, d) for every d ∈ [0, d_max] from a SINGLE
+// factorization pass. The single-d wrappers above already build this same
+// vector internally and discard everything except results[d]; the Cdf
+// entry points expose the full vector for callers that need the curve
+// (cross-check, parameter sweeps, plotting).
+
+ReliabilityCdfResult ReliabilityGraph::calculateReliabilityCdfCancelaPetingi(
+    VertexId s, VertexId t, int d_max) const {
+    ReliabilityCdfResult out;
+    out.cdf.assign(d_max + 1, 0.0);
+    auto t_start = std::chrono::high_resolution_clock::now();
+
+    // Restrict factoring to [d_min, d_max] — for d < dist(s, t) the answer is
+    // provably 0 and any work the inner Multi would do there is wasted.
+    int d_min = calculateDistance(s, t, d_max + 1);
+    if (d_min <= 0 || d_min > d_max) {
+        // Self-loop / unreachable / d_max below dist: nothing to compute.
+        auto t_end = std::chrono::high_resolution_clock::now();
+        out.execution_time_sec = std::chrono::duration<double>(t_end - t_start).count();
+        return out;
+    }
+
+    auto [vec, recs] = calculateReliabilityCancelaPetingiMulti(s, t, d_min, d_max);
+    auto t_end = std::chrono::high_resolution_clock::now();
+
+    // vec is indexed relative to d_min; copy into the absolute cdf[0..d_max].
+    for (int i = 0; i + d_min <= d_max && i < static_cast<int>(vec.size()); ++i)
+        out.cdf[d_min + i] = vec[i];
+    out.recursions = recs;
+    out.execution_time_sec = std::chrono::duration<double>(t_end - t_start).count();
+    return out;
+}
+
+ReliabilityCdfResult ReliabilityGraph::calculateReliabilityCdfMDecomposition(
+    VertexId s, VertexId t, int d_max) const {
+    ReliabilityCdfResult out;
+    auto t_start = std::chrono::high_resolution_clock::now();
+    long long recursions = 0;
+
+    auto chain = buildBlockChain(s, t);
+    if (!chain.valid) {
+        if (chain.num_blocks <= 1) {
+            // Single-block fallback: use the standard factoring per d. Tiny
+            // graphs (K4) hit this path; cost is negligible there.
+            out.cdf.assign(d_max + 1, 0.0);
+            for (int d = 0; d <= d_max; ++d) {
+                auto r = calculateReliabilityBetweenVertices(s, t, d);
+                out.cdf[d] = r.reliability;
+                recursions += r.recursions;
+            }
+        } else {
+            out.cdf.assign(d_max + 1, 0.0);
+        }
+        auto t_end = std::chrono::high_resolution_clock::now();
+        out.recursions = recursions;
+        out.execution_time_sec = std::chrono::duration<double>(t_end - t_start).count();
+        return out;
+    }
+
+    auto results = solveRecursiveForBlockChain(
+        0, s, t, d_max, chain.decomposition,
+        chain.ordered_block_ids, chain.final_aps, recursions
+    );
+
+    out.cdf.assign(d_max + 1, 0.0);
+    for (int d = 0; d <= d_max && d < static_cast<int>(results.size()); ++d)
+        out.cdf[d] = results[d];
+    // solveRecursiveForBlockChain returns CDF; enforce monotonicity defensively
+    for (int d = 1; d <= d_max; ++d)
+        if (out.cdf[d] < out.cdf[d - 1]) out.cdf[d] = out.cdf[d - 1];
+
+    auto t_end = std::chrono::high_resolution_clock::now();
+    out.recursions = recursions;
+    out.execution_time_sec = std::chrono::duration<double>(t_end - t_start).count();
+    return out;
+}
+
+ReliabilityCdfResult ReliabilityGraph::calculateReliabilityCdfMDecompositionCPFM(
+    VertexId s, VertexId t, int d_max) const {
+    ReliabilityCdfResult out;
+    auto t_start = std::chrono::high_resolution_clock::now();
+    long long recursions = 0;
+
+    auto chain = buildBlockChain(s, t);
+    if (!chain.valid) {
+        if (chain.num_blocks <= 1) {
+            // Single block — delegate to multi-d CPFM directly.
+            return calculateReliabilityCdfCancelaPetingi(s, t, d_max);
+        }
+        out.cdf.assign(d_max + 1, 0.0);
+        auto t_end = std::chrono::high_resolution_clock::now();
+        out.execution_time_sec = std::chrono::duration<double>(t_end - t_start).count();
+        return out;
+    }
+
+    // Same per-block-edge threshold check as the single-d path: if any block
+    // is too dense for per-block CPFM, fall back to global CPFM (m4).
+    const int CPFM_BLOCK_EDGE_THRESHOLD = 50;
+    for (int bid : chain.ordered_block_ids) {
+        ReliabilityGraph blk;
+        std::vector<int> m2o, m2n;
+        getBlockGraphAndMap(bid, chain.decomposition, blk, m2o, m2n);
+        if (static_cast<int>(blk.numEdges()) > CPFM_BLOCK_EDGE_THRESHOLD) {
+            return calculateReliabilityCdfCancelaPetingi(s, t, d_max);
+        }
+    }
+
+    const auto& ordered_block_ids = chain.ordered_block_ids;
+    const auto& final_aps         = chain.final_aps;
+    std::vector<int> d_min_per_block(ordered_block_ids.size());
+    int total_d_min = 0;
+    for (size_t i = 0; i < ordered_block_ids.size(); ++i) {
+        int block_id = ordered_block_ids[i];
+        int entry = final_aps[i];
+        int exit_v = (i == ordered_block_ids.size() - 1) ? t : final_aps[i + 1];
+        int dmk = calculateMinBlockDiameter(block_id, chain.decomposition, entry, exit_v);
+        if (dmk < 0) {
+            out.cdf.assign(d_max + 1, 0.0);
+            auto t_end = std::chrono::high_resolution_clock::now();
+            out.execution_time_sec = std::chrono::duration<double>(t_end - t_start).count();
+            return out;
+        }
+        d_min_per_block[i] = dmk;
+        total_d_min += dmk;
+    }
+
+    int gap = d_max - total_d_min;
+    if (gap < 0) {
+        // d_max below the chained dist — every cell is zero; nothing to do.
+        out.cdf.assign(d_max + 1, 0.0);
+        auto t_end = std::chrono::high_resolution_clock::now();
+        out.execution_time_sec = std::chrono::duration<double>(t_end - t_start).count();
+        return out;
+    }
+
+    int chain_len = static_cast<int>(ordered_block_ids.size());
+    std::vector<ReliabilityGraph> chain_block_graphs(chain_len);
+    std::vector<int>              chain_s_local(chain_len);
+    std::vector<int>              chain_x_local(chain_len);
+
+    for (int i = 0; i < chain_len; ++i) {
+        std::vector<int> m2o, o2n;
+        getBlockGraphAndMap(ordered_block_ids[i], chain.decomposition,
+                            chain_block_graphs[i], m2o, o2n);
+        int entry = final_aps[i];
+        int exit_v = (i == chain_len - 1) ? t : final_aps[i + 1];
+        if (entry  >= static_cast<int>(o2n.size()) || o2n[entry]  == -1 ||
+            exit_v >= static_cast<int>(o2n.size()) || o2n[exit_v] == -1) {
+            out.cdf.assign(d_max + 1, 0.0);
+            auto t_end = std::chrono::high_resolution_clock::now();
+            out.execution_time_sec = std::chrono::duration<double>(t_end - t_start).count();
+            return out;
+        }
+        chain_s_local[i] = o2n[entry];
+        chain_x_local[i] = o2n[exit_v];
+    }
+
+    auto results = solveBlockChainIterative(
+        chain_block_graphs, chain_s_local, chain_x_local,
+        d_min_per_block, gap, recursions
+    );
+
+    out.cdf.assign(d_max + 1, 0.0);
+    for (int d = 0; d <= d_max && d < static_cast<int>(results.size()); ++d)
+        out.cdf[d] = results[d];
+
+    auto t_end = std::chrono::high_resolution_clock::now();
+    out.recursions = recursions;
+    out.execution_time_sec = std::chrono::duration<double>(t_end - t_start).count();
+    return out;
+}
+
+/**
+ * @brief Method 1 — Recursive Decomposition (known-slow).
+ *
+ * Decomposes the graph at articulation points and factors each block
+ * recursively without convolution. Kept as a diagnostic baseline; times
+ * out on anything larger than sausage-3 within the default budget.
+ * @see docs/ALGORITHMS.md section on Recursive Decomposition.
+ */
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithRecursiveDecomposition(VertexId s, VertexId t, int d) const {
     // ==========================================================================
     // LEVEL 1: Recursive Decomposition (The "Naive" Method)
@@ -1602,6 +1830,14 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithRecursiveDecompositi
     return ReliabilityResult(reliability, recursion_counter, time);
 }
 
+/**
+ * @brief Method 2 — Simple Factoring with iterative decomposition.
+ *
+ * Iterative block decomposition followed by simple-factoring convolution
+ * along the block chain. Mid-weight: faster than m0/m1, slower than m3
+ * on sausages but comparable on small graphs.
+ * @see docs/ALGORITHMS.md section on Simple Factoring.
+ */
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithDecomposition(VertexId s, VertexId t, int UpperBound) const {
     // Uses block decomposition with simple (one-diameter-at-a-time) factoring per block.
     LOG_INFO("Starting Simple Factoring with Decomposition: s={}, t={}, diameter={}", s, t, UpperBound);

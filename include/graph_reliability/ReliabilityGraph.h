@@ -40,6 +40,22 @@ struct ReliabilityResult {
 };
 
 /**
+ * @brief Multi-diameter reliability result.
+ *
+ * `cdf[d]` is the reliability `R(G, s, t, d)` for the queried (s, t) pair.
+ * Implementations restrict the inner factorization to `[dist(s, t), d_max]`
+ * — for d < dist(s, t) the answer is provably 0, and the cdf vector is
+ * filled with zeros there at no factoring cost.
+ */
+struct ReliabilityCdfResult {
+    std::vector<double> cdf;      ///< cdf[d] = R(G, s, t, d) for d ∈ [0, d_max]
+    long long recursions;         ///< Number of recursive calls
+    double execution_time_sec;    ///< Execution time in seconds
+
+    ReliabilityCdfResult() : recursions(0), execution_time_sec(0.0) {}
+};
+
+/**
  * @brief Extended graph structure for reliability calculations
  * 
  * This class extends the base Graph with target vertices and specialized
@@ -203,6 +219,38 @@ public:
     ReliabilityResult calculateReliabilityWithMDecompositionCPFM(VertexId source_vertex,
                                                                  VertexId target_vertex,
                                                                  int upper_bound_diameter) const;
+
+    /**
+     * @brief Multi-diameter Method 3 — single-pass M-Decomposition CDF.
+     *
+     * Returns `R(G, s, t, d)` for every `d ∈ [0, d_max]` in one decomposition
+     * + per-block factor + convolution pass. The inner solver restricts each
+     * per-block factoring to its own `[d_min_block, max_len]` range, so no
+     * work is spent on diameters where the block contribution is zero.
+     */
+    ReliabilityCdfResult calculateReliabilityCdfMDecomposition(VertexId source_vertex,
+                                                               VertexId target_vertex,
+                                                               int d_max) const;
+
+    /**
+     * @brief Multi-diameter Method 4 — single-pass Cancela-Petingi CDF.
+     *
+     * Wraps calculateReliabilityCancelaPetingiMulti(s, t, dist(s, t), d_max)
+     * so the inner factoring skips the trivial `d < dist(s, t)` slice.
+     */
+    ReliabilityCdfResult calculateReliabilityCdfCancelaPetingi(VertexId source_vertex,
+                                                               VertexId target_vertex,
+                                                               int d_max) const;
+
+    /**
+     * @brief Multi-diameter Method 5 — single-pass M-Decomposition+CPFM CDF.
+     *
+     * Returns `R(G, s, t, d)` for every `d ∈ [0, d_max]` from a single
+     * decomposition + per-block CPFM + convolution pass.
+     */
+    ReliabilityCdfResult calculateReliabilityCdfMDecompositionCPFM(VertexId source_vertex,
+                                                                   VertexId target_vertex,
+                                                                   int d_max) const;
 
     /**
      * @brief Check if graph is k-connected
