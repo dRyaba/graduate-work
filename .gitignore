@@ -82,6 +82,9 @@ output_nesterov.txt
 *.log
 *.txt
 *.csv
+*.docx
+*.svg
+*.dot
 
 # Documentation build
 docs/html/
@@ -116,3 +119,7 @@ gmon.out
 # Core dumps
 core
 core.*
+
+# Transient runtime artifacts (MSYS2 crashes, visualizer outputs at repo root)
+/bash.exe.stackdump
+/graph_widget.html
