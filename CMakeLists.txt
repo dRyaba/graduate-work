@@ -94,6 +94,7 @@ include_directories(.)
 # Source files
 set(SOURCES
     src/main.cpp
+    src/CliHandlers.cpp
     src/Graph.cpp
     src/ReliabilityGraph.cpp
     src/DataImporter.cpp
@@ -114,6 +115,7 @@ set(HEADERS
     include/graph_reliability/DataImporter.h
     include/graph_reliability/GraphOperations.h
     include/graph_reliability/TestSuite.h
+    include/graph_reliability/CliHandlers.h
     include/graph_reliability/Logger.h
     include/graph_reliability/Exceptions.h
     include/graph_reliability/PathEnumerator.h
