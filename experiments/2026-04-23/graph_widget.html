@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Graph Widget — interactive force layout</title>
+<style>
+  :root {
+    --bg: #fafbfc;
+    --panel: #ffffff;
+    --border: #d8dce0;
+    --text: #1f2328;
+    --muted: #6b7280;
+    --accent: #3a86ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); background: var(--bg); }
+  body { display: grid; grid-template-columns: 320px 1fr; height: 100vh; }
+  aside {
+    background: var(--panel); border-right: 1px solid var(--border);
+    padding: 16px; overflow-y: auto;
+  }
+  aside h1 { font-size: 14px; font-weight: 600; margin: 0 0 12px 0; }
+  aside h2 { font-size: 12px; font-weight: 600; margin: 18px 0 8px 0; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; }
+  .row label { flex: 0 0 auto; color: var(--muted); }
+  .row input[type=range] { flex: 1; }
+  .row .val { flex: 0 0 44px; text-align: right; font-variant-numeric: tabular-nums; }
+  button {
+    font: inherit; font-size: 12px; padding: 6px 12px;
+    border: 1px solid var(--border); background: white; border-radius: 4px;
+    cursor: pointer; color: var(--text);
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.active { background: var(--accent); color: white; border-color: var(--accent); }
+  textarea {
+    width: 100%; height: 120px; font-family: "SF Mono", Consolas, monospace;
+    font-size: 11px; padding: 6px; border: 1px solid var(--border); border-radius: 4px;
+    resize: vertical;
+  }
+  .buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+  main { position: relative; overflow: auto; background: #eef1f4; }
+  svg { display: block; background: white; cursor: default; margin: 0; }
+  svg.dragging { cursor: grabbing; }
+  .edge { stroke: #9aa0a6; stroke-width: 1.3; }
+  .node circle { stroke: white; stroke-width: 1.5; cursor: grab; }
+  .node.pinned circle { stroke: #222; stroke-width: 2.5; }
+  .node text {
+    fill: white; font-size: 11px; font-weight: 600; text-anchor: middle;
+    dominant-baseline: central; pointer-events: none; user-select: none;
+  }
+  #hud {
+    position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.9);
+    padding: 6px 10px; border-radius: 4px; font-size: 11px; color: var(--muted);
+    border: 1px solid var(--border); font-variant-numeric: tabular-nums;
+  }
+  .hint { font-size: 11px; color: var(--muted); line-height: 1.5; margin-top: 8px; }
+  details summary { cursor: pointer; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<aside>
+  <h1>Graph Widget</h1>
+
+  <h2>Граф</h2>
+  <div class="buttons">
+    <button id="btn-k4">K4</button>
+    <button id="btn-k6">K6</button>
+    <button id="btn-petersen">Petersen</button>
+    <button id="btn-grid">Grid 5×5</button>
+    <button id="btn-sausage">Sausage 3×(3×3)</button>
+  </div>
+  <details style="margin-top:10px">
+    <summary>Вставить CSR (kao-формат)</summary>
+    <textarea id="csr" placeholder="0,3,6,9,12&#10;2,3,4,1,3,4,1,2,4,1,2,3&#10;0,1,1,0,0&#10;0.9&#10;//K_4"></textarea>
+    <button id="load-csr" style="margin-top:6px">Загрузить</button>
+  </details>
+  <div class="row" style="margin-top:10px">
+    <label style="width:70px">targets</label>
+    <input type="text" id="targets" placeholder="напр. 1,4" style="flex:1;font:inherit;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px">
+    <button id="apply-targets">OK</button>
+  </div>
+
+  <h2>Холст</h2>
+  <div class="row" title="Ширина холста в пикселях. При превышении размеров окна добавляется горизонтальная прокрутка.">
+    <label style="width:70px">width</label>
+    <input type="number" id="cw" min="400" max="8000" step="50" value="1200" style="flex:1;font:inherit;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px">
+  </div>
+  <div class="row" title="Высота холста в пикселях. При превышении размеров окна добавляется вертикальная прокрутка.">
+    <label style="width:70px">height</label>
+    <input type="number" id="ch" min="300" max="8000" step="50" value="800" style="flex:1;font:inherit;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px">
+  </div>
+  <div class="buttons">
+    <button id="apply-canvas" title="Применить размеры и пересчитать границы">Применить</button>
+    <button id="fit-window" title="Подогнать холст под текущее окно">Подогнать</button>
+    <button id="expand-canvas" title="Увеличить холст ×1.5 (полезно для плотных графов)">×1.5</button>
+  </div>
+
+  <h2>Физика</h2>
+  <div class="row" title="Сила отталкивания между всеми парами вершин: F = repulsion / d². Большие значения раздвигают граф; слишком большие вызывают вибрацию при плотной укладке.">
+    <label style="width:70px">repulsion</label>
+    <input type="range" id="rep" min="500" max="20000" step="100" value="5000">
+    <span class="val" id="rep-v">5000</span>
+  </div>
+  <div class="row" title="Целевая длина ребра (пружина). Итоговая длина = linkDist·(2−w), где w — вес ребра из CSR. Увеличение разбрасывает вершины по рёбрам.">
+    <label style="width:70px">linkDist</label>
+    <input type="range" id="link" min="20" max="300" step="1" value="80">
+    <span class="val" id="link-v">80</span>
+  </div>
+  <div class="row" title="Притяжение к центру холста. Удерживает несвязные/слабосвязные подграфы от расползания за пределы. При 0 слабо связанные компоненты улетают.">
+    <label style="width:70px">gravity</label>
+    <input type="range" id="grav" min="0" max="0.1" step="0.002" value="0.02">
+    <span class="val" id="grav-v">0.02</span>
+  </div>
+  <div class="row" title="Затухание скорости после каждого шага: v ← v·damping. Низкое значение — инерция и колебания гасятся быстро; высокое — движение дольше, равновесие мягче.">
+    <label style="width:70px">damping</label>
+    <input type="range" id="damp" min="0.5" max="0.95" step="0.01" value="0.75">
+    <span class="val" id="damp-v">0.75</span>
+  </div>
+
+  <h2>Управление</h2>
+  <div class="buttons">
+    <button id="freeze">⏸ Freeze</button>
+    <button id="kick">⚡ Kick</button>
+    <button id="unpin">📍 Unpin all</button>
+    <button id="save-svg">💾 Save SVG</button>
+  </div>
+
+  <p class="hint">
+    <b>Drag</b> — перетащить вершину (без закрепления).<br>
+    <b>Shift+click</b> — закрепить / открепить.<br>
+    <span style="color:#fb8500">●</span> оранжевый — точка сочленения.<br>
+    <span style="color:#22c55e">●</span> зелёный — целевая вершина.<br>
+    <span style="color:#3a86ff">●</span> синий — обычная вершина.<br>
+    Толщина ребра = вероятность из CSR.<br>
+    <b>Freeze</b> — остановить симуляцию (скриншот положения).
+  </p>
+</aside>
+<main>
+  <svg id="canvas"></svg>
+  <div id="hud">—</div>
+</main>
+
+<script>
+"use strict";
+
+/* ---------- CSR parser ---------- */
+function parseCSR(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim().length > 0 && !l.trim().startsWith("//"));
+  if (lines.length < 2) throw new Error("Need at least kao + fo lines");
+  const kao = lines[0].split(",").map(s => parseInt(s.trim(), 10));
+  const fo  = lines[1].split(",").map(s => parseInt(s.trim(), 10));
+  const probs = lines.length >= 4
+    ? lines[3].split(",").map(s => parseFloat(s.trim())).filter(x => !isNaN(x))
+    : [];
+  const n = kao.length - 1;
+  const seen = new Map();
+  const edgeList = [];
+  for (let u = 0; u < n; ++u) {
+    for (let i = kao[u]; i < kao[u + 1]; ++i) {
+      const v = fo[i] - 1;
+      const a = Math.min(u, v), b = Math.max(u, v);
+      const key = a * 100000 + b;
+      if (!seen.has(key)) {
+        seen.set(key, edgeList.length);
+        edgeList.push([a, b, 1.0]);
+      }
+    }
+  }
+  if (probs.length === edgeList.length) {
+    for (let i = 0; i < edgeList.length; ++i) edgeList[i][2] = probs[i];
+  } else if (probs.length === 1) {
+    for (const e of edgeList) e[2] = probs[0];
+  }
+  return { n, edges: edgeList };
+}
+
+/* ---------- Sample graphs ---------- */
+const SAMPLES = {
+  k4: "0,3,6,9,12\n2,3,4,1,3,4,1,2,4,1,2,3\n0,1,1,0,0\n0.9",
+  petersen:
+    "0,3,6,9,12,15,18,21,24,27,30\n" +
+    "2,5,6,1,3,7,2,4,8,3,5,9,1,4,10,1,8,9,2,9,10,3,10,6,4,6,7,5,7,8\n" +
+    "0,0,0,0,0,0\n0.9",
+  sausage: null, // builds below
+  grid: null
+};
+
+/**
+ * Сосисочный граф (как в graphs_data/*_sausage_*_kao.txt):
+ * N последовательных сеток w×h, между каждыми соседними блоками —
+ * отдельная вершина-перемычка (articulation point), связанная с
+ * правым столбцом левого блока и левым столбцом правого. Итого
+ * N·w·h + (N−1) вершин, перемычка имеет степень 2h.
+ */
+function makeSausage(blocks, w, h) {
+  const grid = w * h;
+  const stride = grid + 1;
+  const n = blocks * grid + (blocks - 1);
+  const edges = [];
+  const base = b => b * stride;
+  const junc = b => base(b) + grid;
+  for (let b = 0; b < blocks; ++b) {
+    const gb = base(b);
+    for (let y = 0; y < h; ++y)
+      for (let x = 0; x < w; ++x) {
+        const i = gb + y * w + x;
+        if (x + 1 < w) edges.push([i, gb + y * w + x + 1]);
+        if (y + 1 < h) edges.push([i, gb + (y + 1) * w + x]);
+      }
+    if (b > 0) {
+      const j = junc(b - 1);
+      for (let y = 0; y < h; ++y) edges.push([j, gb + y * w + 0]);
+    }
+    if (b < blocks - 1) {
+      const j = junc(b);
+      for (let y = 0; y < h; ++y) edges.push([j, gb + y * w + (w - 1)]);
+    }
+  }
+  return toCSR(n, edges);
+}
+
+/** Полный граф Kn — начальные позиции на окружности дадут красивое кольцо. */
+function makeKn(n) {
+  const edges = [];
+  for (let i = 0; i < n; ++i)
+    for (let j = i + 1; j < n; ++j) edges.push([i, j]);
+  return toCSR(n, edges);
+}
+
+function makeGrid(w, h) {
+  const n = w * h;
+  const edges = [];
+  for (let y = 0; y < h; ++y)
+    for (let x = 0; x < w; ++x) {
+      const i = y * w + x;
+      if (x + 1 < w) edges.push([i, i + 1]);
+      if (y + 1 < h) edges.push([i, i + w]);
+    }
+  return toCSR(n, edges);
+}
+
+function toCSR(n, edges) {
+  const adj = Array.from({ length: n }, () => []);
+  for (const [u, v] of edges) { adj[u].push(v + 1); adj[v].push(u + 1); }
+  const kao = [0];
+  const fo = [];
+  for (let i = 0; i < n; ++i) { for (const x of adj[i]) fo.push(x); kao.push(fo.length); }
+  return kao.join(",") + "\n" + fo.join(",") + "\n0\n1.0";
+}
+
+/* ---------- Model ---------- */
+let nodes = [];
+let edges = [];
+let degree = [];
+let isAP = [];
+let targets = new Set();
+
+/* ---------- Canvas sizing ---------- */
+function setCanvasSize(w, h) {
+  const svgEl = document.getElementById("canvas");
+  svgEl.setAttribute("width", w);
+  svgEl.setAttribute("height", h);
+  svgEl.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  document.getElementById("cw").value = w;
+  document.getElementById("ch").value = h;
+}
+function fitWindow() {
+  const mainRect = document.querySelector("main").getBoundingClientRect();
+  setCanvasSize(Math.floor(mainRect.width), Math.floor(mainRect.height));
+}
+
+/* ---------- Articulation points (Tarjan) ---------- */
+function computeAP(n, adj) {
+  const ap = new Array(n).fill(false);
+  const disc = new Array(n).fill(-1);
+  const low  = new Array(n).fill(0);
+  const parent = new Array(n).fill(-1);
+  let timer = 0;
+  const dfs = (u) => {
+    const stack = [[u, 0]];
+    disc[u] = low[u] = timer++;
+    let children = 0;
+    while (stack.length) {
+      const top = stack[stack.length - 1];
+      const [v, iRef] = top;
+      if (iRef < adj[v].length) {
+        top[1]++;
+        const w = adj[v][iRef];
+        if (disc[w] === -1) {
+          parent[w] = v;
+          disc[w] = low[w] = timer++;
+          if (v === u) children++;
+          stack.push([w, 0]);
+        } else if (w !== parent[v]) {
+          low[v] = Math.min(low[v], disc[w]);
+        }
+      } else {
+        stack.pop();
+        const p = parent[v];
+        if (p !== -1) {
+          low[p] = Math.min(low[p], low[v]);
+          if (p !== u && low[v] >= disc[p]) ap[p] = true;
+        }
+      }
+    }
+    if (children > 1) ap[u] = true;
+  };
+  for (let i = 0; i < n; ++i) if (disc[i] === -1) dfs(i);
+  return ap;
+}
+
+const svg = document.getElementById("canvas");
+const hud = document.getElementById("hud");
+
+function buildGraph(csrText) {
+  const g = parseCSR(csrText);
+  const rect = svg.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  degree = new Array(g.n).fill(0);
+  const adj = Array.from({ length: g.n }, () => []);
+  for (const [u, v] of g.edges) {
+    degree[u]++; degree[v]++;
+    adj[u].push(v); adj[v].push(u);
+  }
+  isAP = computeAP(g.n, adj);
+  nodes = [];
+  for (let i = 0; i < g.n; ++i) {
+    const angle = (2 * Math.PI * i) / g.n;
+    const r = Math.min(W, H) * 0.35;
+    nodes.push({
+      id: i,
+      x: W / 2 + r * Math.cos(angle),
+      y: H / 2 + r * Math.sin(angle),
+      vx: 0, vy: 0,
+      pinned: false,
+      deg: degree[i],
+    });
+  }
+  edges = g.edges;
+  targets = new Set();
+  const tInput = document.getElementById("targets");
+  if (tInput) tInput.value = "";
+  render();
+}
+
+/* ---------- Rendering ---------- */
+function colorFor(id) {
+  if (targets.has(id)) return "#22c55e";
+  if (isAP[id])       return "#fb8500";
+  return "#3a86ff";
+}
+function radiusFor(d) { return 12 + d * 1.4; }
+
+function render() {
+  // viewBox управляется setCanvasSize
+  let s = "";
+  for (const [u, v, w] of edges) {
+    const a = nodes[u], b = nodes[v];
+    const sw = (0.6 + 1.8 * (w ?? 1)).toFixed(2);
+    s += `<line class="edge" x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke-width="${sw}"/>`;
+  }
+  for (const n of nodes) {
+    const r = radiusFor(n.deg);
+    const fill = colorFor(n.id);
+    const cls = "node"
+      + (n.pinned ? " pinned" : "");
+    s += `<g class="${cls}" data-id="${n.id}" transform="translate(${n.x.toFixed(1)},${n.y.toFixed(1)})">`
+       + `<circle r="${r}" fill="${fill}"/>`
+       + `<text>${n.id + 1}</text>`
+       + `</g>`;
+  }
+  svg.innerHTML = s;
+}
+
+/* ---------- Physics ---------- */
+let repulsion = 5000, linkDist = 80, gravity = 0.02, damping = 0.75;
+let frozen = false;
+const MIN_SPEED2 = 0.0004;  // порог anti-tremor
+const MAX_FORCE  = 200;     // клэмп на модуль итоговой силы (стабилизирует при больших repulsion)
+const MAX_SPEED  = 25;      // клэмп на модуль скорости (не даёт вершине проскочить ядро графа за шаг)
+const MIN_DIST   = 4;       // минимальная дистанция в знаменателе отталкивания
+
+function step() {
+  if (frozen) { requestAnimationFrame(step); return; }
+  const rect = svg.getBoundingClientRect();
+  const cx = rect.width / 2, cy = rect.height / 2;
+  const n = nodes.length;
+
+  for (const p of nodes) { p.fx = 0; p.fy = 0; }
+
+  // repulsion O(n²) — защита: минимальная дистанция и верхний клэмп силы пары
+  const minD2 = MIN_DIST * MIN_DIST;
+  const maxPairF = repulsion / minD2;
+  for (let i = 0; i < n; ++i) {
+    const a = nodes[i];
+    for (let j = i + 1; j < n; ++j) {
+      const b = nodes[j];
+      let dx = a.x - b.x, dy = a.y - b.y;
+      let d2 = dx * dx + dy * dy;
+      if (d2 < 0.01) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d2 = dx * dx + dy * dy; }
+      if (d2 < minD2) d2 = minD2;
+      const d = Math.sqrt(d2);
+      let f = repulsion / d2;
+      if (f > maxPairF) f = maxPairF;
+      const fx = (dx / d) * f, fy = (dy / d) * f;
+      a.fx += fx; a.fy += fy;
+      b.fx -= fx; b.fy -= fy;
+    }
+  }
+
+  // springs — вес ребра управляет и длиной, и жёсткостью:
+  // сильная связь (w≈1) — короткая и упругая; слабая (w→0) — длинная и вялая.
+  for (const [u, v, w] of edges) {
+    const a = nodes[u], b = nodes[v];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+    const ww = Math.max(0.05, Math.min(1, w ?? 1));
+    const target = linkDist * (2 - ww);
+    const stiff  = 0.05 * (0.3 + 0.7 * ww);
+    const f = (d - target) * stiff;
+    const fx = (dx / d) * f, fy = (dy / d) * f;
+    a.fx += fx; a.fy += fy;
+    b.fx -= fx; b.fy -= fy;
+  }
+
+  // gravity
+  for (const p of nodes) {
+    p.fx += (cx - p.x) * gravity;
+    p.fy += (cy - p.y) * gravity;
+  }
+
+  // integrate: клэмпим силу и скорость, подавляем тремор
+  let maxSpeed2 = 0;
+  const maxForce2 = MAX_FORCE * MAX_FORCE;
+  const maxSpeed  = MAX_SPEED;
+  for (const p of nodes) {
+    if (p.pinned || p.dragging) { p.vx = 0; p.vy = 0; continue; }
+    let fx = p.fx, fy = p.fy;
+    const ff2 = fx * fx + fy * fy;
+    if (ff2 > maxForce2) {
+      const k = MAX_FORCE / Math.sqrt(ff2);
+      fx *= k; fy *= k;
+    }
+    p.vx = (p.vx + fx) * damping;
+    p.vy = (p.vy + fy) * damping;
+    const s2 = p.vx * p.vx + p.vy * p.vy;
+    if (s2 > maxSpeed * maxSpeed) {
+      const k = maxSpeed / Math.sqrt(s2);
+      p.vx *= k; p.vy *= k;
+    }
+    const sFinal2 = p.vx * p.vx + p.vy * p.vy;
+    if (sFinal2 > maxSpeed2) maxSpeed2 = sFinal2;
+    if (sFinal2 < MIN_SPEED2) { p.vx = 0; p.vy = 0; continue; }
+    p.x += p.vx;
+    p.y += p.vy;
+    const r = radiusFor(p.deg);
+    if (p.x < r) { p.x = r; p.vx = 0; }
+    if (p.y < r) { p.y = r; p.vy = 0; }
+    if (p.x > rect.width - r)  { p.x = rect.width - r;  p.vx = 0; }
+    if (p.y > rect.height - r) { p.y = rect.height - r; p.vy = 0; }
+  }
+
+  render();
+  hud.textContent = `n=${nodes.length}  m=${edges.length}  |v|max=${Math.sqrt(maxSpeed2).toFixed(2)}` + (frozen ? "  ❄" : "");
+  requestAnimationFrame(step);
+}
+
+/* ---------- Interaction ---------- */
+let drag = null;
+
+svg.addEventListener("mousedown", (e) => {
+  const g = e.target.closest(".node");
+  if (!g) return;
+  const id = parseInt(g.dataset.id, 10);
+  const p = nodes[id];
+  if (e.shiftKey) { p.pinned = !p.pinned; render(); return; }
+  drag = { node: p };
+  p.dragging = true;
+  svg.classList.add("dragging");
+});
+svg.addEventListener("mousemove", (e) => {
+  if (!drag) return;
+  const rect = svg.getBoundingClientRect();
+  drag.node.x = e.clientX - rect.left;
+  drag.node.y = e.clientY - rect.top;
+  drag.node.vx = 0;
+  drag.node.vy = 0;
+});
+window.addEventListener("mouseup", () => {
+  if (!drag) return;
+  drag.node.dragging = false;
+  drag = null;
+  svg.classList.remove("dragging");
+  render();
+});
+
+/* ---------- Controls ---------- */
+function bindSlider(id, onChange) {
+  const el = document.getElementById(id);
+  const valEl = document.getElementById(id + "-v");
+  const update = () => { valEl.textContent = el.value; onChange(parseFloat(el.value)); };
+  el.addEventListener("input", update);
+  update();
+}
+bindSlider("rep",  v => repulsion = v);
+bindSlider("link", v => linkDist = v);
+bindSlider("grav", v => gravity = v);
+bindSlider("damp", v => damping = v);
+
+document.getElementById("freeze").addEventListener("click", (e) => {
+  frozen = !frozen;
+  e.target.textContent = frozen ? "▶ Resume" : "⏸ Freeze";
+  e.target.classList.toggle("active", frozen);
+});
+document.getElementById("kick").addEventListener("click", () => {
+  for (const p of nodes) {
+    if (p.pinned) continue;
+    p.vx += (Math.random() - 0.5) * 30;
+    p.vy += (Math.random() - 0.5) * 30;
+  }
+});
+document.getElementById("unpin").addEventListener("click", () => {
+  for (const p of nodes) p.pinned = false;
+  render();
+});
+document.getElementById("save-svg").addEventListener("click", () => {
+  const rect = svg.getBoundingClientRect();
+  const styled = `<svg xmlns="http://www.w3.org/2000/svg" width="${rect.width}" height="${rect.height}" viewBox="0 0 ${rect.width} ${rect.height}">
+    <style>
+      .edge { stroke: #9aa0a6; stroke-width: 1.3; }
+      .node circle { stroke: white; stroke-width: 1.5; }
+      .node.pinned circle { stroke: #222; stroke-width: 2.5; }
+      .node text { fill: white; font: 600 11px sans-serif; text-anchor: middle; dominant-baseline: central; }
+    </style>${svg.innerHTML}</svg>`;
+  const blob = new Blob([styled], { type: "image/svg+xml" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "graph.svg";
+  a.click();
+});
+
+document.getElementById("apply-canvas").onclick = () => {
+  const w = Math.max(400, parseInt(document.getElementById("cw").value, 10) || 1200);
+  const h = Math.max(300, parseInt(document.getElementById("ch").value, 10) || 800);
+  setCanvasSize(w, h);
+};
+document.getElementById("fit-window").onclick  = fitWindow;
+document.getElementById("expand-canvas").onclick = () => {
+  const svgEl = document.getElementById("canvas");
+  const w = Math.floor(parseFloat(svgEl.getAttribute("width"))  * 1.5);
+  const h = Math.floor(parseFloat(svgEl.getAttribute("height")) * 1.5);
+  setCanvasSize(w, h);
+};
+
+document.getElementById("btn-k4").onclick       = () => buildGraph(SAMPLES.k4);
+document.getElementById("btn-k6").onclick       = () => buildGraph(makeKn(6));
+document.getElementById("btn-petersen").onclick = () => buildGraph(SAMPLES.petersen);
+document.getElementById("btn-grid").onclick     = () => buildGraph(makeGrid(5, 5));
+document.getElementById("btn-sausage").onclick  = () => buildGraph(makeSausage(3, 3, 3));
+document.getElementById("load-csr").onclick = () => {
+  const t = document.getElementById("csr").value.trim();
+  if (!t) return;
+  try { buildGraph(t); } catch (err) { alert("Parse error: " + err.message); }
+};
+function applyTargets() {
+  const raw = document.getElementById("targets").value.trim();
+  targets = new Set();
+  if (raw) {
+    for (const s of raw.split(/[\s,]+/)) {
+      const v = parseInt(s, 10);
+      if (!isNaN(v) && v >= 1 && v <= nodes.length) targets.add(v - 1);
+    }
+  }
+  render();
+}
+document.getElementById("apply-targets").onclick = applyTargets;
+document.getElementById("targets").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") applyTargets();
+});
+
+/* ---------- Start ---------- */
+fitWindow();
+buildGraph(SAMPLES.k4);
+requestAnimationFrame(step);
+window.addEventListener("resize", () => {
+  // ничего не делаем автоматически — пользователь сам решает через «Подогнать»
+});
+</script>
+</body>
+</html>

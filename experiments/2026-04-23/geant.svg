@@ -1,0 +1,383 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1565" height="1217" viewBox="0 0 1565 1217">
+<rect width="100%" height="100%" fill="#f8f9fa"/>
+<g stroke="#8e9aaf" stroke-width="1.5">
+  <line x1="964.97" y1="897.395" x2="939.694" y2="938.487"/>
+  <line x1="958.307" y1="885.218" x2="912.976" y2="884.403"/>
+  <line x1="940.544" y1="939.053" x2="988.361" y2="872.696"/>
+  <line x1="929.792" y1="936.649" x2="908.307" y2="821.461"/>
+  <line x1="982.914" y1="864.526" x2="912.611" y2="880.963"/>
+  <line x1="1006.89" y1="851.904" x2="1012.16" y2="847.1"/>
+  <line x1="985.128" y1="853.237" x2="950.755" y2="828.846"/>
+  <line x1="910.508" y1="892.092" x2="961.669" y2="927.329"/>
+  <line x1="1036.5" y1="837.571" x2="1058.6" y2="837.422"/>
+  <line x1="1086.38" y1="834.88" x2="1120.8" y2="828.768"/>
+  <line x1="1081.76" y1="826.738" x2="1089.8" y2="817.433"/>
+  <line x1="1122.3" y1="819.604" x2="1111.24" y2="813.559"/>
+  <line x1="918.313" y1="801.54" x2="934.351" y2="793.686"/>
+  <line x1="911.873" y1="820.283" x2="921.824" y2="840.704"/>
+  <line x1="909.638" y1="794.252" x2="912.958" y2="782.803"/>
+  <line x1="894.619" y1="816.202" x2="813.414" y2="878.294"/>
+  <line x1="956.982" y1="797.267" x2="977.997" y2="817.615"/>
+  <line x1="975.201" y1="832.901" x2="940.811" y2="847.742"/>
+  <line x1="916.496" y1="845.249" x2="875.019" y2="816.151"/>
+  <line x1="859.149" y1="794.823" x2="857.122" y2="788.713"/>
+  <line x1="874.881" y1="799.877" x2="905.533" y2="777.59"/>
+  <line x1="865.384" y1="769.47" x2="871.023" y2="766.82"/>
+  <line x1="897.256" y1="764.338" x2="903.294" y2="765.884"/>
+  <line x1="969.229" y1="921.845" x2="943.306" y2="834.17"/>
+  <line x1="982.889" y1="925.166" x2="1016.38" y2="890.241"/>
+  <line x1="980.706" y1="947.087" x2="986.503" y2="956.213"/>
+  <line x1="986.533" y1="931.004" x2="1008.07" y2="924.115"/>
+  <line x1="964.72" y1="946.411" x2="943.599" y2="974.162"/>
+  <line x1="986.343" y1="940.09" x2="1012.69" y2="949.748"/>
+  <line x1="972.05" y1="949.223" x2="969.533" y2="979.803"/>
+  <line x1="959.73" y1="931.45" x2="815.762" y2="890.618"/>
+  <line x1="1037.26" y1="946.49" x2="1042.93" y2="942.485"/>
+  <line x1="982.385" y1="993.846" x2="1003.39" y2="993.983"/>
+  <line x1="951.572" y1="813.941" x2="978.031" y2="799.228"/>
+  <line x1="742.562" y1="642.389" x2="718.851" y2="621.227"/>
+  <line x1="753.431" y1="637.718" x2="755.546" y2="567.903"/>
+  <line x1="751.261" y1="665.602" x2="741.879" y2="740.253"/>
+  <line x1="699.261" y1="601.305" x2="682.855" y2="582.289"/>
+  <line x1="675.673" y1="557.828" x2="676.654" y2="550.897"/>
+  <line x1="756.626" y1="539.924" x2="760.098" y2="466.008"/>
+  <line x1="761.303" y1="438.034" x2="763.897" y2="371.799"/>
+  <line x1="766.083" y1="343.906" x2="770.995" y2="302.219"/>
+  <line x1="780.032" y1="276.43" x2="801.426" y2="242.063"/>
+  <line x1="775.081" y1="274.531" x2="789.276" y2="194.604"/>
+  <line x1="809.401" y1="244.166" x2="810.101" y2="261.172"/>
+  <line x1="797.507" y1="270.408" x2="742.476" y2="250.551"/>
+  <line x1="732.185" y1="232.098" x2="743.259" y2="179.38"/>
+  <line x1="752.795" y1="153.363" x2="760.867" y2="138.43"/>
+  <line x1="749.188" y1="179.343" x2="756.265" y2="211.044"/>
+  <line x1="725.123" y1="209.709" x2="746.495" y2="219.084"/>
+  <line x1="725.737" y1="200.15" x2="778.289" y2="184.755"/>
+  <line x1="772.004" y1="218.79" x2="811.216" y2="200.501"/>
+  <line x1="767.11" y1="112.12" x2="766.435" y2="89.3776"/>
+  <line x1="774.566" y1="64.2951" x2="778.839" y2="58.7508"/>
+  <line x1="753.908" y1="756.647" x2="779.421" y2="761.283"/>
+  <line x1="752.972" y1="748.56" x2="784.252" y2="734.956"/>
+  <line x1="738.245" y1="768.016" x2="734.741" y2="793.756"/>
+  <line x1="737.577" y1="740.379" x2="727.289" y2="684.983"/>
+  <line x1="726.432" y1="757.021" x2="616.212" y2="780.17"/>
+  <line x1="754.125" y1="753.657" x2="814.653" y2="751.55"/>
+  <line x1="732.464" y1="765.856" x2="696.515" y2="820.756"/>
+  <line x1="746.074" y1="766.821" x2="796.353" y2="874.12"/>
+  <line x1="788.208" y1="740.194" x2="741.735" y2="796.807"/>
+  <line x1="827.213" y1="764.99" x2="825.505" y2="781.605"/>
+  <line x1="818.272" y1="760.466" x2="732.998" y2="837.774"/>
+  <line x1="812.822" y1="803.862" x2="807.826" y2="807.56"/>
+  <line x1="790.347" y1="803.351" x2="730.959" y2="683.757"/>
+  <line x1="717.37" y1="834.201" x2="700.289" y2="792.027"/>
+  <line x1="699.983" y1="765.955" x2="706.614" y2="748.405"/>
+  <line x1="724.726" y1="730.542" x2="799.512" y2="703.457"/>
+  <line x1="738.167" y1="675.157" x2="760.632" y2="681.743"/>
+  <line x1="787.334" y1="690.152" x2="799.408" y2="694.22"/>
+  <line x1="469.748" y1="732.686" x2="488.771" y2="733.738"/>
+  <line x1="442.942" y1="726.302" x2="436.529" y2="723.497"/>
+  <line x1="516.617" y1="736.434" x2="563.617" y2="742.95"/>
+  <line x1="585.16" y1="756.581" x2="594.835" y2="771.339"/>
+  <line x1="616.268" y1="785.642" x2="719.095" y2="805.033"/>
+  <line x1="607.576" y1="769.996" x2="620.287" y2="737.238"/>
+  <line x1="675.474" y1="828.32" x2="641.758" y2="817.858"/>
+  <line x1="627.913" y1="799.717" x2="625.826" y2="738.179"/>
+  <line x1="631.733" y1="800.115" x2="659.943" y2="685.49"/>
+  <line x1="638.523" y1="728.932" x2="664.231" y2="738.195"/>
+  <line x1="674.956" y1="679.634" x2="694.985" y2="692.917"/>
+  <line x1="698.688" y1="712.169" x2="685.367" y2="731.427"/>
+  <line x1="674.689" y1="722.117" x2="675.594" y2="729.058"/>
+  <line x1="788.931" y1="890.976" x2="709.703" y2="915.752"/>
+  <line x1="811.544" y1="897.306" x2="899.983" y2="997.769"/>
+  <line x1="789.835" y1="880.411" x2="784.448" y2="877.65"/>
+  <line x1="804.779" y1="900.575" x2="829.483" y2="1037.48"/>
+  <line x1="813.191" y1="895.586" x2="889.203" y2="956.886"/>
+  <line x1="815.215" y1="881.411" x2="868.894" y2="859.034"/>
+  <line x1="808.006" y1="899.579" x2="864.318" y2="1025.58"/>
+  <line x1="815.121" y1="892.406" x2="890.081" y2="925.179"/>
+  <line x1="887.457" y1="971.687" x2="760.55" y2="1032.03"/>
+  <line x1="887.765" y1="959.055" x2="750.093" y2="885.172"/>
+  <line x1="891.418" y1="954.693" x2="817.591" y2="861.312"/>
+  <line x1="894.748" y1="978.611" x2="875.383" y2="1025.42"/>
+  <line x1="896.303" y1="1002.91" x2="709.272" y2="925.297"/>
+  <line x1="765.59" y1="858.813" x2="762.312" y2="852.435"/>
+  <line x1="865.702" y1="1025.04" x2="813.236" y2="863.644"/>
+  <line x1="820.955" y1="1042.62" x2="811.486" y2="1035.19"/>
+  <line x1="819.104" y1="1045.74" x2="657.964" y2="976.579"/>
+  <line x1="826.213" y1="1038.5" x2="778.962" y2="933.722"/>
+  <line x1="750.864" y1="1024.36" x2="770.249" y2="934.644"/>
+  <line x1="747.018" y1="1024.07" x2="738.646" y2="892.524"/>
+  <line x1="782.73" y1="969.276" x2="775.914" y2="934.696"/>
+  <line x1="767.021" y1="933.52" x2="742.1" y2="984.119"/>
+  <line x1="762.774" y1="930.296" x2="699.315" y2="987.084"/>
+  <line x1="764.949" y1="932.266" x2="701.39" y2="1019.28"/>
+  <line x1="684.341" y1="1019.69" x2="653.891" y2="981.953"/>
+  <line x1="721.915" y1="996.601" x2="702.882" y2="996.496"/>
+  <line x1="770.77" y1="1074.29" x2="769.037" y2="1081.08"/>
+  <line x1="760.431" y1="1063.06" x2="745.403" y2="1065.61"/>
+  <line x1="782.759" y1="1049.62" x2="791.948" y2="1037.65"/>
+  <line x1="754.564" y1="1085.99" x2="742.606" y2="1076.59"/>
+  <line x1="809.326" y1="1156.03" x2="805.715" y2="1150.03"/>
+  <line x1="800.07" y1="1124.13" x2="804.159" y2="1088.06"/>
+  <line x1="804.197" y1="1060.23" x2="802.011" y2="1040.46"/>
+  <line x1="790.69" y1="1016.53" x2="706.123" y2="929.946"/>
+  <line x1="661.385" y1="1042.03" x2="651.077" y2="1021.35"/>
+  <line x1="654.275" y1="998.486" x2="685.374" y2="964.446"/>
+  <line x1="847.032" y1="1005.64" x2="858.476" y2="974.713"/>
+  <line x1="860.521" y1="947.868" x2="838.773" y2="841.837"/>
+  <line x1="849.347" y1="960.963" x2="708.803" y2="954.73"/>
+  <line x1="819.729" y1="841.447" x2="825.14" y2="837.006"/>
+  <line x1="843.608" y1="839.85" x2="895.261" y2="919.061"/>
+  <line x1="888.996" y1="932.347" x2="708.729" y2="952.551"/>
+</g>
+<g font-family="sans-serif" font-size="11" font-weight="bold">
+  <circle cx="972.305" cy="885.47" r="14" fill="#6a4c93" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="972.305" y="885.47" text-anchor="middle" dominant-baseline="middle" fill="white">0</text>
+  <circle cx="932.359" cy="950.412" r="14" fill="#6a4c93" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="932.359" y="950.412" text-anchor="middle" dominant-baseline="middle" fill="white">1</text>
+  <circle cx="996.546" cy="861.338" r="17" fill="white" stroke="#6a4c93" stroke-width="2"/>
+  <circle cx="996.546" cy="861.338" r="14" fill="#6a4c93" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="996.546" y="861.338" text-anchor="middle" dominant-baseline="middle" fill="white">2</text>
+  <circle cx="898.978" cy="884.151" r="14" fill="#6a4c93" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="898.978" y="884.151" text-anchor="middle" dominant-baseline="middle" fill="white">3</text>
+  <circle cx="1022.5" cy="837.666" r="17" fill="white" stroke="#8338ec" stroke-width="2"/>
+  <circle cx="1022.5" cy="837.666" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="1022.5" y="837.666" text-anchor="middle" dominant-baseline="middle" fill="white">4</text>
+  <circle cx="1072.6" cy="837.328" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="1072.6" cy="837.328" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="1072.6" y="837.328" text-anchor="middle" dominant-baseline="middle" fill="white">5</text>
+  <circle cx="1134.59" cy="826.32" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="1134.59" y="826.32" text-anchor="middle" dominant-baseline="middle" fill="white">6</text>
+  <circle cx="1098.96" cy="806.843" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="1098.96" y="806.843" text-anchor="middle" dominant-baseline="middle" fill="white">7</text>
+  <circle cx="905.74" cy="807.698" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="905.74" cy="807.698" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="905.74" y="807.698" text-anchor="middle" dominant-baseline="middle" fill="white">8</text>
+  <circle cx="946.924" cy="787.528" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="946.924" y="787.528" text-anchor="middle" dominant-baseline="middle" fill="white">9</text>
+  <circle cx="988.055" cy="827.354" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="988.055" y="827.354" text-anchor="middle" dominant-baseline="middle" fill="white">10</text>
+  <circle cx="927.957" cy="853.289" r="14" fill="#27ae60" stroke="#145a32" stroke-width="1.5"/>
+  <text x="927.957" y="853.289" text-anchor="middle" dominant-baseline="middle" fill="white">11</text>
+  <circle cx="863.558" cy="808.111" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="863.558" y="808.111" text-anchor="middle" dominant-baseline="middle" fill="white">12</text>
+  <circle cx="852.713" cy="775.425" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="852.713" y="775.425" text-anchor="middle" dominant-baseline="middle" fill="white">13</text>
+  <circle cx="883.694" cy="760.865" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="883.694" y="760.865" text-anchor="middle" dominant-baseline="middle" fill="white">14</text>
+  <circle cx="916.856" cy="769.356" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="916.856" y="769.356" text-anchor="middle" dominant-baseline="middle" fill="white">15</text>
+  <circle cx="973.199" cy="935.27" r="17" fill="white" stroke="#6a4c93" stroke-width="2"/>
+  <circle cx="973.199" cy="935.27" r="14" fill="#6a4c93" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="973.199" y="935.27" text-anchor="middle" dominant-baseline="middle" fill="white">16</text>
+  <circle cx="1026.07" cy="880.137" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="1026.07" y="880.137" text-anchor="middle" dominant-baseline="middle" fill="white">17</text>
+  <circle cx="994.01" cy="968.03" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="994.01" y="968.03" text-anchor="middle" dominant-baseline="middle" fill="white">18</text>
+  <circle cx="1021.4" cy="919.849" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="1021.4" y="919.849" text-anchor="middle" dominant-baseline="middle" fill="white">19</text>
+  <circle cx="935.12" cy="985.303" r="14" fill="#023047" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="935.12" y="985.303" text-anchor="middle" dominant-baseline="middle" fill="white">20</text>
+  <circle cx="1025.83" cy="954.568" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="1025.83" cy="954.568" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="1025.83" y="954.568" text-anchor="middle" dominant-baseline="middle" fill="white">21</text>
+  <circle cx="1054.37" cy="934.407" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="1054.37" y="934.407" text-anchor="middle" dominant-baseline="middle" fill="white">22</text>
+  <circle cx="968.385" cy="993.755" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="968.385" cy="993.755" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="968.385" y="993.755" text-anchor="middle" dominant-baseline="middle" fill="white">23</text>
+  <circle cx="1017.39" cy="994.074" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="1017.39" y="994.074" text-anchor="middle" dominant-baseline="middle" fill="white">24</text>
+  <circle cx="939.337" cy="820.745" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="939.337" cy="820.745" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="939.337" y="820.745" text-anchor="middle" dominant-baseline="middle" fill="white">25</text>
+  <circle cx="990.267" cy="792.424" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="990.267" y="792.424" text-anchor="middle" dominant-baseline="middle" fill="white">26</text>
+  <circle cx="753.007" cy="651.712" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="753.007" cy="651.712" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="753.007" y="651.712" text-anchor="middle" dominant-baseline="middle" fill="white">27</text>
+  <circle cx="708.406" cy="611.905" r="17" fill="white" stroke="#8338ec" stroke-width="2"/>
+  <circle cx="708.406" cy="611.905" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="708.406" y="611.905" text-anchor="middle" dominant-baseline="middle" fill="white">28</text>
+  <circle cx="673.709" cy="571.689" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="673.709" cy="571.689" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="673.709" y="571.689" text-anchor="middle" dominant-baseline="middle" fill="white">29</text>
+  <circle cx="678.617" cy="537.035" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="678.617" y="537.035" text-anchor="middle" dominant-baseline="middle" fill="white">30</text>
+  <circle cx="755.97" cy="553.909" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="755.97" cy="553.909" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="755.97" y="553.909" text-anchor="middle" dominant-baseline="middle" fill="white">31</text>
+  <circle cx="760.755" cy="452.023" r="17" fill="white" stroke="#8338ec" stroke-width="2"/>
+  <circle cx="760.755" cy="452.023" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="760.755" y="452.023" text-anchor="middle" dominant-baseline="middle" fill="white">32</text>
+  <circle cx="764.445" cy="357.81" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="764.445" cy="357.81" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="764.445" y="357.81" text-anchor="middle" dominant-baseline="middle" fill="white">33</text>
+  <circle cx="772.633" cy="288.316" r="17" fill="white" stroke="#8338ec" stroke-width="2"/>
+  <circle cx="772.633" cy="288.316" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="772.633" y="288.316" text-anchor="middle" dominant-baseline="middle" fill="white">34</text>
+  <circle cx="808.825" cy="230.177" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="808.825" y="230.177" text-anchor="middle" dominant-baseline="middle" fill="white">35</text>
+  <circle cx="810.676" cy="275.16" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="810.676" y="275.16" text-anchor="middle" dominant-baseline="middle" fill="white">36</text>
+  <circle cx="729.307" cy="245.799" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="729.307" y="245.799" text-anchor="middle" dominant-baseline="middle" fill="white">37</text>
+  <circle cx="746.137" cy="165.679" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="746.137" cy="165.679" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="746.137" y="165.679" text-anchor="middle" dominant-baseline="middle" fill="white">38</text>
+  <circle cx="712.302" cy="204.086" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="712.302" y="204.086" text-anchor="middle" dominant-baseline="middle" fill="white">39</text>
+  <circle cx="759.316" cy="224.707" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="759.316" cy="224.707" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="759.316" y="224.707" text-anchor="middle" dominant-baseline="middle" fill="white">40</text>
+  <circle cx="823.904" cy="194.583" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="823.904" y="194.583" text-anchor="middle" dominant-baseline="middle" fill="white">41</text>
+  <circle cx="767.525" cy="126.114" r="17" fill="white" stroke="#8338ec" stroke-width="2"/>
+  <circle cx="767.525" cy="126.114" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="767.525" y="126.114" text-anchor="middle" dominant-baseline="middle" fill="white">42</text>
+  <circle cx="766.019" cy="75.3838" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="766.019" cy="75.3838" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="766.019" y="75.3838" text-anchor="middle" dominant-baseline="middle" fill="white">43</text>
+  <circle cx="740.133" cy="754.144" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="740.133" cy="754.144" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="740.133" y="754.144" text-anchor="middle" dominant-baseline="middle" fill="white">44</text>
+  <circle cx="787.385" cy="47.6621" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="787.385" y="47.6621" text-anchor="middle" dominant-baseline="middle" fill="white">45</text>
+  <circle cx="793.195" cy="763.786" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="793.195" y="763.786" text-anchor="middle" dominant-baseline="middle" fill="white">46</text>
+  <circle cx="797.09" cy="729.373" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="797.09" y="729.373" text-anchor="middle" dominant-baseline="middle" fill="white">47</text>
+  <circle cx="828.645" cy="751.063" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="828.645" y="751.063" text-anchor="middle" dominant-baseline="middle" fill="white">48</text>
+  <circle cx="824.074" cy="795.532" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="824.074" y="795.532" text-anchor="middle" dominant-baseline="middle" fill="white">49</text>
+  <circle cx="796.573" cy="815.89" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="796.573" y="815.89" text-anchor="middle" dominant-baseline="middle" fill="white">50</text>
+  <circle cx="722.626" cy="847.177" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="722.626" y="847.177" text-anchor="middle" dominant-baseline="middle" fill="white">51</text>
+  <circle cx="695.034" cy="779.051" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="695.034" y="779.051" text-anchor="middle" dominant-baseline="middle" fill="white">52</text>
+  <circle cx="711.563" cy="735.309" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="711.563" y="735.309" text-anchor="middle" dominant-baseline="middle" fill="white">53</text>
+  <circle cx="724.733" cy="671.218" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="724.733" y="671.218" text-anchor="middle" dominant-baseline="middle" fill="white">54</text>
+  <circle cx="774.067" cy="685.682" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="774.067" y="685.682" text-anchor="middle" dominant-baseline="middle" fill="white">55</text>
+  <circle cx="812.676" cy="698.689" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="812.676" y="698.689" text-anchor="middle" dominant-baseline="middle" fill="white">56</text>
+  <circle cx="455.769" cy="731.912" r="17" fill="white" stroke="#8338ec" stroke-width="2"/>
+  <circle cx="455.769" cy="731.912" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="455.769" y="731.912" text-anchor="middle" dominant-baseline="middle" fill="white">57</text>
+  <circle cx="423.702" cy="717.886" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="423.702" y="717.886" text-anchor="middle" dominant-baseline="middle" fill="white">58</text>
+  <circle cx="502.749" cy="734.512" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="502.749" cy="734.512" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="502.749" y="734.512" text-anchor="middle" dominant-baseline="middle" fill="white">59</text>
+  <circle cx="577.484" cy="744.873" r="17" fill="white" stroke="#8338ec" stroke-width="2"/>
+  <circle cx="577.484" cy="744.873" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="577.484" y="744.873" text-anchor="middle" dominant-baseline="middle" fill="white">60</text>
+  <circle cx="602.511" cy="783.047" r="17" fill="white" stroke="#fb8500" stroke-width="2"/>
+  <circle cx="602.511" cy="783.047" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="602.511" y="783.047" text-anchor="middle" dominant-baseline="middle" fill="white">61</text>
+  <circle cx="732.852" cy="807.628" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="732.852" y="807.628" text-anchor="middle" dominant-baseline="middle" fill="white">62</text>
+  <circle cx="688.845" cy="832.469" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="688.845" y="832.469" text-anchor="middle" dominant-baseline="middle" fill="white">63</text>
+  <circle cx="628.387" cy="813.709" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="628.387" y="813.709" text-anchor="middle" dominant-baseline="middle" fill="white">64</text>
+  <circle cx="625.352" cy="724.187" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="625.352" y="724.187" text-anchor="middle" dominant-baseline="middle" fill="white">65</text>
+  <circle cx="663.289" cy="671.896" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="663.289" y="671.896" text-anchor="middle" dominant-baseline="middle" fill="white">66</text>
+  <circle cx="706.652" cy="700.655" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="706.652" y="700.655" text-anchor="middle" dominant-baseline="middle" fill="white">67</text>
+  <circle cx="672.88" cy="708.234" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="672.88" y="708.234" text-anchor="middle" dominant-baseline="middle" fill="white">68</text>
+  <circle cx="677.402" cy="742.941" r="17" fill="white" stroke="#fb8500" stroke-width="2"/>
+  <circle cx="677.402" cy="742.941" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="677.402" y="742.941" text-anchor="middle" dominant-baseline="middle" fill="white">69</text>
+  <circle cx="802.293" cy="886.798" r="17" fill="white" stroke="#fb8500" stroke-width="2"/>
+  <circle cx="802.293" cy="886.798" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="802.293" y="886.798" text-anchor="middle" dominant-baseline="middle" fill="white">70</text>
+  <circle cx="900.1" cy="965.675" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="900.1" y="965.675" text-anchor="middle" dominant-baseline="middle" fill="white">71</text>
+  <circle cx="909.234" cy="1008.28" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="909.234" y="1008.28" text-anchor="middle" dominant-baseline="middle" fill="white">72</text>
+  <circle cx="771.99" cy="871.264" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="771.99" cy="871.264" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="771.99" y="871.264" text-anchor="middle" dominant-baseline="middle" fill="white">73</text>
+  <circle cx="870.03" cy="1038.36" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="870.03" y="1038.36" text-anchor="middle" dominant-baseline="middle" fill="white">74</text>
+  <circle cx="881.816" cy="853.647" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="881.816" y="853.647" text-anchor="middle" dominant-baseline="middle" fill="white">75</text>
+  <circle cx="831.969" cy="1051.26" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="831.969" y="1051.26" text-anchor="middle" dominant-baseline="middle" fill="white">76</text>
+  <circle cx="747.907" cy="1038.04" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="747.907" y="1038.04" text-anchor="middle" dominant-baseline="middle" fill="white">77</text>
+  <circle cx="785.437" cy="983.012" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="785.437" y="983.012" text-anchor="middle" dominant-baseline="middle" fill="white">78</text>
+  <circle cx="773.206" cy="920.96" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="773.206" cy="920.96" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="773.206" y="920.96" text-anchor="middle" dominant-baseline="middle" fill="white">79</text>
+  <circle cx="693.132" cy="1030.59" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="693.132" y="1030.59" text-anchor="middle" dominant-baseline="middle" fill="white">80</text>
+  <circle cx="645.099" cy="971.057" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="645.099" y="971.057" text-anchor="middle" dominant-baseline="middle" fill="white">81</text>
+  <circle cx="735.915" cy="996.678" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="735.915" y="996.678" text-anchor="middle" dominant-baseline="middle" fill="white">82</text>
+  <circle cx="688.882" cy="996.419" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="688.882" y="996.419" text-anchor="middle" dominant-baseline="middle" fill="white">83</text>
+  <circle cx="774.235" cy="1060.73" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="774.235" cy="1060.73" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="774.235" y="1060.73" text-anchor="middle" dominant-baseline="middle" fill="white">84</text>
+  <circle cx="765.572" cy="1094.64" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="765.572" y="1094.64" text-anchor="middle" dominant-baseline="middle" fill="white">85</text>
+  <circle cx="731.599" cy="1067.94" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="731.599" y="1067.94" text-anchor="middle" dominant-baseline="middle" fill="white">86</text>
+  <circle cx="816.547" cy="1168.02" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="816.547" y="1168.02" text-anchor="middle" dominant-baseline="middle" fill="white">87</text>
+  <circle cx="798.493" cy="1138.04" r="17" fill="white" stroke="#8338ec" stroke-width="2"/>
+  <circle cx="798.493" cy="1138.04" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="798.493" y="1138.04" text-anchor="middle" dominant-baseline="middle" fill="white">88</text>
+  <circle cx="805.736" cy="1074.15" r="17" fill="white" stroke="#3a86ff" stroke-width="2"/>
+  <circle cx="805.736" cy="1074.15" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="805.736" y="1074.15" text-anchor="middle" dominant-baseline="middle" fill="white">89</text>
+  <circle cx="800.472" cy="1026.55" r="17" fill="white" stroke="#fb8500" stroke-width="2"/>
+  <circle cx="800.472" cy="1026.55" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="800.472" y="1026.55" text-anchor="middle" dominant-baseline="middle" fill="white">90</text>
+  <circle cx="696.341" cy="919.931" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="696.341" y="919.931" text-anchor="middle" dominant-baseline="middle" fill="white">91</text>
+  <circle cx="755.912" cy="839.983" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="755.912" y="839.983" text-anchor="middle" dominant-baseline="middle" fill="white">92</text>
+  <circle cx="667.631" cy="1054.56" r="14" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="667.631" y="1054.56" text-anchor="middle" dominant-baseline="middle" fill="white">93</text>
+  <circle cx="644.832" cy="1008.82" r="17" fill="white" stroke="#8338ec" stroke-width="2"/>
+  <circle cx="644.832" cy="1008.82" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="644.832" y="1008.82" text-anchor="middle" dominant-baseline="middle" fill="white">94</text>
+  <circle cx="842.174" cy="1018.78" r="14" fill="#e74c3c" stroke="#7b241c" stroke-width="1.5"/>
+  <text x="842.174" y="1018.78" text-anchor="middle" dominant-baseline="middle" fill="white">95</text>
+  <circle cx="863.333" cy="961.583" r="17" fill="white" stroke="#fb8500" stroke-width="2"/>
+  <circle cx="863.333" cy="961.583" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="863.333" y="961.583" text-anchor="middle" dominant-baseline="middle" fill="white">96</text>
+  <circle cx="737.757" cy="878.552" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="737.757" y="878.552" text-anchor="middle" dominant-baseline="middle" fill="white">97</text>
+  <circle cx="808.908" cy="850.33" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="808.908" y="850.33" text-anchor="middle" dominant-baseline="middle" fill="white">98</text>
+  <circle cx="835.961" cy="828.123" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="835.961" y="828.123" text-anchor="middle" dominant-baseline="middle" fill="white">99</text>
+  <circle cx="902.909" cy="930.788" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="902.909" y="930.788" text-anchor="middle" dominant-baseline="middle" fill="white">100</text>
+  <circle cx="694.816" cy="954.11" r="17" fill="white" stroke="#fb8500" stroke-width="2"/>
+  <circle cx="694.816" cy="954.11" r="14" fill="#fb8500" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="694.816" y="954.11" text-anchor="middle" dominant-baseline="middle" fill="white">101</text>
+  <circle cx="791.724" cy="180.819" r="14" fill="#8338ec" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="791.724" y="180.819" text-anchor="middle" dominant-baseline="middle" fill="white">102</text>
+</g>
+<g font-family="sans-serif" font-size="11" fill="#495057">
+  <text x="10" y="18">V=103  E=127</text>
+  <circle cx="10" cy="34" r="5" fill="#27ae60"/><text x="20" y="38">s=11</text>
+  <circle cx="10" cy="50" r="5" fill="#e74c3c"/><text x="20" y="54">t=95</text>
+  <circle cx="10" cy="66" r="8" fill="#3a86ff" stroke="#1a1a2e" stroke-width="1.5"/><circle cx="10" cy="66" r="11" fill="white" stroke="#3a86ff" stroke-width="2"/><text x="26" y="70">точка сочленения</text>
+  <text x="10" y="86">цвет = блок (жадная раскраска)</text>
+</g>
+</svg>

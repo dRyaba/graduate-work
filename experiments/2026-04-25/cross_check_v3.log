@@ -1,0 +1,52 @@
+Cross-check: timeout=30s, output=cross_check_v3.csv, real_networks=yes, d_count=4, d_step=1
+Cell plan (d_count=4, d_step=1):
+  3_blocks_sausage_3x3_kao.txt s=0 t=28 dist=10 → d ∈ {10, 11, 12, 13}
+  4_blocks_sausage_3x3_kao.txt s=0 t=38 dist=14 → d ∈ {14, 15, 16, 17}
+  5_blocks_sausage_3x3_kao.txt s=0 t=48 dist=18 → d ∈ {18, 19, 20, 21}
+  6_blocks_sausage_3x3_kao.txt s=0 t=58 dist=22 → d ∈ {22, 23, 24, 25}
+  K4_kao.txt s=0 t=1 dist=1 → d ∈ {1, 2, 3}
+  Geant2004_kao.txt s=11 t=95 dist=6 → d ∈ {6, 7, 8, 9}
+  IEEE-118-node_kao.txt s=86 t=111 dist=9 → d ∈ {9, 10, 11, 12}
+Total cells: 27
+Cross-check: 7 (graph,s,t) groups × 3 methods (m3,m4,m5) (tiered timeouts m0=60 m1=30 m2=120 m3=300 m4=300 m5=300s)
+Methods 3/4/5 use one factorization per group; 0/1/2 still call once per d.
+[1/7] 3_blocks_sausage_3x3_kao.txt s=0 t=28 d ∈ {10, 11, 12, 13}
+    m3 [multi-d, 0.588s]: d=10 R=0.509826181948, d=11 R=0.819793714074, d=12 R=0.934403607311, d=13 R=0.959339550847
+    m4 [multi-d]: TIMEOUT (>300s)
+    m5 [multi-d, 0.598s]: d=10 R=0.509826181948, d=11 R=0.819793714074, d=12 R=0.934403607311, d=13 R=0.959339550847
+    [1/7 groups, elapsed=05:01, avg=301.2s/group, ETA=30:07]
+[2/7] 4_blocks_sausage_3x3_kao.txt s=0 t=38 d ∈ {14, 15, 16, 17}
+    m3 [multi-d, 1.593s]: d=14 R=0.489090483798, d=15 R=0.803143004289, d=16 R=0.924565335478, d=17 R=0.953107508635
+    m4 [multi-d]: TIMEOUT (>300s)
+    m5 [multi-d, 1.125s]: d=14 R=0.489090483798, d=15 R=0.803143004289, d=16 R=0.924565335478, d=17 R=0.953107508635
+    [2/7 groups, elapsed=10:04, avg=302.0s/group, ETA=25:10]
+[3/7] 5_blocks_sausage_3x3_kao.txt s=0 t=48 d ∈ {18, 19, 20, 21}
+    m3 [multi-d, 2.273s]: d=18 R=0.469198149901, d=19 R=0.786490614460, d=20 R=0.914528148193, d=21 R=0.946761009184
+    m4 [multi-d]: TIMEOUT (>300s)
+    m5 [multi-d, 1.907s]: d=18 R=0.469198149901, d=19 R=0.786490614460, d=20 R=0.914528148193, d=21 R=0.946761009184
+    [3/7 groups, elapsed=15:08, avg=302.7s/group, ETA=20:11]
+[4/7] 6_blocks_sausage_3x3_kao.txt s=0 t=58 d ∈ {22, 23, 24, 25}
+    m3 [multi-d, 3.221s]: d=22 R=0.450114878870, d=23 R=0.769864225173, d=24 R=0.904302273156, d=25 R=0.940298293689
+    m4 [multi-d]: TIMEOUT (>300s)
+    m5 [multi-d, 2.498s]: d=22 R=0.450114878870, d=23 R=0.769864225173, d=24 R=0.904302273156, d=25 R=0.940298293689
+    [4/7 groups, elapsed=20:14, avg=303.5s/group, ETA=15:11]
+[5/7] K4_kao.txt s=0 t=1 d ∈ {1, 2, 3}
+    m3 [multi-d, 0.001s]: d=1 R=0.900000000000, d=2 R=0.996390000000, d=3 R=0.997848000000
+    m4 [multi-d, 0.001s]: d=1 R=0.900000000000, d=2 R=0.996390000000, d=3 R=0.997848000000
+    m5 [multi-d, 0.001s]: d=1 R=0.900000000000, d=2 R=0.996390000000, d=3 R=0.997848000000
+    [5/7 groups, elapsed=20:14, avg=242.8s/group, ETA=08:06]
+[6/7] Geant2004_kao.txt s=11 t=95 d ∈ {6, 7, 8, 9}
+    m3 [multi-d, 0.404s]: d=6 R=0.632414790000, d=7 R=0.699064984718, d=8 R=0.765180873969, d=9 R=0.776652881985
+    m4 [multi-d, 0.022s]: d=6 R=0.632414790000, d=7 R=0.699064984718, d=8 R=0.765180873969, d=9 R=0.776652881985
+    m5 [multi-d, 0.004s]: d=6 R=0.632414790000, d=7 R=0.699064984718, d=8 R=0.765180873969, d=9 R=0.776652881985
+    [6/7 groups, elapsed=20:15, avg=202.4s/group, ETA=03:22]
+[7/7] IEEE-118-node_kao.txt s=86 t=111 d ∈ {9, 10, 11, 12}
+    m3 [multi-d]: TIMEOUT (>300s)
+    m4 [multi-d, 46.003s]: d=9 R=0.387420489000, d=10 R=0.422288333010, d=11 R=0.594261307357, d=12 R=0.660259359327
+    m5 [multi-d, 30.281s]: d=9 R=0.387420489000, d=10 R=0.422288333010, d=11 R=0.594261307357, d=12 R=0.660259359327
+    [7/7 groups, elapsed=26:31, avg=227.3s/group, ETA=00:00]
+
+Summary: total=81 OK=61 TIMEOUT=20 ERROR=0
+No discrepancies > 0.0.
+Cross-check results written to cross_check_v3.csv
+All methods agree within tolerance.
