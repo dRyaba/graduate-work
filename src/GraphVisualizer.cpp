@@ -135,9 +135,9 @@ static void resolveOverlaps(std::vector<V2>& pos, double min_dist,
 
 // ---------------------------------------------------------------------------
 // Two-level block-aware layout
-// Level 1: FR on block graph  →  block centres
-// Level 2: circular arrangement within each block
-// Level 3: short FR refinement on full graph
+// Level 1: FR on block graph (3W×3H virtual) → push apart → normalise to canvas
+// Level 2: non-APs on local circles, APs at centroid of their block centres
+// Level 3: overlap resolution only (no FR — preserves block groupings)
 // ---------------------------------------------------------------------------
 std::vector<V2> GraphVisualizer::computeLayout(
     const ReliabilityGraph& g, double W, double H, int iterations)
@@ -146,7 +146,6 @@ std::vector<V2> GraphVisualizer::computeLayout(
     if (n == 0) return {};
     if (n == 1) return {{W / 2.0, H / 2.0}};
 
-    // Build full-graph edge list
     std::vector<std::pair<int,int>> all_edges;
     for (int u = 0; u < n; ++u)
         for (size_t i = g.kao_[u]; i < g.kao_[u + 1]; ++i) {
@@ -157,7 +156,6 @@ std::vector<V2> GraphVisualizer::computeLayout(
     auto decomp     = g.decomposeIntoBlocks();
     int  num_blocks = decomp.back();
 
-    // ---- Single-block fallback: plain FR ----
     if (num_blocks <= 1) {
         std::vector<V2> init(n);
         double cx = W / 2, cy = H / 2, r0 = std::min(W, H) * 0.4;
@@ -170,10 +168,14 @@ std::vector<V2> GraphVisualizer::computeLayout(
         return pos;
     }
 
-    // ---- Build block membership ----
+    const double vr      = 14.0;
+    const double min_gap = 6.0;
+    const double step    = 2.0 * vr + min_gap; // 34 px — centre-to-centre budget
+
+    // ---- Block membership ----
     std::vector<std::vector<int>> block_verts(num_blocks + 1); // 1-indexed
     std::vector<std::vector<int>> vertex_blocks(n);
-    std::vector<bool> is_ap(n, false);
+    std::vector<bool>             is_ap(n, false);
 
     for (int v = 0; v < n; ++v) {
         auto bs = g.getBlocksContainingVertex(v, decomp);
@@ -182,62 +184,98 @@ std::vector<V2> GraphVisualizer::computeLayout(
         if (bs.size() > 1) is_ap[v] = true;
     }
 
-    // ---- Level 1: FR on block graph ----
-    // Build block-level edges via shared APs
+    // ---- Block-graph edges (via shared APs) ----
     std::set<std::pair<int,int>> beset;
     for (int v = 0; v < n; ++v) {
         if (!is_ap[v]) continue;
         auto& bs = vertex_blocks[v];
         for (size_t i = 0; i < bs.size(); ++i)
             for (size_t j = i + 1; j < bs.size(); ++j) {
-                int a = bs[i] - 1, b = bs[j] - 1; // 0-indexed
+                int a = bs[i] - 1, b = bs[j] - 1;
                 if (a > b) std::swap(a, b);
                 beset.insert({a, b});
             }
     }
     std::vector<std::pair<int,int>> block_edges(beset.begin(), beset.end());
 
-    // Initial block positions: circle
+    // ---- Level 1: FR on block graph in virtual 3W×3H canvas ----
+    double BW = W * 3.0, BH = H * 3.0;
     std::vector<V2> binit(num_blocks);
     {
-        double cx = W / 2, cy = H / 2;
-        double r0 = std::min(W, H) * 0.38;
+        double cx = BW / 2, cy = BH / 2;
+        double r0 = std::min(BW, BH) * 0.42;
         for (int b = 0; b < num_blocks; ++b) {
             double a = 2.0 * M_PI * b / num_blocks;
             binit[b] = {cx + r0 * std::cos(a), cy + r0 * std::sin(a)};
         }
     }
+    auto block_centers = runFR(num_blocks, block_edges, binit, BW, BH,
+                               iterations * 2 / 3);
 
-    auto block_centers = runFR(num_blocks, block_edges, binit, W, H, iterations / 2);
-    normalise(block_centers, W, H, 80.0);
-
-    // ---- Level 2: arrange vertices within each block ----
-    const double vr      = 14.0; // vertex radius
-    const double min_gap = 6.0;
-    const double step    = 2.0 * vr + min_gap; // centre-to-centre step
-
-    std::vector<V2> pos(n, {0.0, 0.0});
-
+    // Compute per-block circle radius in virtual space (scaled so after
+    // normalise to W×H the vertex circles have correct step = 34 px).
+    double scale_v = std::sqrt(BW * BH / (W * H)); // ≈ 3
+    std::vector<double> bR(num_blocks); // circle radius per block in virtual space
     for (int b = 1; b <= num_blocks; ++b) {
-        std::vector<int> reg; // non-AP vertices in this block
+        std::vector<int> reg;
         for (int v : block_verts[b])
             if (!is_ap[v]) reg.push_back(v);
-
         int m = static_cast<int>(reg.size());
-        // Radius of the local circle: enough so adjacent vertices don't overlap
-        double local_r = (m <= 1) ? 0.0
-                                  : (step / (2.0 * std::sin(M_PI / m)));
-        local_r = std::max(local_r, step * 0.5); // minimum for m=1 case
+        double lr = (m <= 1) ? step * 0.5 : step / (2.0 * std::sin(M_PI / m));
+        lr = std::max(lr, step * 0.5);
+        bR[b - 1] = lr * scale_v; // in virtual space
+    }
+
+    // Push block circles apart in virtual space so they don't overlap
+    {
+        double max_r = *std::max_element(bR.begin(), bR.end());
+        double bc_min = 2.0 * max_r + min_gap * scale_v * 4.0;
+        for (int iter = 0; iter < 600; ++iter) {
+            bool any = false;
+            for (int i = 0; i < num_blocks; ++i) {
+                for (int j = i + 1; j < num_blocks; ++j) {
+                    double dx = block_centers[j].x - block_centers[i].x;
+                    double dy = block_centers[j].y - block_centers[i].y;
+                    double d  = std::hypot(dx, dy);
+                    double need = bR[i] + bR[j] + min_gap * scale_v * 4.0;
+                    if (d >= need) continue;
+                    any = true;
+                    double push = (need - d) * 0.51;
+                    if (d < 0.01) { dx = 1.0; dy = 0.0; d = 1.0; }
+                    double nx = dx / d, ny = dy / d;
+                    block_centers[i].x -= nx * push;
+                    block_centers[i].y -= ny * push;
+                    block_centers[j].x += nx * push;
+                    block_centers[j].y += ny * push;
+                }
+            }
+            if (!any) break;
+        }
+    }
+
+    // Normalise block centres to canvas
+    normalise(block_centers, W, H, 70.0);
+
+    // ---- Level 2: place vertices ----
+    std::vector<V2> pos(n, {0.0, 0.0});
+
+    // Non-APs on local circles (in canvas space, step = 34 px)
+    for (int b = 1; b <= num_blocks; ++b) {
+        std::vector<int> reg;
+        for (int v : block_verts[b])
+            if (!is_ap[v]) reg.push_back(v);
+        int m = static_cast<int>(reg.size());
+        double lr = (m <= 1) ? step * 0.5 : step / (2.0 * std::sin(M_PI / m));
+        lr = std::max(lr, step * 0.5);
 
         V2 bc = block_centers[b - 1];
         for (int i = 0; i < m; ++i) {
             double a = 2.0 * M_PI * i / std::max(m, 1);
-            pos[reg[i]] = {bc.x + local_r * std::cos(a),
-                           bc.y + local_r * std::sin(a)};
+            pos[reg[i]] = {bc.x + lr * std::cos(a), bc.y + lr * std::sin(a)};
         }
     }
 
-    // APs: weighted average of adjacent block centres
+    // APs at centroid of their block centres (block centres now in canvas space)
     for (int v = 0; v < n; ++v) {
         if (!is_ap[v]) continue;
         double ax = 0, ay = 0;
@@ -249,15 +287,55 @@ std::vector<V2> GraphVisualizer::computeLayout(
         pos[v] = {ax / cnt, ay / cnt};
     }
 
-    // ---- Level 3: short FR refinement on full graph ----
-    // Use a small starting temperature so the block structure is preserved.
-    double fine_temp = std::min(W, H) / 20.0;
-    pos = runFR(n, all_edges, pos, W, H, iterations / 4, fine_temp);
+    // Final normalise + overlap resolution (no FR — preserves block groupings)
     normalise(pos, W, H, 50.0);
-
-    // ---- Resolve any remaining overlaps ----
     double min_dist = 2.0 * vr + min_gap;
-    resolveOverlaps(pos, min_dist, W, H, vr + min_gap, 600);
+    resolveOverlaps(pos, min_dist, W, H, vr + min_gap, 800);
+
+    // ---- Edge-vertex repulsion: push non-endpoint vertices off edges ----
+    // Runs alternately with resolveOverlaps to clear the "cobweb" look where
+    // edges visually cross foreign vertices.
+    const double ev_clear = vr * 1.8; // perpendicular clearance target
+    const double pad = vr + min_gap;
+    for (int outer = 0; outer < 40; ++outer) {
+        bool any = false;
+        for (auto& [u, v] : all_edges) {
+            double dx = pos[v].x - pos[u].x;
+            double dy = pos[v].y - pos[u].y;
+            double L  = std::hypot(dx, dy);
+            if (L < 0.01) continue;
+            double nx = dx / L, ny = dy / L;
+            for (int w = 0; w < n; ++w) {
+                if (w == u || w == v) continue;
+                double wx = pos[w].x - pos[u].x;
+                double wy = pos[w].y - pos[u].y;
+                double t  = wx * nx + wy * ny;
+                if (t < vr * 0.5 || t > L - vr * 0.5) continue;
+                double perp = -wx * ny + wy * nx;
+                double ap = std::fabs(perp);
+                if (ap >= ev_clear) continue;
+                any = true;
+                double need = (ev_clear - ap) * 0.5 + 0.3;
+                double sign = (perp >= 0) ? 1.0 : -1.0;
+                // Push w away; push endpoints slightly toward opposite side
+                pos[w].x = std::clamp(pos[w].x + (-ny) * sign * need * 0.7,
+                                      pad, W - pad);
+                pos[w].y = std::clamp(pos[w].y + ( nx) * sign * need * 0.7,
+                                      pad, H - pad);
+                pos[u].x = std::clamp(pos[u].x - (-ny) * sign * need * 0.15,
+                                      pad, W - pad);
+                pos[u].y = std::clamp(pos[u].y - ( nx) * sign * need * 0.15,
+                                      pad, H - pad);
+                pos[v].x = std::clamp(pos[v].x - (-ny) * sign * need * 0.15,
+                                      pad, W - pad);
+                pos[v].y = std::clamp(pos[v].y - ( nx) * sign * need * 0.15,
+                                      pad, H - pad);
+            }
+        }
+        // Re-resolve vertex overlaps after each pass
+        resolveOverlaps(pos, min_dist, W, H, pad, 100);
+        if (!any) break;
+    }
 
     return pos;
 }
@@ -271,7 +349,33 @@ static std::string fmtProb(double p) {
     return ss.str();
 }
 
-// Pastel block background colours (cycle through them)
+// 20-colour palette for block graph colouring (avoids source green / target red).
+// Adjacent blocks always get different colours via greedy graph colouring.
+static const char* BLOCK_PALETTE[] = {
+    "#3a86ff", // blue
+    "#8338ec", // violet
+    "#fb8500", // orange
+    "#023047", // navy
+    "#219ebc", // sky blue
+    "#8ecae6", // light blue
+    "#6a4c93", // purple
+    "#f4a261", // peach
+    "#264653", // dark teal
+    "#2a9d8f", // teal
+    "#e9c46a", // gold
+    "#457b9d", // steel blue
+    "#a8dadc", // pale cyan
+    "#c77dff", // lavender
+    "#780000", // dark red (distinct from #e74c3c target)
+    "#606c38", // olive
+    "#bc6c25", // brown
+    "#48cae4", // cerulean
+    "#7209b7", // deep purple
+    "#4cc9f0", // cyan
+};
+static const int NUM_BLOCK_PALETTE = 20;
+
+// Used for DOT cluster backgrounds (still pastel fill there)
 static const char* BLOCK_FILL[] = {
     "#dce8f5", "#d5f0e0", "#f5e8dc", "#ece0f5",
     "#f5f0d5", "#d5f0f0", "#f5d5e8", "#e8f5d5",
@@ -292,11 +396,14 @@ void GraphVisualizer::exportSVG(const ReliabilityGraph& g,
     const double vr      = opts.vertex_radius;
     const double min_gap = 6.0;
 
-    // Auto-scale canvas when there are many vertices
+    // Auto-scale: give every vertex a (2.5 × step) square of private space.
+    // For n=103 this expands the canvas to ~1600×1250, eliminating the
+    // "cobweb" look caused by edges passing through foreign vertices.
     double W = opts.width, H = opts.height;
     if (n > 1) {
-        double min_dist = 2.0 * vr + min_gap;
-        double needed   = static_cast<double>(n) * min_dist * min_dist * 2.0;
+        double step_sz = 2.0 * vr + min_gap;
+        double cell    = step_sz * 4.0; // per-vertex area side
+        double needed  = static_cast<double>(n) * cell * cell;
         if (needed > W * H) {
             double s = std::sqrt(needed / (W * H));
             W *= s; H *= s;
@@ -305,16 +412,40 @@ void GraphVisualizer::exportSVG(const ReliabilityGraph& g,
 
     auto pos = computeLayout(g, W, H, opts.iterations);
 
-    // Block membership for background drawing
+    // ---- Block membership + greedy graph colouring ----
     auto decomp     = g.decomposeIntoBlocks();
     int  num_blocks = decomp.back();
 
-    std::vector<std::vector<int>> block_verts(num_blocks + 1);
+    std::vector<int>  vertex_block(n, 0); // primary block index (0-based)
     std::vector<bool> is_ap(n, false);
     for (int v = 0; v < n; ++v) {
         auto bs = g.getBlocksContainingVertex(v, decomp);
-        for (int b : bs) block_verts[b].push_back(v);
+        if (!bs.empty()) vertex_block[v] = bs[0] - 1;
         if (bs.size() > 1) is_ap[v] = true;
+    }
+
+    // Build block adjacency list for graph colouring
+    std::vector<std::vector<int>> block_adj(num_blocks);
+    for (int v = 0; v < n; ++v) {
+        if (!is_ap[v]) continue;
+        auto bs = g.getBlocksContainingVertex(v, decomp);
+        for (size_t i = 0; i < bs.size(); ++i)
+            for (size_t j = i + 1; j < bs.size(); ++j) {
+                int a = bs[i] - 1, b = bs[j] - 1;
+                block_adj[a].push_back(b);
+                block_adj[b].push_back(a);
+            }
+    }
+
+    // Greedy colouring: adjacent blocks get different palette indices
+    std::vector<int> block_color(num_blocks, 0);
+    for (int b = 0; b < num_blocks; ++b) {
+        std::set<int> used;
+        for (int nb : block_adj[b])
+            if (nb < b) used.insert(block_color[nb]);
+        int c = 0;
+        while (used.count(c)) ++c;
+        block_color[b] = c % NUM_BLOCK_PALETTE;
     }
 
     std::ofstream f(path);
@@ -327,30 +458,7 @@ void GraphVisualizer::exportSVG(const ReliabilityGraph& g,
       << " viewBox=\"0 0 " << iW << " " << iH << "\">\n"
       << "<rect width=\"100%\" height=\"100%\" fill=\"#f8f9fa\"/>\n";
 
-    // --- Block backgrounds ---
-    if (num_blocks > 1) {
-        f << "<g opacity=\"0.55\">\n";
-        for (int b = 1; b <= num_blocks; ++b) {
-            auto& verts = block_verts[b];
-            if (verts.empty()) continue;
-            // Centroid
-            double cx = 0, cy = 0;
-            for (int v : verts) { cx += pos[v].x; cy += pos[v].y; }
-            cx /= verts.size(); cy /= verts.size();
-            // Max radius from centroid
-            double maxr = 0;
-            for (int v : verts)
-                maxr = std::max(maxr, std::hypot(pos[v].x - cx, pos[v].y - cy));
-            double bgr = maxr + vr + 6.0;
-            const char* fill = BLOCK_FILL[(b - 1) % NUM_BLOCK_COLORS];
-            f << "  <circle cx=\"" << cx << "\" cy=\"" << cy
-              << "\" r=\"" << bgr << "\""
-              << " fill=\"" << fill << "\" stroke=\"#ccc\" stroke-width=\"1\"/>\n";
-        }
-        f << "</g>\n";
-    }
-
-    // --- Edges (trimmed to vertex boundary) ---
+    // --- Edges (straight, trimmed to vertex boundary) ---
     f << "<g stroke=\"#8e9aaf\" stroke-width=\"1.5\">\n";
     for (int u = 0; u < n; ++u) {
         for (size_t i = g.kao_[u]; i < g.kao_[u + 1]; ++i) {
@@ -378,14 +486,27 @@ void GraphVisualizer::exportSVG(const ReliabilityGraph& g,
     f << "</g>\n";
 
     // --- Vertices ---
+    // Colour: source=green, target=red, others=block palette colour.
+    // APs are indicated by a white outer ring (not a different fill colour).
     int fs = std::max(8, static_cast<int>(vr) - 3);
     f << "<g font-family=\"sans-serif\" font-size=\"" << fs << "\" font-weight=\"bold\">\n";
     for (int v = 0; v < n; ++v) {
-        std::string fill, stroke = "#2c3e50";
-        if (v == opts.source)       { fill = "#27ae60"; }   // source: green
-        else if (v == opts.target)  { fill = "#e74c3c"; }   // target: red
-        else if (is_ap[v])          { fill = "#f39c12"; stroke = "#8a5500"; } // AP: orange
-        else                        { fill = "#4a90d9"; }   // regular: blue
+        std::string fill, stroke = "#1a1a2e";
+        if (v == opts.source) {
+            fill = "#27ae60"; stroke = "#145a32";
+        } else if (v == opts.target) {
+            fill = "#e74c3c"; stroke = "#7b241c";
+        } else {
+            fill = BLOCK_PALETTE[block_color[vertex_block[v]]];
+        }
+
+        // AP indicator: white outer ring so the block colour stays visible
+        if (is_ap[v] && v != opts.source && v != opts.target) {
+            f << "  <circle cx=\"" << pos[v].x << "\" cy=\"" << pos[v].y
+              << "\" r=\"" << (vr + 3.0) << "\""
+              << " fill=\"white\" stroke=\"" << fill
+              << "\" stroke-width=\"2\"/>\n";
+        }
 
         f << "  <circle cx=\"" << pos[v].x << "\" cy=\"" << pos[v].y
           << "\" r=\"" << vr << "\""
@@ -413,8 +534,13 @@ void GraphVisualizer::exportSVG(const ReliabilityGraph& g,
         ly += 16;
     }
     if (num_blocks > 1) {
-        f << "  <circle cx=\"10\" cy=\"" << ly << "\" r=\"5\" fill=\"#f39c12\"/>"
-          << "<text x=\"20\" y=\"" << (ly + 4) << "\">точка сочленения</text>\n";
+        f << "  <circle cx=\"10\" cy=\"" << ly << "\" r=\"8\" fill=\"#3a86ff\""
+          << " stroke=\"#1a1a2e\" stroke-width=\"1.5\"/>"
+          << "<circle cx=\"10\" cy=\"" << ly << "\" r=\"11\" fill=\"white\""
+          << " stroke=\"#3a86ff\" stroke-width=\"2\"/>"
+          << "<text x=\"26\" y=\"" << (ly + 4) << "\">точка сочленения</text>\n";
+        ly += 16;
+        f << "  <text x=\"10\" y=\"" << (ly + 4) << "\">цвет = блок (жадная раскраска)</text>\n";
     }
     f << "</g>\n";
 
