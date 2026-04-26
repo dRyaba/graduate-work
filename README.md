@@ -139,7 +139,15 @@ std::cout << "Execution time: " << result.execution_time_sec << " seconds" << st
 
 # Run comprehensive tests
 .\build\graph_reliability.exe --test 3 results.csv
+
+# Cross-check all 6 methods against each other (diameters auto-ranged from dist(s,t))
+.\build\graph_reliability.exe --cross-check --output cross_check_results.csv
+python scripts\cross_check_analyze.py cross_check_results.csv
 ```
+
+See [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md) for full cross-check options
+(`--d-count`, `--d-step`, `--quick`, `--timeout`, `--keep-trivial` for the
+post-processor) and how to reproduce the thesis consistency tables.
 
 On Linux/macOS:
 
@@ -305,9 +313,12 @@ Test configurations can be customized in `tests/test_config.json`.
 
 ### User Documentation
 
+- **[CLAUDE.md](CLAUDE.md)**: Project navigation map (layout, conventions, don'ts)
 - **[User Guide](docs/USER_GUIDE.md)**: Complete guide for using the library
 - **[Architecture](docs/ARCHITECTURE.md)**: System architecture and design
 - **[Algorithms](docs/ALGORITHMS.md)**: Detailed algorithm descriptions
+- **[Experiments](docs/EXPERIMENTS.md)**: Reproducing the cross-method consistency run
+- **[Graph catalogue](graphs_data/README.md)**: Source and size of every test graph
 
 ### API Documentation
 
