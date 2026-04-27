@@ -50,6 +50,26 @@ cmake --version
 
 Подробные инструкции см. в **[SETUP.md](SETUP.md)**
 
+#### Recommended: CMake presets
+
+The project ships [CMakePresets.json](CMakePresets.json) with `mingw-release`
+and `mingw-debug` configurations pinned to the MSYS2 toolchain. Single
+command from the repo root:
+
+```bash
+cmake --preset mingw-release
+cmake --build --preset release         # produces build/graph_reliability.exe
+ctest --test-dir build --output-on-failure
+```
+
+For a Debug build with logging enabled, swap `mingw-release` → `mingw-debug`
+and `--preset release` → `--preset debug`.
+
+#### Manual configuration (alternative)
+
+If presets are not available (older CMake, non-MSYS2 toolchain), the manual
+flow below still works.
+
 #### Debug Build (with logging)
 
 **Windows (MinGW):**
@@ -159,26 +179,43 @@ On Linux/macOS:
 
 ```plaintext
 graduate-work/
-├── include/                    # Header files
-│   ├── graph_reliability.h    # Main header
-│   └── graph_reliability/     # Library headers
-│       ├── Graph.h            # Base graph structure
-│       ├── ReliabilityGraph.h # Extended graph for reliability
-│       ├── DataImporter.h     # Data import system
-│       ├── TestSuite.h        # Testing framework
-│       └── GraphOperations.h  # Graph utilities
-├── src/                       # Source files
-│   ├── main.cpp              # Main application
-│   ├── Graph.cpp             # Base graph implementation
-│   ├── ReliabilityGraph.cpp  # Reliability calculations
-│   ├── DataImporter.cpp      # Data import implementation
-│   ├── TestSuite.cpp         # Testing framework
-│   └── GraphOperations.cpp   # Graph utilities
-├── graphs_data/              # Test data (KAO and EdgeList files)
-├── docs/                     # Documentation (Doxygen)
-├── build/                    # Build output (gitignored)
-├── CMakeLists.txt           # Build configuration
-└── README.md                # This file
+├── include/
+│   ├── graph_reliability.h            # Umbrella header
+│   └── graph_reliability/
+│       ├── Graph.h                    # Base CSR graph
+│       ├── ReliabilityGraph.h         # m0..m5 + multi-d CDF APIs
+│       ├── DataImporter.h             # KAO / edge-list parsers
+│       ├── GraphOperations.h          # Format conversion utilities
+│       ├── TestSuite.h                # Cross-check + bench harness
+│       ├── CliHandlers.h              # Subcommand dispatch
+│       ├── GraphVisualizer.h          # FR layout, SVG/DOT export
+│       ├── PathEnumerator.h           # Bounded-length s-t path enum
+│       ├── CancelaPetingiState.h      # CPFM solver state
+│       ├── SeriesParallelTransform.h  # Series/parallel reductions
+│       ├── Logger.h                   # spdlog wrapper macros
+│       └── Exceptions.h               # InvalidFormatException family
+├── src/                               # Implementations mirroring headers
+│   ├── main.cpp                       # Entry point + dispatcher
+│   └── CliHandlers.cpp                # All --subcommand handlers
+├── tests/                             # Google Test (auto-fetched)
+│   ├── test_ReliabilityGraph.cpp      # incl. MethodsAgreementTest
+│   └── test_config.json
+├── graphs_data/                       # KAO / edge-list fixtures
+│   └── README.md                      # Catalogue with sources
+├── docs/
+│   ├── ALGORITHMS.md                  # Per-method theory
+│   ├── ARCHITECTURE.md
+│   ├── EXPERIMENTS.md                 # Cross-check reproduction
+│   └── USER_GUIDE.md
+├── scripts/
+│   └── cross_check_analyze.py         # stdlib post-processor
+├── experiments/                       # Archived run artefacts (per date)
+├── build/                             # gitignored
+├── CMakeLists.txt
+├── CMakePresets.json                  # mingw-release / mingw-debug
+├── CLAUDE.md                          # Project navigation map
+├── SETUP.md
+└── README.md                          # This file
 ```
 
 ## API Reference
@@ -199,7 +236,33 @@ Centralized system for loading graphs from various formats and managing data fil
 
 #### `TestSuite`
 
-Comprehensive testing framework for different reliability calculation methods.
+Comprehensive testing framework for different reliability calculation
+methods. Hosts `runCrossCheck` (auto-ranged diameters, per-cell timeout,
+optional method filter) and the static helpers `chooseDiameters`,
+`runWithTimeout`, `runWithTimeoutCdf`.
+
+#### `GraphOperations`
+
+Stateless utilities for KAO ↔ edge-list conversion and other graph
+transformations not tied to a specific instance.
+
+#### `GraphVisualizer`
+
+Two-level Fruchterman-Reingold layout + SVG/DOT export. Powers the
+`--visualize` subcommand.
+
+#### `PathEnumerator`
+
+Enumerates simple s-t paths up to a length bound; used by m4/m5.
+
+#### `CancelaPetingiState`
+
+State machine for path-based factoring (CPFM): ESS / ISPT / GlobalISPT
+inclusion-exclusion bookkeeping.
+
+#### `SeriesParallelTransform`
+
+Series and parallel edge reductions used by the decomposition pipeline.
 
 ### Reliability Calculation Methods
 
@@ -213,6 +276,24 @@ Comprehensive testing framework for different reliability calculation methods.
 | 5 | **M-Decomp + CPFM** | Hybrid: block decomposition + multi-diameter path-based factoring inside blocks | Efficient |
 
 **Recommended**: Use Method 3 (M-Decomposition) for production, Method 5 (M-Decomp + CPFM) for graphs with many paths where ISPT is effective.
+
+#### Multi-diameter (CDF) APIs
+
+For workflows that need `R(s, t, d)` for many diameters at once
+(parameter sweeps, cross-check, plotting), m3 / m4 / m5 also expose a
+single-pass CDF entry point that factors once over `[dist(s, t), d_max]`
+and returns the entire vector:
+
+```cpp
+ReliabilityCdfResult cdf = graph->calculateReliabilityCdfMDecompositionCPFM(s, t, d_max);
+// cdf.cdf[d] == R(G, s, t, d) for d ∈ [0, d_max]; zero for d < dist(s, t).
+// cdf.execution_time_sec is the wall time of one factorization.
+```
+
+Available methods: `calculateReliabilityCdfMDecomposition` (m3),
+`calculateReliabilityCdfCancelaPetingi` (m4),
+`calculateReliabilityCdfMDecompositionCPFM` (m5). The single-d entry
+points keep their existing signature.
 
 See [docs/ALGORITHMS.md](docs/ALGORITHMS.md) for detailed algorithm descriptions.
 
@@ -261,11 +342,17 @@ See [docs/ALGORITHMS.md](docs/ALGORITHMS.md) for detailed algorithm descriptions
 | IEEE 118-node | 118 | 168 | 10 | 36.8 s | **0.08 ms** | 0.06 ms |
 | UPS Russia | 63 | 108 | 18 | TIMEOUT | 158 ms | 160 ms |
 
-All methods produce identical reliability values (|R_i − R_j| < 10⁻⁹).
+All methods produce identical reliability values within `|R_i − R_j| ≤ 1e-10`,
+empirically verified on 27 non-trivial (graph, s, t, d) cells across
+K4, sausage chains, Geant2004 and IEEE-118 — see
+[experiments/2026-04-25/](experiments/2026-04-25/README.md) for the
+agreement matrix and per-(s, t) wall times under the multi-d CDF API.
 
 **Key takeaway**: m5 (M-Decomp + CPFM) is optimal for structured sausage chains (up to ×6356 vs m3). m4 (Cancela-Petingi) is optimal for real-world networks with large biconnected components. m5 automatically falls back to m4 when any block exceeds the CPFM efficiency threshold.
 
-See [docs/ALGORITHMS.md](docs/ALGORITHMS.md#experimental-results) for full analysis.
+See [docs/ALGORITHMS.md](docs/ALGORITHMS.md#experimental-results) for full
+analysis and [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md) for how to
+reproduce the cross-check tables.
 
 ### Implementation optimizations
 
@@ -308,6 +395,27 @@ Run the comprehensive test suite:
 ### Test Configuration
 
 Test configurations can be customized in `tests/test_config.json`.
+
+### Cross-method consistency regression
+
+`tests/test_ReliabilityGraph.cpp` includes a parametrised
+`MethodsAgreementTest` that runs m0..m5 on the same (graph, s, t, d)
+cells (K4 and sausage-3 cases inside CI-friendly per-method timeouts)
+and asserts pair-wise agreement within `1e-10`. It is registered with
+ctest as `MethodsAgreementTests` and runs together with the rest.
+
+For a full cross-method consistency run with the CDF-based grouped
+multi-d API:
+
+```bash
+./build/graph_reliability.exe --cross-check --output cross_check.csv \
+    2>&1 | tee cross_check.log
+python scripts/cross_check_analyze.py cross_check.csv
+```
+
+See [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md) for the methodology
+(auto-ranged diameters, tiered timeouts, `--methods` filter) and the
+post-processor's outputs.
 
 ## Documentation
 
