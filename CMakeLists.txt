@@ -134,13 +134,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     OUTPUT_NAME "graph_reliability"
 )
 
-# Find OpenMP if available
-find_package(OpenMP)
-if(OpenMP_CXX_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE OpenMP::OpenMP_CXX)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_OPENMP)
-endif()
-
 # Find filesystem library (needed for some compilers, e.g. older GCC)
 find_library(FILESYSTEM_LIB stdc++fs)
 if(FILESYSTEM_LIB)
@@ -244,6 +237,5 @@ message(STATUS "  Logging enabled: ${LOGGING_ENABLED}")
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "  Sanitizers enabled: ${ENABLE_SANITIZERS}")
 endif()
-message(STATUS "  OpenMP: ${OpenMP_CXX_FOUND}")
 message(STATUS "  Filesystem library: ${FILESYSTEM_LIB}")
 message(STATUS "  Doxygen: ${DOXYGEN_FOUND}")
