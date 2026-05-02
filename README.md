@@ -14,7 +14,6 @@ A comprehensive C++ library for network reliability analysis, providing efficien
 - **Professional API**: Clean, well-documented C++17 interface
 - **Comprehensive Testing**: Unit tests (Google Test) and integration tests with configurable parameters
 - **Format Conversion**: Convert between Edge List and KAO formats
-- **Parallel Processing**: OpenMP support for performance-critical operations
 - **Logging System**: Conditional compilation logging (zero overhead in Release builds)
 - **Custom Exceptions**: Hierarchical exception system for better error handling
 - **Extensive Documentation**: Architecture, algorithms, and user guides
@@ -348,7 +347,7 @@ K4, sausage chains, Geant2004 and IEEE-118 — see
 [experiments/2026-04-25/](experiments/2026-04-25/README.md) for the
 agreement matrix and per-(s, t) wall times under the multi-d CDF API.
 
-**Key takeaway**: m5 (M-Decomp + CPFM) is optimal for structured sausage chains (up to ×6356 vs m3). m4 (Cancela-Petingi) is optimal for real-world networks with large biconnected components. m5 automatically falls back to m4 when any block exceeds the CPFM efficiency threshold.
+**Key takeaway**: m5 (M-Decomp + CPFM) is optimal for structured sausage chains (up to ×6356 vs m3). m4 (Cancela-Petingi) is optimal for real-world networks with large biconnected components.
 
 See [docs/ALGORITHMS.md](docs/ALGORITHMS.md#experimental-results) for full
 analysis and [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md) for how to
@@ -357,10 +356,9 @@ reproduce the cross-check tables.
 ### Implementation optimizations
 
 - CSR format for memory efficiency
-- OpenMP parallelization for CPU-intensive operations
 - Gap optimization in m5: each block only computes CDF for its relevant diameter range
 - ISPT / ESS / GlobalISPT path pruning in CPFM (m4, m5)
-- Automatic fallback from m5 → m4 for graphs with large biconnected components
+- Multi-diameter CDF entry points (m3 / m4 / m5) factor once per (s, t) and return the full R(d) curve
 
 ## Testing
 
@@ -451,7 +449,6 @@ open docs/html/index.html
 
 - **C++17** compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
 - **CMake 3.16+**
-- **OpenMP** (optional, for parallel processing)
 - **Doxygen** (optional, for documentation)
 - **spdlog** (automatically fetched via CMake, only for Debug builds)
 - **Google Test** (automatically fetched via CMake, for unit tests)

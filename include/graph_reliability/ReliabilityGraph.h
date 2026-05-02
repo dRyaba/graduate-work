@@ -151,17 +151,6 @@ public:
                                                             int upper_bound_diameter) const;
 
     /**
-     * @brief Calculate reliability with parallel M-decomposition
-     * @param source_vertex Source vertex
-     * @param target_vertex Target vertex
-     * @param upper_bound_diameter Upper bound for diameter
-     * @return Reliability result
-     */
-    ReliabilityResult calculateReliabilityWithParallelMDecomposition(VertexId source_vertex,
-                                                                    VertexId target_vertex,
-                                                                    int upper_bound_diameter) const;
-
-    /**
      * @brief Calculate reliability with recursive decomposition
      * @param source_vertex Source vertex
      * @param target_vertex Target vertex
@@ -451,44 +440,6 @@ private:
         long long& recursion_counter
     ) const;
 
-    /**
-     * @brief Internal factoring algorithm
-     */
-    void performFactoring(ReliabilityGraph graph, int variant, int diameter, double reliability) const;
-
-    /**
-     * @brief Internal 2-vertex factoring algorithm
-     */
-    void perform2VertexFactoring(ReliabilityGraph graph,
-                                VertexId source_vertex,
-                                VertexId target_vertex,
-                                int variant,
-                                int diameter,
-                                double reliability) const;
-
-    /**
-     * @brief Internal M-factoring algorithm
-     */
-    void performMFactoring(ReliabilityGraph graph,
-                          VertexId source_vertex,
-                          VertexId target_vertex,
-                          int variant,
-                          int diameter,
-                          double reliability,
-                          int lower_bound,
-                          int upper_bound) const;
-
-    /**
-     * @brief Internal parallel M-factoring algorithm
-     */
-    void performParallelMFactoring(ReliabilityGraph graph,
-                                  VertexId source_vertex,
-                                  VertexId target_vertex,
-                                  int variant,
-                                  int diameter,
-                                  double reliability,
-                                  int lower_bound,
-                                  int upper_bound) const;
 };
 
 } // namespace graph_reliability

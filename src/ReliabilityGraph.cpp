@@ -22,10 +22,6 @@
 #include <cmath>
 #include <chrono>
 
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
-
 namespace graph_reliability {
 
 // Profiling structure for Method 5
@@ -1447,20 +1443,6 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecompositionCPFM(V
     LOG_DEBUG("Graph decomposed into {} blocks, chain length={}", chain.num_blocks,
               chain.ordered_block_ids.size());
 
-    // If any block in the chain is too large for per-block CPFM, fall back to global CPFM (m4)
-    // Threshold: >50 edges means per-block CPFM becomes exponentially expensive
-    const int CPFM_BLOCK_EDGE_THRESHOLD = 50;
-    for (int bid : chain.ordered_block_ids) {
-        ReliabilityGraph blk;
-        std::vector<int> m2o, m2n;
-        getBlockGraphAndMap(bid, chain.decomposition, blk, m2o, m2n);
-        if (static_cast<int>(blk.numEdges()) > CPFM_BLOCK_EDGE_THRESHOLD) {
-            LOG_DEBUG("Block {} has {} edges > threshold, falling back to global CPFM (m4)",
-                      bid, blk.numEdges());
-            return calculateReliabilityCancelaPetingi(s, t, d);
-        }
-    }
-
     // Calculate d_min for each block (formula 2.3 from thesis)
     const auto& ordered_block_ids = chain.ordered_block_ids;
     const auto& final_aps         = chain.final_aps;
@@ -1645,18 +1627,6 @@ ReliabilityCdfResult ReliabilityGraph::calculateReliabilityCdfMDecompositionCPFM
         auto t_end = std::chrono::high_resolution_clock::now();
         out.execution_time_sec = std::chrono::duration<double>(t_end - t_start).count();
         return out;
-    }
-
-    // Same per-block-edge threshold check as the single-d path: if any block
-    // is too dense for per-block CPFM, fall back to global CPFM (m4).
-    const int CPFM_BLOCK_EDGE_THRESHOLD = 50;
-    for (int bid : chain.ordered_block_ids) {
-        ReliabilityGraph blk;
-        std::vector<int> m2o, m2n;
-        getBlockGraphAndMap(bid, chain.decomposition, blk, m2o, m2n);
-        if (static_cast<int>(blk.numEdges()) > CPFM_BLOCK_EDGE_THRESHOLD) {
-            return calculateReliabilityCdfCancelaPetingi(s, t, d_max);
-        }
     }
 
     const auto& ordered_block_ids = chain.ordered_block_ids;
@@ -1934,12 +1904,6 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithDecomposition(Vertex
     return ReliabilityResult(reliability, recursion_counter, time);
 }
 
-ReliabilityResult ReliabilityGraph::calculateReliabilityWithParallelMDecomposition(VertexId s, VertexId t, int d) const {
-    // Parallel version stub - alias to sequential for now
-    LOG_DEBUG("Using parallel M-Decomposition (fallback to sequential)");
-    return calculateReliabilityWithMDecomposition(s, t, d);
-}
-
 // -----------------------------------------------------------------------------
 // Other Stubs/Helpers
 // -----------------------------------------------------------------------------
@@ -1968,10 +1932,5 @@ void ReliabilityGraph::outputToFile(std::ofstream& out) const {
     // CSV style output of graph structure?
     // Legacy kGraphFileOutput
 }
-
-void ReliabilityGraph::performFactoring(ReliabilityGraph g, int v, int d, double r) const {}
-void ReliabilityGraph::perform2VertexFactoring(ReliabilityGraph g, VertexId s, VertexId t, int v, int d, double r) const {}
-void ReliabilityGraph::performMFactoring(ReliabilityGraph g, VertexId s, VertexId t, int v, int d, double r, int l, int u) const {}
-void ReliabilityGraph::performParallelMFactoring(ReliabilityGraph g, VertexId s, VertexId t, int v, int d, double r, int l, int u) const {}
 
 } // namespace graph_reliability
