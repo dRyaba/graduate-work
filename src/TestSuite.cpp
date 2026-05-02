@@ -570,6 +570,8 @@ bool TestSuite::runCrossCheck(int timeout_sec,
     if (include_real_networks) {
         add_auto_ranging("Geant2004_kao.txt");
         add_auto_ranging("IEEE-118-node_kao.txt");
+        add_auto_ranging("Geant2009_kao.txt");
+        add_auto_ranging("UPS_of_Russia_composed_with_colored_cut_vertices_kao.txt");
     }
 
     // Print the cell plan so it is immediately visible what diameters are
