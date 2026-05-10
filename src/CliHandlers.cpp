@@ -15,6 +15,7 @@
 #include <map>
 #include <exception>
 #include <algorithm>
+#include <array>
 #include <cctype>
 
 #include "graph_reliability.h"
@@ -80,7 +81,10 @@ void printUsage() {
     std::cout << "  --d-count <N>  Diameters per (s,t) pair (default 4); tested d = {dist, dist+step, ...}\n";
     std::cout << "  --d-step <N>   Step between successive diameters (default 1)\n";
     std::cout << "  --methods L    Comma-separated method ids (default 0,1,2,3,4,5; e.g. 3,4,5)\n";
-    std::cout << "                 Methods 3/4/5 use one factorization per (s,t) for the whole d-curve\n";
+    std::cout << "                 Methods iterate in reverse (m5..m0) within each cell so a kill\n";
+    std::cout << "                 mid-run loses heavy m0/m1/m2 first, preserving m3/m4/m5 results\n";
+    std::cout << "  --method-timeout L  Override tiered defaults, e.g. m0=120,m1=60,m3=600\n";
+    std::cout << "                       Unspecified methods keep their tiered default\n";
     std::cout << "\nParameters for --visualize:\n";
     std::cout << "  <graph_file>  - Input graph (KAO format)\n";
     std::cout << "  <output_file> - Output path (.svg or .dot)\n";
@@ -395,6 +399,7 @@ int handleCrossCheck(const std::vector<std::string>& args) {
     int d_count = 4;
     int d_step = 1;
     std::vector<int> active_methods = {0, 1, 2, 3, 4, 5};
+    std::array<int, 6> method_timeouts_override = {0, 0, 0, 0, 0, 0};
 
     auto parse_positive_int = [](const std::string& raw, const char* flag,
                                  int& out) -> bool {
@@ -445,6 +450,48 @@ int handleCrossCheck(const std::vector<std::string>& args) {
         return true;
     };
 
+    auto parse_method_timeouts = [](const std::string& raw,
+                                    std::array<int, 6>& out) -> bool {
+        // Format: "m0=60,m3=600". Unspecified methods keep tiered default.
+        std::string token;
+        for (size_t i = 0; i <= raw.size(); ++i) {
+            char c = (i == raw.size()) ? ',' : raw[i];
+            if (c == ',') {
+                if (token.empty()) continue;
+                if (token.size() < 4 || token[0] != 'm') {
+                    std::cerr << "Error: invalid --method-timeout token: '"
+                              << token << "' (expected mN=SEC)\n";
+                    return false;
+                }
+                auto eq = token.find('=');
+                if (eq == std::string::npos || eq == 1 || eq + 1 >= token.size()) {
+                    std::cerr << "Error: invalid --method-timeout token: '"
+                              << token << "' (expected mN=SEC)\n";
+                    return false;
+                }
+                int id, val;
+                try {
+                    id  = std::stoi(token.substr(1, eq - 1));
+                    val = std::stoi(token.substr(eq + 1));
+                } catch (...) {
+                    std::cerr << "Error: invalid --method-timeout token: '"
+                              << token << "'\n";
+                    return false;
+                }
+                if (id < 0 || id > 5 || val < 1) {
+                    std::cerr << "Error: --method-timeout requires m0..m5 and "
+                                 "value>=1, got: '" << token << "'\n";
+                    return false;
+                }
+                out[id] = val;
+                token.clear();
+            } else if (!std::isspace(static_cast<unsigned char>(c))) {
+                token += c;
+            }
+        }
+        return true;
+    };
+
     for (size_t i = 1; i < args.size(); ++i) {
         if (args[i] == "--timeout" && i + 1 < args.size()) {
             if (!parse_positive_int(args[++i], "--timeout", timeout_sec))
@@ -461,6 +508,9 @@ int handleCrossCheck(const std::vector<std::string>& args) {
                 return 1;
         } else if (args[i] == "--methods" && i + 1 < args.size()) {
             if (!parse_methods(args[++i], active_methods))
+                return 1;
+        } else if (args[i] == "--method-timeout" && i + 1 < args.size()) {
+            if (!parse_method_timeouts(args[++i], method_timeouts_override))
                 return 1;
         } else if (args[i] == "--verbose" || args[i] == "-v") {
             // handled at startup
@@ -495,7 +545,8 @@ int handleCrossCheck(const std::vector<std::string>& args) {
         bool consistent = test_suite.runCrossCheck(timeout_sec, output_file,
                                                     include_real_networks, 1e-10,
                                                     d_count, d_step,
-                                                    active_methods);
+                                                    active_methods,
+                                                    method_timeouts_override);
         if (!consistent) {
             std::cerr << "Cross-check found discrepancies (see stdout above and CSV).\n";
             return 1;
