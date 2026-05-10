@@ -1,5 +1,5 @@
 #!/bin/bash
-cd /c/Users/User/Projects/CppProjects/graduate-work
+cd /c/Users/User/Projects/Cpp-Projects/graduate-work
 
 EXE="./build/graph_reliability.exe"
 TIMEOUT=300
