@@ -50,10 +50,14 @@ def family_of(graph: str) -> str:
         return "K4"
     if "sausage" in g:
         return "sausage"
-    if "geant" in g:
+    if "geant2004" in g:
         return "Geant2004"
+    if "geant2009" in g:
+        return "Geant2009"
     if "ieee" in g:
         return "IEEE-118"
+    if "ups" in g and "russia" in g:
+        return "UPS-Russia"
     return "other"
 
 
