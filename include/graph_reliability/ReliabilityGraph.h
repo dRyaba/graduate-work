@@ -4,15 +4,16 @@
  * @author Graduate Work Project
  * @date 2026
  * 
- * This class extends the base Graph with target vertices and specialized reliability
- * calculation methods. It provides four different algorithms for calculating network
- * reliability with diameter constraints:
- * 
- * - Method 0: Standard Factoring (baseline, no decomposition)
- * - Method 1: Recursive Decomposition (nested recursion, inefficient)
- * - Method 2: Simple Factoring with Decomposition (good balance)
- * - Method 3: M-Decomposition (fastest, recommended for production)
- * 
+ * Extends the base Graph with target vertices and six reliability methods,
+ * each labelled by its algorithmic recipe (no opaque acronyms):
+ *
+ * - m0: Pure Factoring                            (no decomposition; baseline)
+ * - m1: Block + Pure Facto                        (block decomp + pure factoring per block)
+ * - m2: Block + Conv + Simple Facto               (block decomp + length-convolution + simple factoring)
+ * - m3: Block + Conv + Modified Facto             (block decomp + length-convolution + modified factoring)
+ * - m4: Cancela-Petingi (Nesterov)                (global path-based factoring, Nesterov variant)
+ * - m5: Block + Conv + Modified Cancela-Petingi   (block decomp + length-convolution + multi-d CP per block)
+ *
  * @see Graph for base graph functionality
  * @see docs/ALGORITHMS.md for detailed algorithm descriptions
  */
@@ -184,7 +185,7 @@ public:
      * @return Pair of (cumulative reliabilities vector, recursion count)
      *
      * Multi-diameter CPFM: computes R(d) for d in [lower_bound, upper_bound] in ONE pass.
-     * Used in M-Decomposition + CPFM hybrid (Method 5).
+     * Used per block by m5 (Block + Conv + Modified Cancela-Petingi).
      */
     std::pair<std::vector<double>, long long> calculateReliabilityCancelaPetingiMulti(
         VertexId source_vertex,
@@ -193,24 +194,24 @@ public:
         int upper_bound) const;
 
     /**
-     * @brief Calculate reliability with M-Decomposition + CPFM hybrid (Method 5)
+     * @brief m5: Block + Conv + Modified Cancela-Petingi.
      * @param source_vertex Source vertex (0-based)
      * @param target_vertex Target vertex (0-based)
      * @param upper_bound_diameter Upper bound for diameter constraint
      * @return Reliability result
      *
-     * Combines block decomposition (M-Decomposition) with path-based factoring (CPFM).
-     * Uses CPFM inside each block for efficiency, then convolves block reliabilities.
+     * Block decomposition + length-convolution + multi-diameter Cancela-Petingi
+     * inside each block. No fallback to global CPFM.
      *
      * @complexity O(B × 2^E_block × paths) where B=blocks, E_block=edges per block
-     * @see calculateReliabilityCancelaPetingiMulti for the core CPFM optimization
+     * @see calculateReliabilityCancelaPetingiMulti for the per-block CPFM core
      */
     ReliabilityResult calculateReliabilityWithMDecompositionCPFM(VertexId source_vertex,
                                                                  VertexId target_vertex,
                                                                  int upper_bound_diameter) const;
 
     /**
-     * @brief Multi-diameter Method 3 — single-pass M-Decomposition CDF.
+     * @brief m3 multi-diameter — single-pass CDF for Block + Conv + Modified Facto.
      *
      * Returns `R(G, s, t, d)` for every `d ∈ [0, d_max]` in one decomposition
      * + per-block factor + convolution pass. The inner solver restricts each
@@ -222,7 +223,7 @@ public:
                                                                int d_max) const;
 
     /**
-     * @brief Multi-diameter Method 4 — single-pass Cancela-Petingi CDF.
+     * @brief m4 multi-diameter — single-pass CDF for Cancela-Petingi (Nesterov).
      *
      * Wraps calculateReliabilityCancelaPetingiMulti(s, t, dist(s, t), d_max)
      * so the inner factoring skips the trivial `d < dist(s, t)` slice.
@@ -232,7 +233,7 @@ public:
                                                                int d_max) const;
 
     /**
-     * @brief Multi-diameter Method 5 — single-pass M-Decomposition+CPFM CDF.
+     * @brief m5 multi-diameter — single-pass CDF for Block + Conv + Modified Cancela-Petingi.
      *
      * Returns `R(G, s, t, d)` for every `d ∈ [0, d_max]` from a single
      * decomposition + per-block CPFM + convolution pass.
@@ -423,7 +424,7 @@ private:
     ) const;
 
     /**
-     * @brief TRUE NESTED RECURSION solver for Level 1 (Recursive Decomposition)
+     * @brief TRUE NESTED RECURSION solver for m1 (Block + Pure Facto)
      * 
      * This implements the theoretically correct but INEFFICIENT nested recursion.
      * For each path length L in block_i, makes a RECURSIVE CALL to block_{i+1}.

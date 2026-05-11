@@ -62,16 +62,17 @@ Base graph structure using **Compressed Sparse Row (CSR)** format for efficient 
 Extends `Graph` with target vertices and reliability calculation methods:
 
 **Reliability Calculation Methods:**
-1. **Standard Factoring** (Level 0): Baseline method, no decomposition
-2. **Recursive Decomposition** (Level 1): Nested recursion (inefficient)
-3. **Simple Factoring** (Level 2): Convolution with simple factoring
-4. **M-Decomposition** (Level 3): Convolution with modified factoring (fastest)
+1. **m0 Pure Factoring**: No decomposition; baseline
+2. **m1 Block + Pure Facto**: Block decomposition + pure factoring per block
+3. **m2 Block + Conv + Simple Facto**: Block decomp + length-convolution + simple factoring
+4. **m3 Block + Conv + Modified Facto**: Block decomp + length-convolution + modified factoring (workhorse)
+5. **m4 Cancela-Petingi (Nesterov)**: Global path-based factoring (Nesterov variant)
+6. **m5 Block + Conv + Modified Cancela-Petingi**: Block decomp + length-convolution + multi-d Cancela-Petingi per block
 
 **Key Features:**
 - Target vertices for reliability calculations
 - Multiple diameter constraint algorithms
 - Block decomposition for large graphs
-- Parallel processing support (OpenMP)
 
 ### DataImporter Class
 
@@ -145,7 +146,7 @@ GraphReliabilityException (base)
 1. **CSR Format**: Efficient memory usage for sparse graphs
 2. **Conditional Logging**: Zero overhead in Release builds
 3. **Block Decomposition**: Reduces complexity for large graphs
-4. **M-Decomposition**: Fastest algorithm for reliability calculations
+4. **m3 Block + Conv + Modified Facto**: Reference workhorse for production reliability calculations
 5. **OpenMP**: Parallel processing for CPU-intensive operations
 
 ## Testing

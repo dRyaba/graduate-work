@@ -86,12 +86,12 @@ Default `--timeout 30` activates a tiered per-method budget defined in
 
 | Method | Timeout (s) | Rationale |
 |---|---|---|
-| m0 Standard Factoring | 60 | Baseline, should clear sausage-3 d=10 |
-| m1 Recursive Decomposition | 30 | Known slow, don't spend more |
-| m2 Simple Factoring | 120 | Mid-weight |
-| m3 M-Decomposition | 300 | Reference workhorse |
-| m4 Cancela-Petingi | 300 | Path-based, multi-d enumeration |
-| m5 M-Decomp + CPFM | 300 | Hybrid, matches m3 budget |
+| m0 Pure Factoring | 60 | Baseline; only K4 finishes within budget |
+| m1 Block + Pure Facto | 30 | Diagnostic baseline, mostly TIMEOUT outside K4/sausage-3 |
+| m2 Block + Conv + Simple Facto | 120 | Mid-weight; finishes most sausage cells |
+| m3 Block + Conv + Modified Facto | 300 | Reference workhorse |
+| m4 Cancela-Petingi (Nesterov) | 300 | Path-based, may enumerate many paths |
+| m5 Block + Conv + Modified Cancela-Petingi | 300 | Pure m5 (no global fallback); same budget as m3 |
 
 Passing any `--timeout N` other than `30` switches to a uniform timeout
 `N` for every method (and ignores any `--method-timeout` overrides).

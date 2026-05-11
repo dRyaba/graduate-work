@@ -30,13 +30,22 @@ void TestSuite::setTestConfigurations(const std::map<std::string, std::vector<in
 }
 
 std::vector<std::string> TestSuite::getAvailableMethods() const {
+    // Canonical short names; each one explicitly spells the algorithmic
+    // building blocks so a reader of cross_check_*.csv does not need to
+    // consult separate documentation to understand what was measured.
+    //   m0 = pure edge factoring (no decomposition)
+    //   m1 = block decomposition + pure factoring per block
+    //   m2 = block decomposition + length-convolution + simple factoring
+    //   m3 = block decomposition + length-convolution + modified factoring
+    //   m4 = global Cancela-Petingi path-based factoring (Nesterov variant)
+    //   m5 = block decomposition + length-convolution + modified Cancela-Petingi
     return {
-        "Standard Factoring (Level 0)",
-        "Recursive Decomposition (Level 1)",
-        "Simple Factoring (Level 2)",
-        "M-Decomposition (Level 3)",
-        "Cancela-Petingi (Level 4)",
-        "M-Decomp + CPFM (Level 5)"
+        "m0: Pure Factoring",
+        "m1: Block + Pure Facto",
+        "m2: Block + Conv + Simple Facto",
+        "m3: Block + Conv + Modified Facto",
+        "m4: Cancela-Petingi (Nesterov)",
+        "m5: Block + Conv + Modified Cancela-Petingi"
     };
 }
 
@@ -70,28 +79,28 @@ TestRunResult TestSuite::runSingleTest(const TestConfiguration& config, int meth
             ReliabilityResult result;
             
             switch (method_id) {
-                case 0: // Level 0: Standard Factoring (Baseline - SLOWEST)
-                    LOG_DEBUG("Using Standard Factoring method");
+                case 0: // m0: Pure Factoring (no decomposition, baseline)
+                    LOG_DEBUG("Using m0: Pure Factoring");
                     result = graph->calculateReliabilityBetweenVertices(s, t, config.upper_bound_diameter);
                     break;
-                case 1: // Level 1: Recursive Decomposition (Nested Recursion - INEFFICIENT)
-                    LOG_DEBUG("Using Recursive Decomposition method");
+                case 1: // m1: Block decomposition + pure factoring per block
+                    LOG_DEBUG("Using m1: Block + Pure Facto");
                     result = graph->calculateReliabilityWithRecursiveDecomposition(s, t, config.upper_bound_diameter);
                     break;
-                case 2: // Level 2: Simple Factoring (Convolution - FAST)
-                    LOG_DEBUG("Using Simple Factoring method");
+                case 2: // m2: Block decomposition + length-convolution + simple factoring
+                    LOG_DEBUG("Using m2: Block + Conv + Simple Facto");
                     result = graph->calculateReliabilityWithDecomposition(s, t, config.upper_bound_diameter);
                     break;
-                case 3: // Level 3: M-Decomposition (FASTEST)
-                    LOG_DEBUG("Using M-Decomposition method");
+                case 3: // m3: Block decomposition + length-convolution + modified factoring
+                    LOG_DEBUG("Using m3: Block + Conv + Modified Facto");
                     result = graph->calculateReliabilityWithMDecomposition(s, t, config.upper_bound_diameter);
                     break;
-                case 4: // Level 4: Cancela-Petingi path-based factoring
-                    LOG_DEBUG("Using Cancela-Petingi method");
+                case 4: // m4: Global Cancela-Petingi path-based factoring (Nesterov variant)
+                    LOG_DEBUG("Using m4: Cancela-Petingi (Nesterov)");
                     result = graph->calculateReliabilityCancelaPetingi(s, t, config.upper_bound_diameter);
                     break;
-                case 5: // Level 5: M-Decomposition + CPFM hybrid
-                    LOG_DEBUG("Using M-Decomp + CPFM method");
+                case 5: // m5: Block decomposition + length-convolution + modified Cancela-Petingi
+                    LOG_DEBUG("Using m5: Block + Conv + Modified Cancela-Petingi");
                     result = graph->calculateReliabilityWithMDecompositionCPFM(s, t, config.upper_bound_diameter);
                     break;
                 default:
@@ -438,12 +447,12 @@ namespace {
 // known-slow and we cap it tight; m3/m5 are the workhorses and get the most
 // budget; m2/m4 sit in the middle.
 constexpr std::array<int, 6> kMethodTimeoutsSec = {
-    60,  // m0: Standard Factoring
-    30,  // m1: Recursive Decomposition (known slow)
-    120, // m2: Simple Factoring
-    300, // m3: M-Decomposition (multi-d in cross-check)
-    300, // m4: Cancela-Petingi (multi-d enumerates all paths up to d_max)
-    300, // m5: M-Decomp + CPFM (multi-d in cross-check)
+    60,  // m0: Pure Factoring (baseline; only K4 finishes in 60s)
+    30,  // m1: Block + Pure Facto (heavy; mostly TIMEOUT outside K4/sausage-3)
+    120, // m2: Block + Conv + Simple Facto (mid-weight; finishes most sausage)
+    300, // m3: Block + Conv + Modified Facto (reference workhorse)
+    300, // m4: Cancela-Petingi (Nesterov) (path enumeration, may blow up)
+    300, // m5: Block + Conv + Modified Cancela-Petingi (no global fallback)
 };
 
 std::string formatMMSS(double seconds) {

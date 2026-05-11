@@ -10,7 +10,7 @@ Given a graph G(V, E) with edge reliabilities p(e) ∈ [0, 1], source vertex s, 
 
 ## Algorithm Methods
 
-### Method 0: Standard Factoring (Level 0)
+### m0 — Pure Factoring
 
 **Description**: Baseline method using direct factoring without decomposition.
 
@@ -23,7 +23,7 @@ Given a graph G(V, E) with edge reliabilities p(e) ∈ [0, 1], source vertex s, 
 
 **Use Case**: Baseline comparison, small graphs
 
-### Method 1: Recursive Decomposition (Level 1)
+### m1 — Block + Pure Facto
 
 **Description**: Uses true nested recursion with block decomposition.
 
@@ -38,7 +38,7 @@ Given a graph G(V, E) with edge reliabilities p(e) ∈ [0, 1], source vertex s, 
 
 **Use Case**: Academic comparison, demonstrates inefficiency
 
-### Method 2: Simple Factoring with Decomposition (Level 2)
+### m2 — Block + Conv + Simple Facto
 
 **Description**: Uses block decomposition with convolution and simple factoring.
 
@@ -53,7 +53,7 @@ Given a graph G(V, E) with edge reliabilities p(e) ∈ [0, 1], source vertex s, 
 
 **Use Case**: Medium-sized graphs, good balance
 
-### Method 3: M-Decomposition (Level 3)
+### m3 — Block + Conv + Modified Facto
 
 **Description**: Fastest method using modified factoring with block decomposition.
 
@@ -72,7 +72,7 @@ Given a graph G(V, E) with edge reliabilities p(e) ∈ [0, 1], source vertex s, 
 
 **Use Case**: Large graphs, production use
 
-### Method 4: Cancela-Petingi (Level 4)
+### m4 — Cancela-Petingi (Nesterov)
 
 **Description**: Path-based factoring method. Operates on path lists instead of graphs; uses series-parallel transformation (SPT), edge selection strategy (ESS), and improved SPT on each recursive call (ISPT).
 
@@ -92,9 +92,9 @@ Given a graph G(V, E) with edge reliabilities p(e) ∈ [0, 1], source vertex s, 
 
 **Use Case**: Alternative to graph-based methods; single-block calculations
 
-### Method 5: M-Decomposition + CPFM (Level 5)
+### m5 — Block + Conv + Modified Cancela-Petingi
 
-**Description**: Hybrid method combining block decomposition (M-Decomposition) with path-based factoring (Cancela-Petingi). Uses CPFM inside each block for efficiency, then convolves block reliabilities using Migov's formula.
+**Description**: Block decomposition + length-convolution along the chain (Migov's formula) + multi-diameter Cancela-Petingi factoring per block. No fallback to global CPFM — every block is solved with its own per-block CP factoring regardless of size.
 
 **Algorithm**:
 1. Decompose graph into k-blocks
@@ -137,7 +137,7 @@ Find shortest path through block graph from source block to target block.
 
 ## Factoring Methods
 
-### Standard Factoring
+### Pure Factoring
 
 For edge e with probability p:
 - R = p × R(e=reliable) + (1-p) × R(e=removed)
@@ -167,12 +167,12 @@ Used for distance constraint checking:
 
 | Method | Complexity | Best For |
 |--------|-----------|----------|
-| Standard Factoring | O(2^E) | Small graphs (< 20 edges) |
-| Recursive Decomposition | O(B × 2^E) | Academic comparison |
-| Simple Factoring | O(B × E × D) | Medium graphs |
-| M-Decomposition | O(B × E × D) | Large graphs |
-| Cancela-Petingi | O(2^m × paths) | Single-block graphs |
-| M-Decomp + CPFM | O(B × 2^E × paths) | Block-structured with ISPT |
+| m0 Pure Factoring | O(2^E) | Small graphs (< 20 edges); baseline |
+| m1 Block + Pure Facto | O(B × 2^E) | Diagnostic / academic comparison |
+| m2 Block + Conv + Simple Facto | O(B × E × D) | Medium graphs |
+| m3 Block + Conv + Modified Facto | O(B × E × D) | Large graphs, production |
+| m4 Cancela-Petingi (Nesterov) | O(2^m × paths) | Single-block / few s-t paths |
+| m5 Block + Conv + Modified Cancela-Petingi | O(B × 2^E_block × paths) | Block-structured graphs with small blocks |
 
 ## Implementation Details
 

@@ -47,11 +47,11 @@
   ],
   "default_repetitions": 1,
   "test_methods": {
-    "0": "Standard Factoring (Level 0)",
-    "1": "Recursive Decomposition (Level 1)",
-    "2": "Simple Factoring (Level 2)",
-    "3": "M-Decomposition (Level 3)",
-    "4": "Cancela-Petingi (Level 4)",
-    "5": "M-Decomp + CPFM (Level 5)"
+    "0": "m0: Pure Factoring",
+    "1": "m1: Block + Pure Facto",
+    "2": "m2: Block + Conv + Simple Facto",
+    "3": "m3: Block + Conv + Modified Facto",
+    "4": "m4: Cancela-Petingi (Nesterov)",
+    "5": "m5: Block + Conv + Modified Cancela-Petingi"
   }
 }
