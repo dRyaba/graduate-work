@@ -526,8 +526,9 @@ int handleCrossCheck(const std::vector<std::string>& args) {
 
         // Diameters are auto-ranged from dist(s,t); the inner vector is kept
         // only to preserve the map shape expected by setTestConfigurations.
+        // K4 is excluded — it finishes in microseconds for every method and
+        // therefore carries no information for the comparison chapter.
         std::map<std::string, std::vector<int>> test_configs = {
-            {"K4_kao.txt",                      {}},
             {"3_blocks_sausage_3x3_kao.txt",    {}},
             {"4_blocks_sausage_3x3_kao.txt",    {}},
             {"5_blocks_sausage_3x3_kao.txt",    {}},
