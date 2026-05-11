@@ -30,13 +30,22 @@ void TestSuite::setTestConfigurations(const std::map<std::string, std::vector<in
 }
 
 std::vector<std::string> TestSuite::getAvailableMethods() const {
+    // Canonical short names; each one explicitly spells the algorithmic
+    // building blocks so a reader of cross_check_*.csv does not need to
+    // consult separate documentation to understand what was measured.
+    //   m0 = pure edge factoring (no decomposition)
+    //   m1 = block decomposition + pure factoring per block
+    //   m2 = block decomposition + length-convolution + simple factoring
+    //   m3 = block decomposition + length-convolution + modified factoring
+    //   m4 = global Cancela-Petingi path-based factoring (Nesterov variant)
+    //   m5 = block decomposition + length-convolution + modified Cancela-Petingi
     return {
-        "Standard Factoring (Level 0)",
-        "Recursive Decomposition (Level 1)",
-        "Simple Factoring (Level 2)",
-        "M-Decomposition (Level 3)",
-        "Cancela-Petingi (Level 4)",
-        "M-Decomp + CPFM (Level 5)"
+        "m0: Pure Factoring",
+        "m1: Block + Pure Facto",
+        "m2: Block + Conv + Simple Facto",
+        "m3: Block + Conv + Modified Facto",
+        "m4: Cancela-Petingi (Nesterov)",
+        "m5: Block + Conv + Modified Cancela-Petingi"
     };
 }
 
@@ -70,28 +79,28 @@ TestRunResult TestSuite::runSingleTest(const TestConfiguration& config, int meth
             ReliabilityResult result;
             
             switch (method_id) {
-                case 0: // Level 0: Standard Factoring (Baseline - SLOWEST)
-                    LOG_DEBUG("Using Standard Factoring method");
+                case 0: // m0: Pure Factoring (no decomposition, baseline)
+                    LOG_DEBUG("Using m0: Pure Factoring");
                     result = graph->calculateReliabilityBetweenVertices(s, t, config.upper_bound_diameter);
                     break;
-                case 1: // Level 1: Recursive Decomposition (Nested Recursion - INEFFICIENT)
-                    LOG_DEBUG("Using Recursive Decomposition method");
+                case 1: // m1: Block decomposition + pure factoring per block
+                    LOG_DEBUG("Using m1: Block + Pure Facto");
                     result = graph->calculateReliabilityWithRecursiveDecomposition(s, t, config.upper_bound_diameter);
                     break;
-                case 2: // Level 2: Simple Factoring (Convolution - FAST)
-                    LOG_DEBUG("Using Simple Factoring method");
+                case 2: // m2: Block decomposition + length-convolution + simple factoring
+                    LOG_DEBUG("Using m2: Block + Conv + Simple Facto");
                     result = graph->calculateReliabilityWithDecomposition(s, t, config.upper_bound_diameter);
                     break;
-                case 3: // Level 3: M-Decomposition (FASTEST)
-                    LOG_DEBUG("Using M-Decomposition method");
+                case 3: // m3: Block decomposition + length-convolution + modified factoring
+                    LOG_DEBUG("Using m3: Block + Conv + Modified Facto");
                     result = graph->calculateReliabilityWithMDecomposition(s, t, config.upper_bound_diameter);
                     break;
-                case 4: // Level 4: Cancela-Petingi path-based factoring
-                    LOG_DEBUG("Using Cancela-Petingi method");
+                case 4: // m4: Global Cancela-Petingi path-based factoring (Nesterov variant)
+                    LOG_DEBUG("Using m4: Cancela-Petingi (Nesterov)");
                     result = graph->calculateReliabilityCancelaPetingi(s, t, config.upper_bound_diameter);
                     break;
-                case 5: // Level 5: M-Decomposition + CPFM hybrid
-                    LOG_DEBUG("Using M-Decomp + CPFM method");
+                case 5: // m5: Block decomposition + length-convolution + modified Cancela-Petingi
+                    LOG_DEBUG("Using m5: Block + Conv + Modified Cancela-Petingi");
                     result = graph->calculateReliabilityWithMDecompositionCPFM(s, t, config.upper_bound_diameter);
                     break;
                 default:
@@ -438,12 +447,12 @@ namespace {
 // known-slow and we cap it tight; m3/m5 are the workhorses and get the most
 // budget; m2/m4 sit in the middle.
 constexpr std::array<int, 6> kMethodTimeoutsSec = {
-    60,  // m0: Standard Factoring
-    30,  // m1: Recursive Decomposition (known slow)
-    120, // m2: Simple Factoring
-    300, // m3: M-Decomposition (multi-d in cross-check)
-    300, // m4: Cancela-Petingi (multi-d enumerates all paths up to d_max)
-    300, // m5: M-Decomp + CPFM (multi-d in cross-check)
+    60,  // m0: Pure Factoring (baseline; only K4 finishes in 60s)
+    30,  // m1: Block + Pure Facto (heavy; mostly TIMEOUT outside K4/sausage-3)
+    120, // m2: Block + Conv + Simple Facto (mid-weight; finishes most sausage)
+    300, // m3: Block + Conv + Modified Facto (reference workhorse)
+    300, // m4: Cancela-Petingi (Nesterov) (path enumeration, may blow up)
+    300, // m5: Block + Conv + Modified Cancela-Petingi (no global fallback)
 };
 
 std::string formatMMSS(double seconds) {
@@ -505,7 +514,15 @@ bool TestSuite::runCrossCheck(int timeout_sec,
                               double tolerance,
                               int d_count,
                               int d_step,
-                              const std::vector<int>& active_methods) {
+                              const std::vector<int>& active_methods,
+                              const std::array<int, 6>& method_timeouts_override) {
+    // Resolve effective per-method timeouts: tiered defaults overlaid by any
+    // user-provided overrides (positive values in the override array win).
+    std::array<int, 6> effective_method_timeouts = kMethodTimeoutsSec;
+    for (size_t i = 0; i < effective_method_timeouts.size(); ++i) {
+        if (method_timeouts_override[i] > 0)
+            effective_method_timeouts[i] = method_timeouts_override[i];
+    }
     // timeout_sec is kept as a knob (CLI --timeout N) acting as an
     // override-all: if N > 0 and N != 30 (the default in main.cpp), the
     // caller wants uniform timeouts; otherwise we use kMethodTimeoutsSec.
@@ -647,19 +664,19 @@ bool TestSuite::runCrossCheck(int timeout_sec,
     if (use_tiered) {
         std::cout << "Cross-check: " << groups.size() << " (graph,s,t) groups × "
                   << active_methods.size() << " methods (" << methods_str << ")"
-                  << " (tiered timeouts m0=" << kMethodTimeoutsSec[0]
-                  << " m1=" << kMethodTimeoutsSec[1]
-                  << " m2=" << kMethodTimeoutsSec[2]
-                  << " m3=" << kMethodTimeoutsSec[3]
-                  << " m4=" << kMethodTimeoutsSec[4]
-                  << " m5=" << kMethodTimeoutsSec[5] << "s)\n";
+                  << " (tiered timeouts m0=" << effective_method_timeouts[0]
+                  << " m1=" << effective_method_timeouts[1]
+                  << " m2=" << effective_method_timeouts[2]
+                  << " m3=" << effective_method_timeouts[3]
+                  << " m4=" << effective_method_timeouts[4]
+                  << " m5=" << effective_method_timeouts[5] << "s)\n";
     } else {
         std::cout << "Cross-check: " << groups.size() << " (graph,s,t) groups × "
                   << active_methods.size() << " methods (" << methods_str << ")"
                   << " (uniform timeout " << timeout_sec << "s)\n";
     }
-    std::cout << "Methods 3/4/5 use one factorization per group; "
-                 "0/1/2 still call once per d.\n";
+    std::cout << "Per-(graph,method,d) isolated calls; "
+                 "methods iterate in reverse (m5..m0) within each cell.\n";
 
     // Incremental CSV: open once, write header, flush after each row. Any
     // progress survives a kill.
@@ -688,6 +705,15 @@ bool TestSuite::runCrossCheck(int timeout_sec,
         return row;
     };
 
+    // Methods are processed in REVERSE order within each (graph, s, t, d) cell:
+    // m5 → m4 → m3 → m2 → m1 → m0. Rationale: m0/m1/m2 are the "expensive
+    // baselines" — running them last means a TaskStop / Ctrl+C in the middle
+    // of a cell loses only m0..m2 measurements (which are heavy and often
+    // TIMEOUT anyway), while the m3/m4/m5 measurements that drive the thesis
+    // comparison are already on disk.
+    std::vector<int> methods_reverse(active_methods.begin(), active_methods.end());
+    std::sort(methods_reverse.begin(), methods_reverse.end(), std::greater<int>());
+
     int group_idx = 0;
     for (const auto& g : groups) {
         ++group_idx;
@@ -699,129 +725,66 @@ bool TestSuite::runCrossCheck(int timeout_sec,
         }
         std::cout << "}\n";
 
-        const int d_max = g.d_values.back();
+        ReliabilityGraph* tmpl = &graph_templates.at(g.graph);
 
-        for (int method_id : active_methods) {
-            const int cell_timeout = use_tiered
-                ? kMethodTimeoutsSec[method_id]
-                : timeout_sec;
+        // d ascending, method descending. One isolated single-d call per
+        // (graph, method, d) so each row is an independent measurement —
+        // same methodology as run_benchmarks.sh / benchmark_results.csv.
+        for (int d : g.d_values) {
+            for (int method_id : methods_reverse) {
+                const int cell_timeout = use_tiered
+                    ? effective_method_timeouts[method_id]
+                    : timeout_sec;
 
-            const bool use_cdf = (method_id == 3 || method_id == 4 || method_id == 5)
-                                 && g.d_values.size() >= 2;
-
-            ReliabilityGraph* tmpl = &graph_templates.at(g.graph);
-
-            if (use_cdf) {
                 auto graph = std::make_unique<ReliabilityGraph>(*tmpl);
                 auto* gp = graph.get();
                 int s = g.s, t = g.t;
-                std::function<ReliabilityCdfResult()> calc;
+                std::function<ReliabilityResult()> calc;
                 switch (method_id) {
-                    case 3: calc = [gp, s, t, d_max]() { return gp->calculateReliabilityCdfMDecomposition(s, t, d_max); }; break;
-                    case 4: calc = [gp, s, t, d_max]() { return gp->calculateReliabilityCdfCancelaPetingi(s, t, d_max); }; break;
-                    case 5: calc = [gp, s, t, d_max]() { return gp->calculateReliabilityCdfMDecompositionCPFM(s, t, d_max); }; break;
+                    case 0: calc = [gp, s, t, d]() { return gp->calculateReliabilityBetweenVertices(s, t, d); }; break;
+                    case 1: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithRecursiveDecomposition(s, t, d); }; break;
+                    case 2: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithDecomposition(s, t, d); }; break;
+                    case 3: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithMDecomposition(s, t, d); }; break;
+                    case 4: calc = [gp, s, t, d]() { return gp->calculateReliabilityCancelaPetingi(s, t, d); }; break;
+                    case 5: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithMDecompositionCPFM(s, t, d); }; break;
                 }
                 auto graph_keeper = std::make_shared<std::unique_ptr<ReliabilityGraph>>(std::move(graph));
-                std::function<ReliabilityCdfResult()> calc_wrapped =
+                std::function<ReliabilityResult()> calc_wrapped =
                     [calc, graph_keeper]() { return calc(); };
 
                 std::string err;
                 auto t0 = std::chrono::steady_clock::now();
-                auto opt = runWithTimeoutCdf(calc_wrapped, cell_timeout, &err);
+                auto opt = runWithTimeout(calc_wrapped, cell_timeout, &err);
                 auto t1 = std::chrono::steady_clock::now();
 
+                CrossCheckRow row = build_row(g.graph, g.s, g.t, d, method_id);
                 if (opt.has_value()) {
-                    double total_time = opt->execution_time_sec;
-                    long long total_recs = opt->recursions;
-                    std::cout << "    m" << method_id << " [multi-d, "
-                              << std::fixed << std::setprecision(3)
-                              << total_time << "s]: ";
-                    for (size_t i = 0; i < g.d_values.size(); ++i) {
-                        int d = g.d_values[i];
-                        CrossCheckRow row = build_row(g.graph, g.s, g.t, d, method_id);
-                        row.status       = CrossCheckStatus::OK;
-                        row.reliability  = (d < (int)opt->cdf.size()) ? opt->cdf[d] : 0.0;
-                        row.time_seconds = total_time;
-                        row.recursions   = (i == 0) ? total_recs : 0;
-                        if (i) std::cout << ", ";
-                        std::cout << "d=" << d << " R=" << std::setprecision(12)
-                                  << row.reliability;
-                        writeRowLine(csv, row);
-                        rows.push_back(row);
-                    }
-                    std::cout << "\n";
+                    row.status       = CrossCheckStatus::OK;
+                    row.reliability  = opt->reliability;
+                    row.time_seconds = opt->execution_time_sec;
+                    row.recursions   = opt->recursions;
+                    std::cout << "    m" << method_id << " d=" << d
+                              << ": R=" << std::fixed << std::setprecision(12)
+                              << row.reliability
+                              << " (" << std::setprecision(3)
+                              << row.time_seconds << "s)\n";
+                } else if (!err.empty()) {
+                    row.status = CrossCheckStatus::ERROR;
+                    row.error_message = err;
+                    row.time_seconds = std::chrono::duration<double>(t1 - t0).count();
+                    std::cout << "    m" << method_id << " d=" << d
+                              << ": ERROR (" << err << ")\n";
                 } else {
-                    bool is_error = !err.empty();
-                    double dt = std::chrono::duration<double>(t1 - t0).count();
-                    std::cout << "    m" << method_id << " [multi-d]: "
-                              << (is_error ? "ERROR (" : "TIMEOUT (>")
-                              << (is_error ? err : (std::to_string(cell_timeout) + "s"))
-                              << ")\n";
-                    for (int d : g.d_values) {
-                        CrossCheckRow row = build_row(g.graph, g.s, g.t, d, method_id);
-                        row.status = is_error ? CrossCheckStatus::ERROR
-                                              : CrossCheckStatus::TIMEOUT;
-                        if (is_error) {
-                            row.error_message = err;
-                            row.time_seconds = dt;
-                        }
-                        writeRowLine(csv, row);
-                        rows.push_back(row);
-                    }
+                    row.status = CrossCheckStatus::TIMEOUT;
+                    std::cout << "    m" << method_id << " d=" << d
+                              << ": TIMEOUT (>" << cell_timeout << "s)\n";
                 }
-            } else {
-                // Per-d single calls (m0/m1/m2 always; m3/m4/m5 with single d).
-                for (int d : g.d_values) {
-                    auto graph = std::make_unique<ReliabilityGraph>(*tmpl);
-                    auto* gp = graph.get();
-                    int s = g.s, t = g.t;
-                    std::function<ReliabilityResult()> calc;
-                    switch (method_id) {
-                        case 0: calc = [gp, s, t, d]() { return gp->calculateReliabilityBetweenVertices(s, t, d); }; break;
-                        case 1: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithRecursiveDecomposition(s, t, d); }; break;
-                        case 2: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithDecomposition(s, t, d); }; break;
-                        case 3: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithMDecomposition(s, t, d); }; break;
-                        case 4: calc = [gp, s, t, d]() { return gp->calculateReliabilityCancelaPetingi(s, t, d); }; break;
-                        case 5: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithMDecompositionCPFM(s, t, d); }; break;
-                    }
-                    auto graph_keeper = std::make_shared<std::unique_ptr<ReliabilityGraph>>(std::move(graph));
-                    std::function<ReliabilityResult()> calc_wrapped =
-                        [calc, graph_keeper]() { return calc(); };
-
-                    std::string err;
-                    auto t0 = std::chrono::steady_clock::now();
-                    auto opt = runWithTimeout(calc_wrapped, cell_timeout, &err);
-                    auto t1 = std::chrono::steady_clock::now();
-
-                    CrossCheckRow row = build_row(g.graph, g.s, g.t, d, method_id);
-                    if (opt.has_value()) {
-                        row.status       = CrossCheckStatus::OK;
-                        row.reliability  = opt->reliability;
-                        row.time_seconds = opt->execution_time_sec;
-                        row.recursions   = opt->recursions;
-                        std::cout << "    m" << method_id << " d=" << d
-                                  << ": R=" << std::fixed << std::setprecision(12)
-                                  << row.reliability
-                                  << " (" << std::setprecision(3)
-                                  << row.time_seconds << "s)\n";
-                    } else if (!err.empty()) {
-                        row.status = CrossCheckStatus::ERROR;
-                        row.error_message = err;
-                        row.time_seconds = std::chrono::duration<double>(t1 - t0).count();
-                        std::cout << "    m" << method_id << " d=" << d
-                                  << ": ERROR (" << err << ")\n";
-                    } else {
-                        row.status = CrossCheckStatus::TIMEOUT;
-                        std::cout << "    m" << method_id << " d=" << d
-                                  << ": TIMEOUT (>" << cell_timeout << "s)\n";
-                    }
-                    writeRowLine(csv, row);
-                    rows.push_back(row);
-                }
+                writeRowLine(csv, row);
+                rows.push_back(row);
             }
         }
 
-        // Progress / ETA after finishing all methods on this group.
+        // Progress / ETA after finishing all (method, d) on this (graph, s, t) group.
         auto now = std::chrono::steady_clock::now();
         double elapsed = std::chrono::duration<double>(now - run_start).count();
         double avg = elapsed / group_idx;

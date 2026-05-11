@@ -129,7 +129,7 @@ private:
  *
  * Extension of CancelaPetingiState that tracks path lengths and computes
  * reliability CDF (cumulative distribution function) for multiple diameters
- * in a single factoring pass. Used in M-Decomposition + CPFM hybrid (Method 5).
+ * in a single factoring pass. Used per block by m5 (Block + Conv + Modified Cancela-Petingi).
  */
 class CancelaPetingiStateMulti {
 public:

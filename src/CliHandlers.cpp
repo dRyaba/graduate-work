@@ -15,6 +15,7 @@
 #include <map>
 #include <exception>
 #include <algorithm>
+#include <array>
 #include <cctype>
 
 #include "graph_reliability.h"
@@ -40,13 +41,13 @@ void printUsage() {
     std::cout << "  --convert kao2edge <input> <output>                Convert KAO format to Edge List\n";
     std::cout << "  --visualize <graph_file> <output_file> [opts]      Visualize graph (SVG or DOT)\n";
     std::cout << "  --help                                             Show this help message\n\n";
-    std::cout << "Test Methods (aligned with Optimization Levels):\n";
-    std::cout << "  0 - Standard Factoring      (Level 0: Global, No Decomposition - SLOWEST)\n";
-    std::cout << "  1 - Recursive Decomposition (Level 1: Nested Recursion - INEFFICIENT)\n";
-    std::cout << "  2 - Simple Factoring        (Level 2: Convolution + Simple Facto - FAST)\n";
-    std::cout << "  3 - M-Decomposition         (Level 3: Convolution + Modified Facto - FASTEST)\n";
-    std::cout << "  4 - Cancela-Petingi         (Level 4: Path-based factoring with SPT)\n";
-    std::cout << "  5 - M-Decomp + CPFM         (Level 5: Decomposition + Path-based factoring)\n\n";
+    std::cout << "Reliability Methods (each label spells the algorithmic recipe):\n";
+    std::cout << "  0 - Pure Factoring                              (no decomposition; baseline)\n";
+    std::cout << "  1 - Block + Pure Facto                          (block decomposition + pure factoring per block)\n";
+    std::cout << "  2 - Block + Conv + Simple Facto                 (block decomp + length-convolution + simple factoring)\n";
+    std::cout << "  3 - Block + Conv + Modified Facto               (block decomp + length-convolution + modified factoring)\n";
+    std::cout << "  4 - Cancela-Petingi (Nesterov)                  (global path-based factoring; Nesterov variant)\n";
+    std::cout << "  5 - Block + Conv + Modified Cancela-Petingi     (block decomp + length-convolution + modified CP per block)\n\n";
     std::cout << "Parameters for --run:\n";
     std::cout << "  <file>    - Graph file path (KAO format)\n";
     std::cout << "  <s>       - Source vertex (0-based index, or -1 to auto-detect from targets)\n";
@@ -80,7 +81,10 @@ void printUsage() {
     std::cout << "  --d-count <N>  Diameters per (s,t) pair (default 4); tested d = {dist, dist+step, ...}\n";
     std::cout << "  --d-step <N>   Step between successive diameters (default 1)\n";
     std::cout << "  --methods L    Comma-separated method ids (default 0,1,2,3,4,5; e.g. 3,4,5)\n";
-    std::cout << "                 Methods 3/4/5 use one factorization per (s,t) for the whole d-curve\n";
+    std::cout << "                 Methods iterate in reverse (m5..m0) within each cell so a kill\n";
+    std::cout << "                 mid-run loses heavy m0/m1/m2 first, preserving m3/m4/m5 results\n";
+    std::cout << "  --method-timeout L  Override tiered defaults, e.g. m0=120,m1=60,m3=600\n";
+    std::cout << "                       Unspecified methods keep their tiered default\n";
     std::cout << "\nParameters for --visualize:\n";
     std::cout << "  <graph_file>  - Input graph (KAO format)\n";
     std::cout << "  <output_file> - Output path (.svg or .dot)\n";
@@ -204,12 +208,12 @@ int handleRun(const std::vector<std::string>& args) {
         }
 
         std::vector<std::string> method_names = {
-            "Standard Factoring (Level 0)",
-            "Recursive Decomposition (Level 1)",
-            "Simple Factoring (Level 2)",
-            "M-Decomposition (Level 3)",
-            "Cancela-Petingi (Level 4)",
-            "M-Decomp + CPFM (Level 5)"
+            "m0: Pure Factoring",
+            "m1: Block + Pure Facto",
+            "m2: Block + Conv + Simple Facto",
+            "m3: Block + Conv + Modified Facto",
+            "m4: Cancela-Petingi (Nesterov)",
+            "m5: Block + Conv + Modified Cancela-Petingi"
         };
 
         LOG_INFO("Starting reliability calculation: file={}, s={}, t={}, diameter={}, method={}, reps={}",
@@ -230,27 +234,27 @@ int handleRun(const std::vector<std::string>& args) {
             ReliabilityResult result;
             switch (method_id) {
                 case 0:
-                    LOG_DEBUG("Using Standard Factoring method");
+                    LOG_DEBUG("Using m0: Pure Factoring");
                     result = g->calculateReliabilityBetweenVertices(s_vertex, t_vertex, diameter);
                     break;
                 case 1:
-                    LOG_DEBUG("Using Recursive Decomposition method");
+                    LOG_DEBUG("Using m1: Block + Pure Facto");
                     result = g->calculateReliabilityWithRecursiveDecomposition(s_vertex, t_vertex, diameter);
                     break;
                 case 2:
-                    LOG_DEBUG("Using Simple Factoring method");
+                    LOG_DEBUG("Using m2: Block + Conv + Simple Facto");
                     result = g->calculateReliabilityWithDecomposition(s_vertex, t_vertex, diameter);
                     break;
                 case 3:
-                    LOG_DEBUG("Using M-Decomposition method");
+                    LOG_DEBUG("Using m3: Block + Conv + Modified Facto");
                     result = g->calculateReliabilityWithMDecomposition(s_vertex, t_vertex, diameter);
                     break;
                 case 4:
-                    LOG_DEBUG("Using Cancela-Petingi method");
+                    LOG_DEBUG("Using m4: Cancela-Petingi (Nesterov)");
                     result = g->calculateReliabilityCancelaPetingi(s_vertex, t_vertex, diameter);
                     break;
                 case 5:
-                    LOG_DEBUG("Using M-Decomp + CPFM method");
+                    LOG_DEBUG("Using m5: Block + Conv + Modified Cancela-Petingi");
                     result = g->calculateReliabilityWithMDecompositionCPFM(s_vertex, t_vertex, diameter);
                     break;
             }
@@ -395,6 +399,7 @@ int handleCrossCheck(const std::vector<std::string>& args) {
     int d_count = 4;
     int d_step = 1;
     std::vector<int> active_methods = {0, 1, 2, 3, 4, 5};
+    std::array<int, 6> method_timeouts_override = {0, 0, 0, 0, 0, 0};
 
     auto parse_positive_int = [](const std::string& raw, const char* flag,
                                  int& out) -> bool {
@@ -445,6 +450,48 @@ int handleCrossCheck(const std::vector<std::string>& args) {
         return true;
     };
 
+    auto parse_method_timeouts = [](const std::string& raw,
+                                    std::array<int, 6>& out) -> bool {
+        // Format: "m0=60,m3=600". Unspecified methods keep tiered default.
+        std::string token;
+        for (size_t i = 0; i <= raw.size(); ++i) {
+            char c = (i == raw.size()) ? ',' : raw[i];
+            if (c == ',') {
+                if (token.empty()) continue;
+                if (token.size() < 4 || token[0] != 'm') {
+                    std::cerr << "Error: invalid --method-timeout token: '"
+                              << token << "' (expected mN=SEC)\n";
+                    return false;
+                }
+                auto eq = token.find('=');
+                if (eq == std::string::npos || eq == 1 || eq + 1 >= token.size()) {
+                    std::cerr << "Error: invalid --method-timeout token: '"
+                              << token << "' (expected mN=SEC)\n";
+                    return false;
+                }
+                int id, val;
+                try {
+                    id  = std::stoi(token.substr(1, eq - 1));
+                    val = std::stoi(token.substr(eq + 1));
+                } catch (...) {
+                    std::cerr << "Error: invalid --method-timeout token: '"
+                              << token << "'\n";
+                    return false;
+                }
+                if (id < 0 || id > 5 || val < 1) {
+                    std::cerr << "Error: --method-timeout requires m0..m5 and "
+                                 "value>=1, got: '" << token << "'\n";
+                    return false;
+                }
+                out[id] = val;
+                token.clear();
+            } else if (!std::isspace(static_cast<unsigned char>(c))) {
+                token += c;
+            }
+        }
+        return true;
+    };
+
     for (size_t i = 1; i < args.size(); ++i) {
         if (args[i] == "--timeout" && i + 1 < args.size()) {
             if (!parse_positive_int(args[++i], "--timeout", timeout_sec))
@@ -461,6 +508,9 @@ int handleCrossCheck(const std::vector<std::string>& args) {
                 return 1;
         } else if (args[i] == "--methods" && i + 1 < args.size()) {
             if (!parse_methods(args[++i], active_methods))
+                return 1;
+        } else if (args[i] == "--method-timeout" && i + 1 < args.size()) {
+            if (!parse_method_timeouts(args[++i], method_timeouts_override))
                 return 1;
         } else if (args[i] == "--verbose" || args[i] == "-v") {
             // handled at startup
@@ -495,7 +545,8 @@ int handleCrossCheck(const std::vector<std::string>& args) {
         bool consistent = test_suite.runCrossCheck(timeout_sec, output_file,
                                                     include_real_networks, 1e-10,
                                                     d_count, d_step,
-                                                    active_methods);
+                                                    active_methods,
+                                                    method_timeouts_override);
         if (!consistent) {
             std::cerr << "Cross-check found discrepancies (see stdout above and CSV).\n";
             return 1;

@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <array>
 #include <chrono>
 #include <functional>
 #include <optional>
@@ -136,7 +137,8 @@ public:
                        double tolerance = 1e-10,
                        int d_count = 4,
                        int d_step = 1,
-                       const std::vector<int>& active_methods = {0, 1, 2, 3, 4, 5});
+                       const std::vector<int>& active_methods = {0, 1, 2, 3, 4, 5},
+                       const std::array<int, 6>& method_timeouts_override = {});
 
     /**
      * @brief Choose content-rich diameters for cell (s, t).

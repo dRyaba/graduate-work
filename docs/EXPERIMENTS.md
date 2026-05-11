@@ -63,21 +63,50 @@ For a quick smoke test (K4 + sausage only, ~2 min):
 | `Recursions` | Per-method counter (branching factor proxy) |
 | `Error` | Exception message on ERROR |
 
+## Per-(graph, method, d) isolated calls + reverse method order
+
+Every row in the CSV is the result of **one independent call** to the
+chosen method on the chosen `(s, t, d)` cell — `runCrossCheck` does not
+share work between diameters even when the algorithm internally builds a
+full `R(d)` curve. This matches the methodology of `run_benchmarks.sh` /
+`benchmark_results.csv` and gives directly comparable per-d wall times
+and recursion counts.
+
+Within each `(graph, s, t, d)` cell, methods iterate in **reverse**
+order m5 → m4 → m3 → m2 → m1 → m0. Rationale: m0/m1/m2 are the heavy
+baselines that often time out on real-world graphs; running them last
+means a `Ctrl+C` / TaskStop in the middle of a cell loses only the
+heavy m0..m2 measurements while the m3/m4/m5 numbers that drive the
+thesis chapter are already on disk.
+
 ## Tiered per-method timeouts
 
-Default `--timeout 30` activates a tiered budget per method (in
-`src/TestSuite.cpp`):
+Default `--timeout 30` activates a tiered per-method budget defined in
+`src/TestSuite.cpp` (`kMethodTimeoutsSec`):
 
 | Method | Timeout (s) | Rationale |
 |---|---|---|
-| m0 Standard Factoring | 60 | Baseline, should clear sausage-3 d=10 |
-| m1 Recursive Decomposition | 30 | Known slow, don't spend more |
-| m2 Simple Factoring | 120 | Mid-weight |
-| m3 M-Decomposition | 300 | Reference workhorse |
-| m4 Cancela-Petingi | 120 | Path-based, variance high |
-| m5 M-Decomp + CPFM | 300 | Hybrid, matches m3 budget |
+| m0 Pure Factoring | 60 | Baseline; only K4 finishes within budget |
+| m1 Block + Pure Facto | 30 | Diagnostic baseline, mostly TIMEOUT outside K4/sausage-3 |
+| m2 Block + Conv + Simple Facto | 120 | Mid-weight; finishes most sausage cells |
+| m3 Block + Conv + Modified Facto | 300 | Reference workhorse |
+| m4 Cancela-Petingi (Nesterov) | 300 | Path-based, may enumerate many paths |
+| m5 Block + Conv + Modified Cancela-Petingi | 300 | Pure m5 (no global fallback); same budget as m3 |
 
-Passing any `--timeout N` other than `30` switches to uniform timeout `N`.
+Passing any `--timeout N` other than `30` switches to a uniform timeout
+`N` for every method (and ignores any `--method-timeout` overrides).
+
+To patch the tiered defaults selectively, use `--method-timeout`:
+
+```bash
+./build/graph_reliability.exe --cross-check \
+    --method-timeout m0=120,m1=60,m2=300 \
+    --output cross_check.csv
+```
+
+Tokens are `mN=SEC` separated by commas. Unspecified methods keep their
+tiered default. Useful e.g. when sampling sausage-3 carefully and you
+want m0 to have a real chance.
 
 ## Post-processing
 

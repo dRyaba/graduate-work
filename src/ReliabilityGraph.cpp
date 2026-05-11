@@ -264,11 +264,12 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithDiameter(int diamete
 }
 
 /**
- * @brief Method 0 — Standard Factoring (baseline, slowest).
+ * @brief m0: Pure Factoring (baseline, no decomposition).
  *
- * Enumerates every edge subset via edge-state branching without any
- * decomposition. Serves as the arithmetic ground truth for m1..m5.
- * @see docs/ALGORITHMS.md section on Standard Factoring.
+ * Plain edge factoring: branch on each edge's contract/delete state without
+ * any block decomposition or convolution. Slowest method, used as the
+ * arithmetic ground truth for m1..m5.
+ * @see docs/ALGORITHMS.md
  */
 ReliabilityResult ReliabilityGraph::calculateReliabilityBetweenVertices(VertexId source, VertexId target, int diameter) const {
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -337,13 +338,14 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityBetweenVertices(VertexId
 // Cancela-Petingi path-based factoring (Method 4)
 // Optimized with global ISPT (compares feasible paths only) + per-pivot ISPT
 /**
- * @brief Method 4 — Cancela-Petingi path-based factoring.
+ * @brief m4: Cancela-Petingi path-based factoring (Nesterov variant).
  *
- * Enumerates elementary s-t paths up to length `diameter` and folds them
- * via inclusion-exclusion over intersecting path groups (ESS / ISPT /
- * GlobalISPT state). Strong on graphs with few short s-t paths
- * (Geant2004, K4) but can blow up on heavily connected blocks.
- * @see docs/ALGORITHMS.md section on Cancela-Petingi (CPFM).
+ * Global path-based factoring: enumerates elementary s-t paths up to
+ * length `diameter` and folds them via inclusion-exclusion over
+ * intersecting path groups (ESS / ISPT / GlobalISPT). Strong on graphs
+ * with few short s-t paths; can blow up on densely connected single
+ * components.
+ * @see docs/ALGORITHMS.md
  */
 ReliabilityResult ReliabilityGraph::calculateReliabilityCancelaPetingi(VertexId source,
                                                                        VertexId target,
@@ -492,7 +494,7 @@ std::pair<std::vector<double>, long long> ReliabilityGraph::calculateReliability
 }
 
 // Modified factoring - computes reliabilities for ALL diameters from lowerBound to upperBound in ONE pass
-// This is the key optimization of M-Decomposition (Factoring2VertM from legacy code)
+// Key optimization of m3 (Block + Conv + Modified Facto) — Factoring2VertM in the legacy code
 std::pair<std::vector<double>, long long> ReliabilityGraph::calculateReliabilityMultipleDiameters(
     VertexId source, VertexId target, int lowerBound, int upperBound) const {
     
@@ -730,7 +732,7 @@ std::vector<int> ReliabilityGraph::decomposeIntoKBlocks() const {
 }
 
 // -----------------------------------------------------------------------------
-// M-Decomposition Support
+// Block-decomposition support shared by m1/m2/m3/m5
 // -----------------------------------------------------------------------------
 
 struct BlockGraphNode {
@@ -1286,16 +1288,16 @@ double ReliabilityGraph::solveNestedRecursive(
 // -----------------------------------------------------------------------------
 
 /**
- * @brief Method 3 — M-Decomposition (reference workhorse).
+ * @brief m3: Block decomposition + length-convolution + modified factoring.
  *
  * Splits the graph at articulation points into blocks, solves each block
- * independently with modified factoring, and convolves block results
- * along the block chain. Best time/accuracy trade-off on sausage and
- * mid-size real-world networks.
- * @see docs/ALGORITHMS.md section on M-Decomposition.
+ * with the modified factoring scheme (computes the per-block reliability
+ * curve in one pass), and convolves the block curves along the chain.
+ * Reference workhorse on sausage chains and mid-size real-world networks.
+ * @see docs/ALGORITHMS.md
  */
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecomposition(VertexId s, VertexId t, int d) const {
-    LOG_INFO("Starting M-Decomposition: s={}, t={}, diameter={}", s, t, d);
+    LOG_INFO("Starting m3 (Block + Conv + Modified Facto): s={}, t={}, diameter={}", s, t, d);
 
     clock_t start = clock();
     long long recursion_counter = 0;
@@ -1321,7 +1323,7 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecomposition(Verte
     double rel = (results.empty()) ? 0.0 : results[std::min((int)results.size()-1, d)];
     double time = (double)(clock() - start) / CLOCKS_PER_SEC;
 
-    LOG_INFO("M-Decomposition completed: reliability={}, recursions={}, time={}s", rel, recursion_counter, time);
+    LOG_INFO("m3 completed: reliability={}, recursions={}, time={}s", rel, recursion_counter, time);
 
     return ReliabilityResult(rel, recursion_counter, time);
 }
@@ -1406,17 +1408,16 @@ static std::vector<double> solveBlockChainIterative(
 
 
 /**
- * @brief Method 5 — M-Decomposition + Cancela-Petingi hybrid.
+ * @brief m5: Block decomposition + length-convolution + modified Cancela-Petingi.
  *
- * Same block decomposition as m3, but each block is solved with CPFM
- * (m4) when the block edge count exceeds an internal threshold
- * (sausage-friendly) or with modified factoring otherwise. Falls back
- * to the global CPFM path if a block is too dense for block-local
- * decomposition.
- * @see docs/ALGORITHMS.md section on the hybrid method.
+ * Same block decomposition + chain convolution as m3, but every block is
+ * solved with the multi-diameter Cancela-Petingi (CPFM) factoring instead
+ * of modified factoring. Pure m5 — no fallback to global CPFM on dense
+ * blocks. Best fit for graphs with many small biconnected components.
+ * @see docs/ALGORITHMS.md
  */
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecompositionCPFM(VertexId s, VertexId t, int d) const {
-    LOG_INFO("Starting M-Decomposition + CPFM (Method 5): s={}, t={}, diameter={}", s, t, d);
+    LOG_INFO("Starting m5 (Block + Conv + Modified Cancela-Petingi): s={}, t={}, diameter={}", s, t, d);
 
     PROFILE_RESET();
     auto total_start = std::chrono::high_resolution_clock::now();
@@ -1479,7 +1480,7 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecompositionCPFM(V
     if (gap < 0) {
         auto total_end = std::chrono::high_resolution_clock::now();
         double time = std::chrono::duration<double>(total_end - total_start).count();
-        LOG_INFO("M-Decomposition + CPFM: gap<0, returning 0");
+        LOG_INFO("m5: gap<0, returning 0");
         return ReliabilityResult(0.0, 0, time);
     }
 
@@ -1527,7 +1528,7 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithMDecompositionCPFM(V
     PROFILE_PRINT();
 #endif
     
-    LOG_INFO("M-Decomposition + CPFM completed: reliability={}, recursions={}, time={}s", rel, recursion_counter, time);
+    LOG_INFO("m5 completed: reliability={}, recursions={}, time={}s", rel, recursion_counter, time);
     
     return ReliabilityResult(rel, recursion_counter, time);
 }
@@ -1695,22 +1696,23 @@ ReliabilityCdfResult ReliabilityGraph::calculateReliabilityCdfMDecompositionCPFM
 }
 
 /**
- * @brief Method 1 — Recursive Decomposition (known-slow).
+ * @brief m1: Block decomposition + pure factoring per block.
  *
- * Decomposes the graph at articulation points and factors each block
- * recursively without convolution. Kept as a diagnostic baseline; times
- * out on anything larger than sausage-3 within the default budget.
- * @see docs/ALGORITHMS.md section on Recursive Decomposition.
+ * Splits the graph at articulation points and runs pure factoring inside
+ * each block (no length-convolution along the chain). Diagnostic
+ * baseline — times out on anything larger than sausage-3 within the
+ * default budget.
+ * @see docs/ALGORITHMS.md
  */
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithRecursiveDecomposition(VertexId s, VertexId t, int d) const {
     // ==========================================================================
-    // LEVEL 1: Recursive Decomposition (The "Naive" Method)
+    // m1: Block + Pure Facto — true nested recursion across blocks (the naïve baseline)
     // ==========================================================================
     // This method uses TRUE NESTED RECURSION where the solver for Block(i) makes
     // recursive calls to Block(i+1) INSIDE its loop over path lengths.
     // This is intentionally INEFFICIENT for academic comparison purposes.
     // ==========================================================================
-    LOG_INFO("Starting Recursive Decomposition: s={}, t={}, diameter={}", s, t, d);
+    LOG_INFO("Starting m1 (Block + Pure Facto): s={}, t={}, diameter={}", s, t, d);
     clock_t start = clock();
     long long recursion_counter = 0;
 
@@ -1794,23 +1796,25 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithRecursiveDecompositi
     );
     
     double time = (double)(clock() - start) / CLOCKS_PER_SEC;
-    LOG_INFO("Recursive Decomposition completed: reliability={}, recursions={}, time={}s", 
+    LOG_INFO("m1 completed: reliability={}, recursions={}, time={}s",
              reliability, recursion_counter, time);
     
     return ReliabilityResult(reliability, recursion_counter, time);
 }
 
 /**
- * @brief Method 2 — Simple Factoring with iterative decomposition.
+ * @brief m2: Block decomposition + length-convolution + simple factoring.
  *
- * Iterative block decomposition followed by simple-factoring convolution
- * along the block chain. Mid-weight: faster than m0/m1, slower than m3
- * on sausages but comparable on small graphs.
- * @see docs/ALGORITHMS.md section on Simple Factoring.
+ * Iterative block decomposition; each block is solved with the simple
+ * (unmodified) factoring scheme to produce a per-block reliability
+ * curve, and the curves are combined along the chain via length
+ * convolution. Mid-weight: faster than m0/m1, comparable to m3 on
+ * sausage chains where decomposition is generous.
+ * @see docs/ALGORITHMS.md
  */
 ReliabilityResult ReliabilityGraph::calculateReliabilityWithDecomposition(VertexId s, VertexId t, int UpperBound) const {
     // Uses block decomposition with simple (one-diameter-at-a-time) factoring per block.
-    LOG_INFO("Starting Simple Factoring with Decomposition: s={}, t={}, diameter={}", s, t, UpperBound);
+    LOG_INFO("Starting m2 (Block + Conv + Simple Facto): s={}, t={}, diameter={}", s, t, UpperBound);
     clock_t start = clock();
     long long recursion_counter = 0;
 
@@ -1899,7 +1903,7 @@ ReliabilityResult ReliabilityGraph::calculateReliabilityWithDecomposition(Vertex
     double reliability = BlockReliab[0][gap];
     double time = (double)(clock() - start) / CLOCKS_PER_SEC;
 
-    LOG_INFO("Simple Factoring with Decomposition completed: reliability={}, recursions={}, time={}s",
+    LOG_INFO("m2 completed: reliability={}, recursions={}, time={}s",
              reliability, recursion_counter, time);
     return ReliabilityResult(reliability, recursion_counter, time);
 }

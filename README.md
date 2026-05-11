@@ -265,16 +265,21 @@ Series and parallel edge reductions used by the decomposition pipeline.
 
 ### Reliability Calculation Methods
 
-| Method ID | Name | Description | Speed |
-|-----------|------|-------------|-------|
-| 0 | **Standard Factoring** | Baseline: direct edge factoring without decomposition. R = p×R(contract) + (1-p)×R(delete) | Slowest |
-| 1 | **Recursive Decomposition** | Block decomposition with nested recursion. Academic comparison only | Very slow |
-| 2 | **Simple Factoring** | Block decomposition + convolution + simple factoring | Fast |
-| 3 | **M-Decomposition** | Block decomposition + modified factoring (computes all diameters in one pass) | Fastest |
-| 4 | **Cancela-Petingi** | Path-based factoring with SPT/ISPT optimizations. Operates on path lists, not graphs | Efficient |
-| 5 | **M-Decomp + CPFM** | Hybrid: block decomposition + multi-diameter path-based factoring inside blocks | Efficient |
+Each label spells the algorithmic recipe so the meaning of any cross-check
+CSV row is readable without consulting separate documentation.
 
-**Recommended**: Use Method 3 (M-Decomposition) for production, Method 5 (M-Decomp + CPFM) for graphs with many paths where ISPT is effective.
+| ID | Label | Recipe |
+|---|---|---|
+| 0 | **Pure Factoring** | Plain edge factoring (no decomposition). Baseline; `R = p·R(contract) + (1−p)·R(delete)` |
+| 1 | **Block + Pure Facto** | Block decomposition at articulation points + pure factoring per block (no length-convolution along the chain) |
+| 2 | **Block + Conv + Simple Facto** | Block decomposition + length-convolution along the chain + simple (unmodified) factoring per block |
+| 3 | **Block + Conv + Modified Facto** | Block decomposition + length-convolution + modified factoring per block (whole reliability curve in one block pass) |
+| 4 | **Cancela-Petingi (Nesterov)** | Global path-based factoring (Cancela-Petingi, Nesterov variant): enumerate s-t paths up to `d`, fold via inclusion-exclusion (ESS / ISPT / GlobalISPT) |
+| 5 | **Block + Conv + Modified Cancela-Petingi** | Block decomposition + length-convolution + multi-diameter Cancela-Petingi per block (no fallback to global) |
+
+**Recommended**: m3 for production on graphs with many small biconnected
+blocks; m5 when blocks are small enough to enumerate s-t paths cheaply
+inside; m4 globally on graphs with very few short s-t paths.
 
 #### Multi-diameter (CDF) APIs
 
@@ -347,7 +352,7 @@ K4, sausage chains, Geant2004 and IEEE-118 — see
 [experiments/2026-04-25/](experiments/2026-04-25/README.md) for the
 agreement matrix and per-(s, t) wall times under the multi-d CDF API.
 
-**Key takeaway**: m5 (M-Decomp + CPFM) is optimal for structured sausage chains (up to ×6356 vs m3). m4 (Cancela-Petingi) is optimal for real-world networks with large biconnected components.
+**Key takeaway**: m5 (Block + Conv + Modified Cancela-Petingi) is optimal for structured sausage chains (up to ×6356 vs m3). m4 (Cancela-Petingi, Nesterov) is optimal for real-world networks with large biconnected components.
 
 See [docs/ALGORITHMS.md](docs/ALGORITHMS.md#experimental-results) for full
 analysis and [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md) for how to
@@ -380,10 +385,10 @@ ctest
 Run the comprehensive test suite:
 
 ```bash
-# Run all tests with method 3 (M-Decomposition)
+# Run all tests with method 3 (Block + Conv + Modified Facto)
 ./graph_reliability --test 3 results.csv
 
-# Run tests with method 0 (Standard Factoring)
+# Run tests with method 0 (Pure Factoring)
 ./graph_reliability --test 0
 
 # Run tests with custom output file

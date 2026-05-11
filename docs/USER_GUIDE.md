@@ -97,14 +97,14 @@ cmake --build .
 
 ## Method Selection
 
-| ID | Method | Description | Best For |
-|----|--------|-------------|----------|
-| 0 | Standard Factoring | Baseline, no decomposition | Small graphs |
-| 1 | Recursive Decomposition | Nested recursion | Academic comparison |
-| 2 | Simple Factoring | Convolution + simple factoring | Medium graphs |
-| 3 | M-Decomposition | Convolution + modified factoring | Large graphs (recommended) |
-| 4 | Cancela-Petingi | Path-based factoring with SPT | Single-block graphs |
-| 5 | M-Decomp + CPFM | Hybrid: decomposition + path-based | ISPT-effective graphs |
+| ID | Method | Recipe | Best For |
+|----|--------|--------|----------|
+| 0 | Pure Factoring | No decomposition; baseline | Small graphs (< ~20 edges) |
+| 1 | Block + Pure Facto | Block decomp + pure factoring per block | Diagnostic / academic comparison |
+| 2 | Block + Conv + Simple Facto | Block decomp + length-convolution + simple factoring | Medium graphs |
+| 3 | Block + Conv + Modified Facto | Block decomp + length-convolution + modified factoring | Large graphs (workhorse) |
+| 4 | Cancela-Petingi (Nesterov) | Global path-based factoring (Nesterov variant) | Few s-t paths / single-block graphs |
+| 5 | Block + Conv + Modified Cancela-Petingi | Block decomp + length-convolution + multi-d CP per block | Block-structured graphs with small blocks |
 
 ## Input Data Formats
 
@@ -146,7 +146,7 @@ cmake --build .
 ```
 Running test on: graphs_data/K4_kao.txt
   Source: 0, Target: 3
-  Diameter: 2, Method: M-Decomposition (Level 3)
+  Diameter: 2, Method: m3: Block + Conv + Modified Facto
   Repetitions: 1
 
 Results:
@@ -165,7 +165,7 @@ Results:
 
 ```csv
 Graph,S,T,D,Reps,Method,AvgTime,AvgRel,AvgRecs
-K4_kao.txt,0,3,2,1,M-Decomposition (Level 3),0.001234,0.810000,15
+K4_kao.txt,0,3,2,1,m3: Block + Conv + Modified Facto,0.001234,0.810000,15
 ```
 
 ## Running Tests
@@ -210,7 +210,7 @@ cmake --build . --target run_tests
 
 #### Slow performance
 
-- Use Method 3 (M-Decomposition) for large graphs
+- Use Method 3 (Block + Conv + Modified Facto) for large graphs
 - Reduce diameter constraint if possible
 - Use Release build for better performance
 - Check if graph can be decomposed into smaller blocks
@@ -266,7 +266,7 @@ Check log file: `graph_reliability.log`
 ### Example 3: Comprehensive Testing
 
 ```bash
-# Run all test graphs with M-Decomposition
+# Run all test graphs with m3 (Block + Conv + Modified Facto)
 ./graph_reliability --test 3 comprehensive_results.csv
 ```
 
