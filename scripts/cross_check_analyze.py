@@ -80,17 +80,20 @@ def load(path: str):
                     return None
 
             rows.append({
-                "Graph":       r.get("Graph", ""),
-                "S":           as_int(r.get("S", "")),
-                "T":           as_int(r.get("T", "")),
-                "D":           as_int(r.get("D", "")),
-                "MethodId":    as_int(r.get("MethodId", "")),
-                "Method":      r.get("Method", ""),
-                "Status":      r.get("Status", ""),
-                "Reliability": as_float(r.get("Reliability", "")),
-                "TimeSec":     as_float(r.get("TimeSec", "")),
-                "Recursions":  as_int(r.get("Recursions", "")),
-                "Error":       r.get("Error", ""),
+                "Graph":         r.get("Graph", ""),
+                "S":             as_int(r.get("S", "")),
+                "T":             as_int(r.get("T", "")),
+                "D":             as_int(r.get("D", "")),
+                "MethodId":      as_int(r.get("MethodId", "")),
+                "Method":        r.get("Method", ""),
+                "Status":        r.get("Status", ""),
+                "Reliability":   as_float(r.get("Reliability", "")),
+                "TimeSec":       as_float(r.get("TimeSec", "")),
+                "Recursions":    as_int(r.get("Recursions", "")),
+                "CompletedRuns": as_int(r.get("CompletedRuns", "")),
+                "MinTimeSec":    as_float(r.get("MinTimeSec", "")),
+                "MaxTimeSec":    as_float(r.get("MaxTimeSec", "")),
+                "Error":         r.get("Error", ""),
             })
     return rows
 

@@ -35,7 +35,7 @@ void printUsage() {
     std::cout << "Options:\n";
     std::cout << "  --run <file> <s> <t> <d> <method> [reps]           Run test on specific graph file\n";
     std::cout << "  --test <method_id> [output_file]                   Run comprehensive tests on predefined graphs\n";
-    std::cout << "  --cross-check [--timeout N] [--output F] [--quick] [--d-count N] [--d-step N] [--methods 3,4,5]\n"
+    std::cout << "  --cross-check [--timeout N] [--output F] [--quick] [--d-count N] [--d-step N] [--methods 3,4,5] [--repetitions N]\n"
                  "                                                     Cross-check methods m0..m5 vs each other\n";
     std::cout << "  --convert edge2kao <input> <output> <reliability>  Convert Edge List to KAO format\n";
     std::cout << "  --convert kao2edge <input> <output>                Convert KAO format to Edge List\n";
@@ -85,6 +85,10 @@ void printUsage() {
     std::cout << "                 mid-run loses heavy m0/m1/m2 first, preserving m3/m4/m5 results\n";
     std::cout << "  --method-timeout L  Override tiered defaults, e.g. m0=120,m1=60,m3=600\n";
     std::cout << "                       Unspecified methods keep their tiered default\n";
+    std::cout << "  --repetitions N    Repetitions per (graph,method,d) cell, default 8\n";
+    std::cout << "                       TimeSec = median across completed runs;\n";
+    std::cout << "                       early-exit if first two runs both TIMEOUT.\n";
+    std::cout << "                       CSV gains CompletedRuns / MinTimeSec / MaxTimeSec columns.\n";
     std::cout << "\nParameters for --visualize:\n";
     std::cout << "  <graph_file>  - Input graph (KAO format)\n";
     std::cout << "  <output_file> - Output path (.svg or .dot)\n";
@@ -398,6 +402,7 @@ int handleCrossCheck(const std::vector<std::string>& args) {
     bool include_real_networks = true;
     int d_count = 4;
     int d_step = 1;
+    int repetitions = 8;
     std::vector<int> active_methods = {0, 1, 2, 3, 4, 5};
     std::array<int, 6> method_timeouts_override = {0, 0, 0, 0, 0, 0};
 
@@ -512,6 +517,9 @@ int handleCrossCheck(const std::vector<std::string>& args) {
         } else if (args[i] == "--method-timeout" && i + 1 < args.size()) {
             if (!parse_method_timeouts(args[++i], method_timeouts_override))
                 return 1;
+        } else if (args[i] == "--repetitions" && i + 1 < args.size()) {
+            if (!parse_positive_int(args[++i], "--repetitions", repetitions))
+                return 1;
         } else if (args[i] == "--verbose" || args[i] == "-v") {
             // handled at startup
         } else {
@@ -529,25 +537,30 @@ int handleCrossCheck(const std::vector<std::string>& args) {
         // K4 is excluded — it finishes in microseconds for every method and
         // therefore carries no information for the comparison chapter.
         std::map<std::string, std::vector<int>> test_configs = {
+            {"2_blocks_sausage_s3_kao.txt",     {}},
             {"3_blocks_sausage_3x3_kao.txt",    {}},
             {"4_blocks_sausage_3x3_kao.txt",    {}},
+            {"4_blocks_sausage_s3_kao.txt",     {}},
             {"5_blocks_sausage_3x3_kao.txt",    {}},
-            {"6_blocks_sausage_3x3_kao.txt",    {}}
+            {"6_blocks_sausage_3x3_kao.txt",    {}},
+            {"6_blocks_sausage_s3_kao.txt",     {}}
         };
         test_suite.setTestConfigurations(test_configs);
 
-        LOG_INFO("Cross-check: timeout={}s, output={}, include_real_networks={}, d_count={}, d_step={}",
-                 timeout_sec, output_file, include_real_networks, d_count, d_step);
+        LOG_INFO("Cross-check: timeout={}s, output={}, include_real_networks={}, d_count={}, d_step={}, repetitions={}",
+                 timeout_sec, output_file, include_real_networks, d_count, d_step, repetitions);
         std::cout << "Cross-check: timeout=" << timeout_sec << "s, output="
                   << output_file << ", real_networks="
                   << (include_real_networks ? "yes" : "no")
-                  << ", d_count=" << d_count << ", d_step=" << d_step << "\n";
+                  << ", d_count=" << d_count << ", d_step=" << d_step
+                  << ", repetitions=" << repetitions << "\n";
 
         bool consistent = test_suite.runCrossCheck(timeout_sec, output_file,
                                                     include_real_networks, 1e-10,
                                                     d_count, d_step,
                                                     active_methods,
-                                                    method_timeouts_override);
+                                                    method_timeouts_override,
+                                                    repetitions);
         if (!consistent) {
             std::cerr << "Cross-check found discrepancies (see stdout above and CSV).\n";
             return 1;
