@@ -120,6 +120,5 @@ gmon.out
 core
 core.*
 
-# Transient runtime artifacts (MSYS2 crashes, visualizer outputs at repo root)
+# Transient runtime artifacts (MSYS2 crashes, scratch outputs at repo root)
 /bash.exe.stackdump
-/graph_widget.html

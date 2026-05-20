@@ -12,6 +12,10 @@ Edge-list variants (`*_edgelist.txt`) exist for a few graphs as the
 see [`Exceptions.h`](../include/graph_reliability/Exceptions.h) and
 [`GraphOperations`](../src/GraphOperations.cpp) for the converter.
 
+To inspect a graph visually without building anything, open the
+[browser viewer](../graph_widget.html) at the repo root and paste the
+first two rows (KAO + FO) of any `*_kao.txt` file into the textarea.
+
 ## Catalogue
 
 ### Complete graphs (smoke tests)
