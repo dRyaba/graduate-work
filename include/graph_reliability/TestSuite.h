@@ -142,7 +142,8 @@ public:
                        int d_step = 1,
                        const std::vector<int>& active_methods = {0, 1, 2, 3, 4, 5},
                        const std::array<int, 6>& method_timeouts_override = {},
-                       int repetitions = 8);
+                       int repetitions = 8,
+                       bool resume_from_existing = false);
 
     /**
      * @brief Choose content-rich diameters for cell (s, t).

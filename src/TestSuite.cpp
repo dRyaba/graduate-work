@@ -18,6 +18,8 @@
 #include <cmath>
 #include <algorithm>
 #include <array>
+#include <set>
+#include <tuple>
 
 namespace graph_reliability {
 
@@ -459,8 +461,52 @@ bool TestSuite::runCrossCheck(int timeout_sec,
                               int d_step,
                               const std::vector<int>& active_methods,
                               const std::array<int, 6>& method_timeouts_override,
-                              int repetitions) {
+                              int repetitions,
+                              bool resume_from_existing) {
     if (repetitions < 1) repetitions = 1;
+
+    // --resume support: read the existing CSV (if any) and remember which
+    // (graph, s, t, d, method_id) cells are already done, so we append to
+    // the same file instead of redoing 13 hours of work.
+    std::set<std::tuple<std::string, int, int, int, int>> done_cells;
+    if (resume_from_existing) {
+        std::ifstream existing(output_filename);
+        if (existing) {
+            std::string line;
+            bool header_skipped = false;
+            while (std::getline(existing, line)) {
+                if (!header_skipped) { header_skipped = true; continue; }
+                if (line.empty()) continue;
+                // Parse first 5 comma-separated tokens: Graph, S, T, D, MethodId
+                std::string tokens[5];
+                size_t pos = 0;
+                int idx = 0;
+                while (idx < 5 && pos != std::string::npos) {
+                    size_t next = line.find(',', pos);
+                    tokens[idx++] = (next == std::string::npos)
+                                        ? line.substr(pos)
+                                        : line.substr(pos, next - pos);
+                    pos = (next == std::string::npos) ? next : next + 1;
+                }
+                if (idx < 5) continue;
+                try {
+                    done_cells.emplace(tokens[0],
+                                       std::stoi(tokens[1]),
+                                       std::stoi(tokens[2]),
+                                       std::stoi(tokens[3]),
+                                       std::stoi(tokens[4]));
+                } catch (...) {
+                    // Skip malformed lines silently.
+                }
+            }
+            std::cout << "[resume] " << done_cells.size()
+                      << " (graph,s,t,d,method) cells already in "
+                      << output_filename << " — they will be skipped\n";
+        } else {
+            std::cout << "[resume] " << output_filename
+                      << " not found — starting fresh\n";
+        }
+    }
     // Resolve effective per-method timeouts: tiered defaults overlaid by any
     // user-provided overrides (positive values in the override array win).
     std::array<int, 6> effective_method_timeouts = kMethodTimeoutsSec;
@@ -623,16 +669,19 @@ bool TestSuite::runCrossCheck(int timeout_sec,
     std::cout << "Per-(graph,method,d) isolated calls; "
                  "methods iterate in reverse (m5..m0) within each cell.\n";
 
-    // Incremental CSV: open once, write header, flush after each row. Any
-    // progress survives a kill.
-    std::ofstream csv(output_filename);
+    // Incremental CSV: open once, write header (only on fresh runs), flush
+    // after each row. Any progress survives a kill.
+    const bool append_mode = resume_from_existing && !done_cells.empty();
+    std::ofstream csv(output_filename, append_mode ? std::ios::app : std::ios::out);
     if (!csv) {
         std::cerr << "Could not open output file: " << output_filename << "\n";
         return false;
     }
-    csv << "Graph,S,T,D,MethodId,Method,Status,Reliability,TimeSec,Recursions,"
-        << "CompletedRuns,MinTimeSec,MaxTimeSec,Error\n";
-    csv.flush();
+    if (!append_mode) {
+        csv << "Graph,S,T,D,MethodId,Method,Status,Reliability,TimeSec,Recursions,"
+            << "CompletedRuns,MinTimeSec,MaxTimeSec,Error\n";
+        csv.flush();
+    }
 
     std::vector<CrossCheckRow> rows;
     rows.reserve(cells.size() * active_methods.size());
@@ -680,6 +729,13 @@ bool TestSuite::runCrossCheck(int timeout_sec,
         // not competitive in this cell.
         for (int d : g.d_values) {
             for (int method_id : methods_reverse) {
+                // Resume mode: skip cells already on disk.
+                if (resume_from_existing &&
+                    done_cells.count(std::make_tuple(g.graph, g.s, g.t, d, method_id))) {
+                    std::cout << "    m" << method_id << " d=" << d
+                              << ": [resumed, skipped]\n";
+                    continue;
+                }
                 const int cell_timeout = use_tiered
                     ? effective_method_timeouts[method_id]
                     : timeout_sec;
@@ -695,7 +751,17 @@ bool TestSuite::runCrossCheck(int timeout_sec,
                 bool got_error = false;
                 double last_rep_wall = 0.0;
 
-                for (int rep = 0; rep < repetitions; ++rep) {
+                // Adaptive cap: long-running cells don't need many reps. After
+                // the first OK run we shrink `rep_budget` based on its elapsed
+                // time — fast cells stay at the full `repetitions`, but slow
+                // ones cut the series to 2 (medium) or 1 (slow), avoiding
+                // hours wasted on a 25-minute cell × 8 repetitions = 3.3 h.
+                int rep_budget = repetitions;
+                bool budget_adapted = false;
+                constexpr double kAdaptShortSec  = 300.0;   //  5 min
+                constexpr double kAdaptLongSec   = 1800.0;  // 30 min
+
+                for (int rep = 0; rep < rep_budget; ++rep) {
                     auto graph = std::make_unique<ReliabilityGraph>(*tmpl);
                     auto* gp = graph.get();
                     std::function<ReliabilityResult()> calc;
@@ -724,6 +790,30 @@ bool TestSuite::runCrossCheck(int timeout_sec,
                         }
                         ok_times.push_back(opt->execution_time_sec);
                         timeouts_in_a_row = 0;
+
+                        // Adapt rep_budget once based on the first OK's time.
+                        if (!budget_adapted) {
+                            budget_adapted = true;
+                            const double t_ok = opt->execution_time_sec;
+                            int new_budget = repetitions;
+                            const char* reason = "no cap";
+                            if (t_ok >= kAdaptLongSec) {
+                                new_budget = rep + 1;       // ≥30 min → single shot
+                                reason = "≥30min, single-shot";
+                            } else if (t_ok >= kAdaptShortSec) {
+                                new_budget = std::min(repetitions, rep + 2); // 5..30 min → +1 more
+                                reason = "5..30min, 2-shot cap";
+                            }
+                            if (new_budget < rep_budget) {
+                                std::cout << "      [adaptive] m" << method_id
+                                          << " d=" << d << " first OK="
+                                          << std::fixed << std::setprecision(2)
+                                          << t_ok << "s → "
+                                          << "cap reps to " << new_budget
+                                          << " (" << reason << ")\n";
+                                rep_budget = new_budget;
+                            }
+                        }
                     } else if (!err.empty()) {
                         err_msg = err;
                         got_error = true;
@@ -756,7 +846,8 @@ bool TestSuite::runCrossCheck(int timeout_sec,
                               << row.reliability
                               << " (median=" << std::setprecision(3)
                               << row.time_seconds << "s of "
-                              << row.completed_runs << "/" << repetitions << ")\n";
+                              << row.completed_runs << "/" << rep_budget
+                              << (rep_budget < repetitions ? "*" : "") << ")\n";
                 } else if (got_error) {
                     row.status = CrossCheckStatus::ERROR;
                     row.error_message = err_msg;

@@ -88,7 +88,10 @@ void printUsage() {
     std::cout << "  --repetitions N    Repetitions per (graph,method,d) cell, default 8\n";
     std::cout << "                       TimeSec = median across completed runs;\n";
     std::cout << "                       early-exit if first two runs both TIMEOUT.\n";
+    std::cout << "                       Adaptive cap: first OK ≥30min → 1 rep; 5..30min → 2 reps.\n";
     std::cout << "                       CSV gains CompletedRuns / MinTimeSec / MaxTimeSec columns.\n";
+    std::cout << "  --resume           Resume from an existing --output CSV: cells already\n";
+    std::cout << "                       on disk are skipped, new rows are appended.\n";
     std::cout << "\nParameters for --visualize:\n";
     std::cout << "  <graph_file>  - Input graph (KAO format)\n";
     std::cout << "  <output_file> - Output path (.svg or .dot)\n";
@@ -403,6 +406,7 @@ int handleCrossCheck(const std::vector<std::string>& args) {
     int d_count = 4;
     int d_step = 1;
     int repetitions = 8;
+    bool resume_from_existing = false;
     std::vector<int> active_methods = {0, 1, 2, 3, 4, 5};
     std::array<int, 6> method_timeouts_override = {0, 0, 0, 0, 0, 0};
 
@@ -520,6 +524,8 @@ int handleCrossCheck(const std::vector<std::string>& args) {
         } else if (args[i] == "--repetitions" && i + 1 < args.size()) {
             if (!parse_positive_int(args[++i], "--repetitions", repetitions))
                 return 1;
+        } else if (args[i] == "--resume") {
+            resume_from_existing = true;
         } else if (args[i] == "--verbose" || args[i] == "-v") {
             // handled at startup
         } else {
@@ -560,7 +566,8 @@ int handleCrossCheck(const std::vector<std::string>& args) {
                                                     d_count, d_step,
                                                     active_methods,
                                                     method_timeouts_override,
-                                                    repetitions);
+                                                    repetitions,
+                                                    resume_from_existing);
         if (!consistent) {
             std::cerr << "Cross-check found discrepancies (see stdout above and CSV).\n";
             return 1;
