@@ -90,10 +90,11 @@ def load(path: str):
                 "Reliability":   as_float(r.get("Reliability", "")),
                 "TimeSec":       as_float(r.get("TimeSec", "")),
                 "Recursions":    as_int(r.get("Recursions", "")),
-                "CompletedRuns": as_int(r.get("CompletedRuns", "")),
-                "MinTimeSec":    as_float(r.get("MinTimeSec", "")),
-                "MaxTimeSec":    as_float(r.get("MaxTimeSec", "")),
-                "Error":         r.get("Error", ""),
+                "CompletedRuns":    as_int(r.get("CompletedRuns", "")),
+                "MinTimeSec":       as_float(r.get("MinTimeSec", "")),
+                "MaxTimeSec":       as_float(r.get("MaxTimeSec", "")),
+                "TimeoutBudgetSec": as_int(r.get("TimeoutBudgetSec", "")),
+                "Error":            r.get("Error", ""),
             })
     return rows
 

@@ -447,6 +447,7 @@ void writeRowLine(std::ofstream& file, const CrossCheckRow& r) {
          << r.completed_runs << ","
          << min_str << ","
          << max_str << ","
+         << r.timeout_budget_sec << ","
          << err << "\n";
     file.flush();
 }
@@ -679,7 +680,7 @@ bool TestSuite::runCrossCheck(int timeout_sec,
     }
     if (!append_mode) {
         csv << "Graph,S,T,D,MethodId,Method,Status,Reliability,TimeSec,Recursions,"
-            << "CompletedRuns,MinTimeSec,MaxTimeSec,Error\n";
+            << "CompletedRuns,MinTimeSec,MaxTimeSec,TimeoutBudgetSec,Error\n";
         csv.flush();
     }
 
@@ -833,6 +834,7 @@ bool TestSuite::runCrossCheck(int timeout_sec,
 
                 CrossCheckRow row = build_row(g.graph, g.s, g.t, d, method_id);
                 row.completed_runs = static_cast<int>(ok_times.size());
+                row.timeout_budget_sec = cell_timeout;
 
                 if (!ok_times.empty()) {
                     row.status            = CrossCheckStatus::OK;

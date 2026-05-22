@@ -73,6 +73,7 @@ struct CrossCheckRow {
     int completed_runs = 0;          ///< Number of OK repetitions (0..repetitions).
     double min_time_seconds = 0.0;   ///< Min of OK repetitions; 0 on non-OK.
     double max_time_seconds = 0.0;   ///< Max of OK repetitions; 0 on non-OK.
+    int timeout_budget_sec = 0;      ///< Per-cell timeout (sec) used for this row.
     std::string error_message;
 };
 
