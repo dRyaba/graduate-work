@@ -68,8 +68,12 @@ struct CrossCheckRow {
     std::string method_name;
     CrossCheckStatus status = CrossCheckStatus::OK;
     double reliability = 0.0;
-    double time_seconds = 0.0;
+    double time_seconds = 0.0;       ///< Median across completed repetitions.
     long long recursions = 0;
+    int completed_runs = 0;          ///< Number of OK repetitions (0..repetitions).
+    double min_time_seconds = 0.0;   ///< Min of OK repetitions; 0 on non-OK.
+    double max_time_seconds = 0.0;   ///< Max of OK repetitions; 0 on non-OK.
+    int timeout_budget_sec = 0;      ///< Per-cell timeout (sec) used for this row.
     std::string error_message;
 };
 
@@ -138,7 +142,9 @@ public:
                        int d_count = 4,
                        int d_step = 1,
                        const std::vector<int>& active_methods = {0, 1, 2, 3, 4, 5},
-                       const std::array<int, 6>& method_timeouts_override = {});
+                       const std::array<int, 6>& method_timeouts_override = {},
+                       int repetitions = 8,
+                       bool resume_from_existing = false);
 
     /**
      * @brief Choose content-rich diameters for cell (s, t).
@@ -252,11 +258,6 @@ private:
                           const std::string& method_name,
                           const std::string& filename) const;
 
-    /**
-     * @brief Write a vector of cross-check rows to CSV.
-     */
-    static void writeCrossCheckCSV(const std::vector<CrossCheckRow>& rows,
-                                   const std::string& filename);
 };
 
 } // namespace graph_reliability

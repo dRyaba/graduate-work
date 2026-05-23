@@ -23,8 +23,11 @@ upward (`--d-count N --d-step N`), so every cell is guaranteed
   trivial cells).
 - `cross_check_disagreements.csv` — empty.
 - `cross_check_perf_summary.csv` — median / p95 timings per method × family.
-- `*.svg`, `*.dot`, `graph_widget.html` — visualizer outputs generated
-  during this period.
+- `*.svg`, `*.dot` — visualizer outputs generated during this period.
+
+(The browser-based viewer `graph_widget.html` was originally archived
+here by accident; it is a standalone tool, not an experiment artefact,
+and has been moved back to the repository root.)
 
 ## Reproducing the analysis (not the run)
 

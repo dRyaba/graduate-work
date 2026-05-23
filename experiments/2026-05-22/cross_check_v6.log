@@ -1,0 +1,873 @@
+Cross-check: timeout=30s, output=cross_check_v6.csv, real_networks=yes, d_count=4, d_step=1, repetitions=8
+Cell plan (d_count=4, d_step=1):
+  2_blocks_sausage_s3_kao.txt s=0 t=14 dist=5 → d ∈ {5, 6, 7, 8}
+  3_blocks_sausage_3x3_kao.txt s=0 t=28 dist=10 → d ∈ {10, 11, 12, 13}
+  4_blocks_sausage_3x3_kao.txt s=0 t=38 dist=14 → d ∈ {14, 15, 16, 17}
+  4_blocks_sausage_s3_kao.txt s=0 t=28 dist=11 → d ∈ {11, 12, 13, 14}
+  5_blocks_sausage_3x3_kao.txt s=0 t=48 dist=18 → d ∈ {18, 19, 20, 21}
+  6_blocks_sausage_3x3_kao.txt s=0 t=58 dist=22 → d ∈ {22, 23, 24, 25}
+  6_blocks_sausage_s3_kao.txt s=0 t=42 dist=17 → d ∈ {17, 18, 19, 20}
+  Geant2004_kao.txt s=11 t=95 dist=6 → d ∈ {6, 7, 8, 9}
+  IEEE-118-node_kao.txt s=86 t=111 dist=9 → d ∈ {9, 10, 11, 12}
+  Geant2009_kao.txt s=107 t=264 dist=12 → d ∈ {12, 13, 14, 15}
+  UPS_of_Russia_composed_with_colored_cut_vertices_kao.txt s=4 t=62 dist=17 → d ∈ {17, 18, 19, 20}
+Total cells: 44
+Cross-check: 11 (graph,s,t) groups × 6 methods (m0,m1,m2,m3,m4,m5) (tiered timeouts m0=300 m1=300 m2=1800 m3=1800 m4=1800 m5=1800s)
+Per-(graph,method,d) isolated calls; methods iterate in reverse (m5..m0) within each cell.
+[1/11] 2_blocks_sausage_s3_kao.txt s=0 t=14 d ∈ {5, 6, 7, 8}
+    m5 d=5: R=0.793878966090 (median=0.000s of 8/8)
+    m4 d=5: R=0.793878966090 (median=0.000s of 8/8)
+    m3 d=5: R=0.793878966090 (median=0.023s of 8/8)
+    m2 d=5: R=0.793878966090 (median=0.011s of 8/8)
+    m1 d=5: R=0.793878966090 (median=0.049s of 8/8)
+    m0 d=5: R=0.793878966109 (median=20.963s of 8/8)
+    m5 d=6: R=0.955550868472 (median=0.013s of 8/8)
+    m4 d=6: R=0.955550868472 (median=0.002s of 8/8)
+    m3 d=6: R=0.955550868472 (median=0.025s of 8/8)
+    m2 d=6: R=0.955550868472 (median=0.030s of 8/8)
+    m1 d=6: R=0.955550868472 (median=0.089s of 8/8)
+    m0 d=6: R=0.955550868510 (median=35.085s of 8/8)
+    m5 d=7: R=0.990572690205 (median=0.028s of 8/8)
+    m4 d=7: R=0.990572690205 (median=0.029s of 8/8)
+    m3 d=7: R=0.990572690205 (median=0.024s of 8/8)
+    m2 d=7: R=0.990572690205 (median=0.049s of 8/8)
+    m1 d=7: R=0.990572690205 (median=0.106s of 8/8)
+    m0 d=7: R=0.990572690258 (median=46.926s of 8/8)
+    m5 d=8: R=0.992421864261 (median=0.029s of 8/8)
+    m4 d=8: R=0.992421864261 (median=0.488s of 8/8)
+    m3 d=8: R=0.992421864261 (median=0.026s of 8/8)
+    m2 d=8: R=0.992421864261 (median=0.067s of 8/8)
+    m1 d=8: R=0.992421864261 (median=0.140s of 8/8)
+    m0 d=8: R=0.992421864321 (median=48.432s of 8/8)
+    [1/11 groups, elapsed=20:20, avg=1219.8s/group, ETA=203:18]
+[2/11] 3_blocks_sausage_3x3_kao.txt s=0 t=28 d ∈ {10, 11, 12, 13}
+    m5 d=10: R=0.509826181948 (median=0.000s of 8/8)
+    m4 d=10: R=0.509826181948 (median=0.000s of 8/8)
+    m3 d=10: R=0.509826181948 (median=0.599s of 8/8)
+    m2 d=10: R=0.509826181949 (median=0.175s of 8/8)
+    m1 d=10: R=0.509826181949 (median=3.757s of 8/8)
+    m0 d=10: early-exit after 2/2 TIMEOUT
+    m0 d=10: TIMEOUT (>300s)
+    m5 d=11: R=0.819793714074 (median=0.491s of 8/8)
+    m4 d=11: R=0.819793714074 (median=0.013s of 8/8)
+    m3 d=11: R=0.819793714074 (median=0.877s of 8/8)
+    m2 d=11: R=0.819793714075 (median=0.668s of 8/8)
+    m1 d=11: R=0.819793714075 (median=8.531s of 8/8)
+    m0 d=11: early-exit after 2/2 TIMEOUT
+    m0 d=11: TIMEOUT (>300s)
+    m5 d=12: R=0.934403607311 (median=0.837s of 8/8)
+    m4 d=12: R=0.934403607311 (median=1.150s of 8/8)
+    m3 d=12: R=0.934403607311 (median=0.918s of 8/8)
+    m2 d=12: R=0.934403607313 (median=1.129s of 8/8)
+    m1 d=12: R=0.934403607313 (median=13.566s of 8/8)
+    m0 d=12: early-exit after 2/2 TIMEOUT
+    m0 d=12: TIMEOUT (>300s)
+    m5 d=13: R=0.959339550847 (median=0.726s of 8/8)
+    m4 d=13: R=0.959339550847 (median=110.309s of 8/8)
+    m3 d=13: R=0.959339550847 (median=0.972s of 8/8)
+    m2 d=13: R=0.959339550849 (median=1.538s of 8/8)
+    m1 d=13: R=0.959339550849 (median=17.824s of 8/8)
+    m0 d=13: early-exit after 2/2 TIMEOUT
+    m0 d=13: TIMEOUT (>300s)
+    [2/11 groups, elapsed=82:21, avg=2470.4s/group, ETA=370:34]
+[3/11] 4_blocks_sausage_3x3_kao.txt s=0 t=38 d ∈ {14, 15, 16, 17}
+    m5 d=14: R=0.489090483798 (median=0.000s of 8/8)
+    m4 d=14: R=0.489090483798 (median=0.001s of 8/8)
+    m3 d=14: R=0.489090483798 (median=1.897s of 8/8)
+    m2 d=14: R=0.489090483799 (median=0.597s of 8/8)
+    m1 d=14: R=0.489090483799 (median=29.669s of 8/8)
+    m0 d=14: early-exit after 2/2 TIMEOUT
+    m0 d=14: TIMEOUT (>300s)
+    m5 d=15: R=0.803143004289 (median=1.181s of 8/8)
+    m4 d=15: R=0.803143004289 (median=0.996s of 8/8)
+    m3 d=15: R=0.803143004289 (median=1.984s of 8/8)
+    m2 d=15: R=0.803143004292 (median=1.360s of 8/8)
+    m1 d=15: R=0.803143004292 (median=49.359s of 8/8)
+    m0 d=15: early-exit after 2/2 TIMEOUT
+    m0 d=15: TIMEOUT (>300s)
+    m5 d=16: R=0.924565335478 (median=1.829s of 8/8)
+    m4 d=16: R=0.924565335478 (median=334.999s of 8/8)
+    m3 d=16: R=0.924565335478 (median=2.341s of 8/8)
+    m2 d=16: R=0.924565335482 (median=3.279s of 8/8)
+    m1 d=16: R=0.924565335482 (median=94.277s of 8/8)
+    m0 d=16: early-exit after 2/2 TIMEOUT
+    m0 d=16: TIMEOUT (>300s)
+    m5 d=17: R=0.953107508635 (median=1.988s of 8/8)
+    m4 d=17: early-exit after 2/2 TIMEOUT
+    m4 d=17: TIMEOUT (>1800s)
+    m3 d=17: R=0.953107508635 (median=2.989s of 8/8)
+    m2 d=17: R=0.953107508640 (median=4.076s of 8/8)
+    m1 d=17: R=0.953107508640 (median=121.826s of 8/8)
+    m0 d=17: early-exit after 2/2 TIMEOUT
+    m0 d=17: TIMEOUT (>300s)
+    [3/11 groups, elapsed=270:11, avg=5403.6s/group, ETA=720:29]
+[4/11] 4_blocks_sausage_s3_kao.txt s=0 t=28 d ∈ {11, 12, 13, 14}
+    m5 d=11: R=0.762593059732 (median=0.000s of 8/8)
+    m4 d=11: R=0.762593059732 (median=0.009s of 8/8)
+    m3 d=11: R=0.762593059732 (median=0.148s of 8/8)
+    m2 d=11: R=0.762593059732 (median=0.099s of 8/8)
+    m1 d=11: R=0.762593059732 (median=1.762s of 8/8)
+    m0 d=11: early-exit after 2/2 TIMEOUT
+    m0 d=11: TIMEOUT (>300s)
+    m5 d=12: R=0.941607316459 (median=0.141s of 8/8)
+    m4 d=12: R=0.941607316459 (median=10.359s of 8/8)
+    m3 d=12: R=0.941607316459 (median=0.154s of 8/8)
+    m2 d=12: R=0.941607316459 (median=0.229s of 8/8)
+    m1 d=12: R=0.941607316459 (median=2.836s of 8/8)
+    m0 d=12: early-exit after 2/2 TIMEOUT
+    m0 d=12: TIMEOUT (>300s)
+    m5 d=13: R=0.981595123021 (median=0.195s of 8/8)
+    m4 d=13: R=0.981595123021 (median=1030.325s of 8/8)
+    m3 d=13: R=0.981595123021 (median=0.189s of 8/8)
+    m2 d=13: R=0.981595123021 (median=0.365s of 8/8)
+    m1 d=13: R=0.981595123021 (median=4.867s of 8/8)
+    m0 d=13: early-exit after 2/2 TIMEOUT
+    m0 d=13: TIMEOUT (>300s)
+    m5 d=14: R=0.984783240063 (median=0.249s of 8/8)
+    m4 d=14: early-exit after 2/2 TIMEOUT
+    m4 d=14: TIMEOUT (>1800s)
+    m3 d=14: R=0.984783240063 (median=0.228s of 8/8)
+    m2 d=14: R=0.984783240063 (median=0.612s of 8/8)
+    m1 d=14: R=0.984783240063 (median=7.796s of 8/8)
+    m0 d=14: early-exit after 2/2 TIMEOUT
+    m0 d=14: TIMEOUT (>300s)
+    [4/11 groups, elapsed=516:53, avg=7753.4s/group, ETA=904:34]
+[5/11] 5_blocks_sausage_3x3_kao.txt s=0 t=48 d ∈ {18, 19, 20, 21}
+    m5 d=18: R=0.469198149901 (median=0.000s of 8/8)
+    m4 d=18: R=0.469198149901 (median=0.053s of 8/8)
+    m3 d=18: R=0.469198149901 (median=7.284s of 8/8)
+    m2 d=18: R=0.469198149903 (median=2.043s of 8/8)
+    m1 d=18: R=0.469198149903 (median=231.559s of 4/8)
+    m0 d=18: early-exit after 2/2 TIMEOUT
+    m0 d=18: TIMEOUT (>300s)
+    m5 d=19: R=0.786490614460 (median=4.605s of 8/8)
+    m4 d=19: R=0.786490614460 (median=315.547s of 8/8)
+    m3 d=19: R=0.786490614460 (median=7.769s of 8/8)
+    m2 d=19: R=0.786490614464 (median=5.158s of 8/8)
+    m1 d=19: early-exit after 2/2 TIMEOUT
+    m1 d=19: TIMEOUT (>300s)
+    m0 d=19: early-exit after 2/2 TIMEOUT
+    m0 d=19: TIMEOUT (>300s)
+    m5 d=20: R=0.914528148193 (median=6.958s of 8/8)
+    m4 d=20: early-exit after 2/2 TIMEOUT
+    m4 d=20: TIMEOUT (>1800s)
+    m3 d=20: R=0.914528148193 (median=8.817s of 8/8)
+    m2 d=20: R=0.914528148199 (median=9.782s of 8/8)
+    m1 d=20: early-exit after 2/2 TIMEOUT
+    m1 d=20: TIMEOUT (>300s)
+    m0 d=20: early-exit after 2/2 TIMEOUT
+    m0 d=20: TIMEOUT (>300s)
+    m5 d=21: R=0.946761009184 (median=7.152s of 8/8)
+    m4 d=21: early-exit after 2/2 TIMEOUT
+    m4 d=21: TIMEOUT (>1800s)
+    m3 d=21: R=0.946761009184 (median=10.329s of 8/8)
+    m2 d=21: R=0.946761009191 (median=16.127s of 8/8)
+    m1 d=21: early-exit after 2/2 TIMEOUT
+    m1 d=21: TIMEOUT (>300s)
+    m0 d=21: early-exit after 2/2 TIMEOUT
+    m0 d=21: TIMEOUT (>300s)
+    [5/11 groups, elapsed=796:59, avg=9563.8s/group, ETA=956:23]
+[6/11] 6_blocks_sausage_3x3_kao.txt s=0 t=58 d ∈ {22, 23, 24, 25}
+    m5 d=22: R=0.450114878870 (median=0.001s of 8/8)
+    m4 d=22: R=0.450114878870 (median=1.232s of 8/8)
+    m3 d=22: R=0.450114878870 (median=15.189s of 8/8)
+    m2 d=22: R=0.450114878872 (median=4.144s of 8/8)
+    m1 d=22: early-exit after 2/2 TIMEOUT
+    m1 d=22: TIMEOUT (>300s)
+    m0 d=22: early-exit after 2/2 TIMEOUT
+    m0 d=22: TIMEOUT (>300s)
+    m5 d=23: R=0.769864225173 (median=9.310s of 8/8)
+    m4 d=23: early-exit after 2/2 TIMEOUT
+    m4 d=23: TIMEOUT (>1800s)
+    m3 d=23: R=0.769864225173 (median=16.326s of 8/8)
+    m2 d=23: R=0.769864225179 (median=9.883s of 8/8)
+    m1 d=23: early-exit after 2/2 TIMEOUT
+    m1 d=23: TIMEOUT (>300s)
+    m0 d=23: early-exit after 2/2 TIMEOUT
+    m0 d=23: TIMEOUT (>300s)
+    m5 d=24: R=0.904302273156 (median=13.897s of 8/8)
+Cross-check: timeout=30s, output=cross_check_v6.csv, real_networks=yes, d_count=4, d_step=1, repetitions=8
+[resume] 133 (graph,s,t,d,method) cells already in cross_check_v6.csv — they will be skipped
+Cell plan (d_count=4, d_step=1):
+  2_blocks_sausage_s3_kao.txt s=0 t=14 dist=5 → d ∈ {5, 6, 7, 8}
+  3_blocks_sausage_3x3_kao.txt s=0 t=28 dist=10 → d ∈ {10, 11, 12, 13}
+  4_blocks_sausage_3x3_kao.txt s=0 t=38 dist=14 → d ∈ {14, 15, 16, 17}
+  4_blocks_sausage_s3_kao.txt s=0 t=28 dist=11 → d ∈ {11, 12, 13, 14}
+  5_blocks_sausage_3x3_kao.txt s=0 t=48 dist=18 → d ∈ {18, 19, 20, 21}
+  6_blocks_sausage_3x3_kao.txt s=0 t=58 dist=22 → d ∈ {22, 23, 24, 25}
+  6_blocks_sausage_s3_kao.txt s=0 t=42 dist=17 → d ∈ {17, 18, 19, 20}
+  Geant2004_kao.txt s=11 t=95 dist=6 → d ∈ {6, 7, 8, 9}
+  IEEE-118-node_kao.txt s=86 t=111 dist=9 → d ∈ {9, 10, 11, 12}
+  Geant2009_kao.txt s=107 t=264 dist=12 → d ∈ {12, 13, 14, 15}
+  UPS_of_Russia_composed_with_colored_cut_vertices_kao.txt s=4 t=62 dist=17 → d ∈ {17, 18, 19, 20}
+Total cells: 44
+Cross-check: 11 (graph,s,t) groups × 6 methods (m0,m1,m2,m3,m4,m5) (tiered timeouts m0=300 m1=300 m2=1800 m3=1800 m4=1800 m5=1800s)
+Per-(graph,method,d) isolated calls; methods iterate in reverse (m5..m0) within each cell.
+[1/11] 2_blocks_sausage_s3_kao.txt s=0 t=14 d ∈ {5, 6, 7, 8}
+    m5 d=5: [resumed, skipped]
+    m4 d=5: [resumed, skipped]
+    m3 d=5: [resumed, skipped]
+    m2 d=5: [resumed, skipped]
+    m1 d=5: [resumed, skipped]
+    m0 d=5: [resumed, skipped]
+    m5 d=6: [resumed, skipped]
+    m4 d=6: [resumed, skipped]
+    m3 d=6: [resumed, skipped]
+    m2 d=6: [resumed, skipped]
+    m1 d=6: [resumed, skipped]
+    m0 d=6: [resumed, skipped]
+    m5 d=7: [resumed, skipped]
+    m4 d=7: [resumed, skipped]
+    m3 d=7: [resumed, skipped]
+    m2 d=7: [resumed, skipped]
+    m1 d=7: [resumed, skipped]
+    m0 d=7: [resumed, skipped]
+    m5 d=8: [resumed, skipped]
+    m4 d=8: [resumed, skipped]
+    m3 d=8: [resumed, skipped]
+    m2 d=8: [resumed, skipped]
+    m1 d=8: [resumed, skipped]
+    m0 d=8: [resumed, skipped]
+    [1/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[2/11] 3_blocks_sausage_3x3_kao.txt s=0 t=28 d ∈ {10, 11, 12, 13}
+    m5 d=10: [resumed, skipped]
+    m4 d=10: [resumed, skipped]
+    m3 d=10: [resumed, skipped]
+    m2 d=10: [resumed, skipped]
+    m1 d=10: [resumed, skipped]
+    m0 d=10: [resumed, skipped]
+    m5 d=11: [resumed, skipped]
+    m4 d=11: [resumed, skipped]
+    m3 d=11: [resumed, skipped]
+    m2 d=11: [resumed, skipped]
+    m1 d=11: [resumed, skipped]
+    m0 d=11: [resumed, skipped]
+    m5 d=12: [resumed, skipped]
+    m4 d=12: [resumed, skipped]
+    m3 d=12: [resumed, skipped]
+    m2 d=12: [resumed, skipped]
+    m1 d=12: [resumed, skipped]
+    m0 d=12: [resumed, skipped]
+    m5 d=13: [resumed, skipped]
+    m4 d=13: [resumed, skipped]
+    m3 d=13: [resumed, skipped]
+    m2 d=13: [resumed, skipped]
+    m1 d=13: [resumed, skipped]
+    m0 d=13: [resumed, skipped]
+    [2/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[3/11] 4_blocks_sausage_3x3_kao.txt s=0 t=38 d ∈ {14, 15, 16, 17}
+    m5 d=14: [resumed, skipped]
+    m4 d=14: [resumed, skipped]
+    m3 d=14: [resumed, skipped]
+    m2 d=14: [resumed, skipped]
+    m1 d=14: [resumed, skipped]
+    m0 d=14: [resumed, skipped]
+    m5 d=15: [resumed, skipped]
+    m4 d=15: [resumed, skipped]
+    m3 d=15: [resumed, skipped]
+    m2 d=15: [resumed, skipped]
+    m1 d=15: [resumed, skipped]
+    m0 d=15: [resumed, skipped]
+    m5 d=16: [resumed, skipped]
+    m4 d=16: [resumed, skipped]
+    m3 d=16: [resumed, skipped]
+    m2 d=16: [resumed, skipped]
+    m1 d=16: [resumed, skipped]
+    m0 d=16: [resumed, skipped]
+    m5 d=17: [resumed, skipped]
+    m4 d=17: [resumed, skipped]
+    m3 d=17: [resumed, skipped]
+    m2 d=17: [resumed, skipped]
+    m1 d=17: [resumed, skipped]
+    m0 d=17: [resumed, skipped]
+    [3/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[4/11] 4_blocks_sausage_s3_kao.txt s=0 t=28 d ∈ {11, 12, 13, 14}
+    m5 d=11: [resumed, skipped]
+    m4 d=11: [resumed, skipped]
+    m3 d=11: [resumed, skipped]
+    m2 d=11: [resumed, skipped]
+    m1 d=11: [resumed, skipped]
+    m0 d=11: [resumed, skipped]
+    m5 d=12: [resumed, skipped]
+    m4 d=12: [resumed, skipped]
+    m3 d=12: [resumed, skipped]
+    m2 d=12: [resumed, skipped]
+    m1 d=12: [resumed, skipped]
+    m0 d=12: [resumed, skipped]
+    m5 d=13: [resumed, skipped]
+    m4 d=13: [resumed, skipped]
+    m3 d=13: [resumed, skipped]
+    m2 d=13: [resumed, skipped]
+    m1 d=13: [resumed, skipped]
+    m0 d=13: [resumed, skipped]
+    m5 d=14: [resumed, skipped]
+    m4 d=14: [resumed, skipped]
+    m3 d=14: [resumed, skipped]
+    m2 d=14: [resumed, skipped]
+    m1 d=14: [resumed, skipped]
+    m0 d=14: [resumed, skipped]
+    [4/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[5/11] 5_blocks_sausage_3x3_kao.txt s=0 t=48 d ∈ {18, 19, 20, 21}
+    m5 d=18: [resumed, skipped]
+    m4 d=18: [resumed, skipped]
+    m3 d=18: [resumed, skipped]
+    m2 d=18: [resumed, skipped]
+    m1 d=18: [resumed, skipped]
+    m0 d=18: [resumed, skipped]
+    m5 d=19: [resumed, skipped]
+    m4 d=19: [resumed, skipped]
+    m3 d=19: [resumed, skipped]
+    m2 d=19: [resumed, skipped]
+    m1 d=19: [resumed, skipped]
+    m0 d=19: [resumed, skipped]
+    m5 d=20: [resumed, skipped]
+    m4 d=20: [resumed, skipped]
+    m3 d=20: [resumed, skipped]
+    m2 d=20: [resumed, skipped]
+    m1 d=20: [resumed, skipped]
+    m0 d=20: [resumed, skipped]
+    m5 d=21: [resumed, skipped]
+    m4 d=21: [resumed, skipped]
+    m3 d=21: [resumed, skipped]
+    m2 d=21: [resumed, skipped]
+    m1 d=21: [resumed, skipped]
+    m0 d=21: [resumed, skipped]
+    [5/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[6/11] 6_blocks_sausage_3x3_kao.txt s=0 t=58 d ∈ {22, 23, 24, 25}
+    m5 d=22: [resumed, skipped]
+    m4 d=22: [resumed, skipped]
+    m3 d=22: [resumed, skipped]
+    m2 d=22: [resumed, skipped]
+    m1 d=22: [resumed, skipped]
+    m0 d=22: [resumed, skipped]
+    m5 d=23: [resumed, skipped]
+    m4 d=23: [resumed, skipped]
+    m3 d=23: [resumed, skipped]
+    m2 d=23: [resumed, skipped]
+    m1 d=23: [resumed, skipped]
+    m0 d=23: [resumed, skipped]
+    m5 d=24: [resumed, skipped]
+    m4 d=24: early-exit after 2/2 TIMEOUT
+    m4 d=24: TIMEOUT (>1800s)
+    m3 d=24: R=0.904302273156 (median=2.362s of 8/8)
+    m2 d=24: R=0.904302273165 (median=2.684s of 8/8)
+    m1 d=24: early-exit after 2/2 TIMEOUT
+    m1 d=24: TIMEOUT (>300s)
+    m0 d=24: early-exit after 2/2 TIMEOUT
+    m0 d=24: TIMEOUT (>300s)
+    m5 d=25: R=0.940298293689 (median=1.963s of 8/8)
+    m4 d=25: early-exit after 2/2 TIMEOUT
+    m4 d=25: TIMEOUT (>1800s)
+    m3 d=25: R=0.940298293689 (median=2.502s of 8/8)
+    m2 d=25: R=0.940298293699 (median=4.097s of 8/8)
+    m1 d=25: early-exit after 2/2 TIMEOUT
+    m1 d=25: TIMEOUT (>300s)
+    m0 d=25: early-exit after 2/2 TIMEOUT
+    m0 d=25: TIMEOUT (>300s)
+    [6/11 groups, elapsed=161:50, avg=1618.4s/group, ETA=134:52]
+[7/11] 6_blocks_sausage_s3_kao.txt s=0 t=42 d ∈ {17, 18, 19, 20}
+    m5 d=17: R=0.732540096907 (median=0.000s of 8/8)
+    m4 d=17: R=0.732540096907 (median=0.443s of 8/8)
+    m3 d=17: R=0.732540096907 (median=0.096s of 8/8)
+    m2 d=17: R=0.732540096907 (median=0.070s of 8/8)
+    m1 d=17: R=0.732540096907 (median=7.327s of 8/8)
+    m0 d=17: early-exit after 2/2 TIMEOUT
+    m0 d=17: TIMEOUT (>300s)
+    m5 d=18: R=0.927278734799 (median=0.124s of 8/8)
+Cross-check: timeout=30s, output=cross_check_v6.csv, real_networks=yes, d_count=4, d_step=1, repetitions=8
+[resume] 151 (graph,s,t,d,method) cells already in cross_check_v6.csv — they will be skipped
+Cell plan (d_count=4, d_step=1):
+  2_blocks_sausage_s3_kao.txt s=0 t=14 dist=5 → d ∈ {5, 6, 7, 8}
+  3_blocks_sausage_3x3_kao.txt s=0 t=28 dist=10 → d ∈ {10, 11, 12, 13}
+  4_blocks_sausage_3x3_kao.txt s=0 t=38 dist=14 → d ∈ {14, 15, 16, 17}
+  4_blocks_sausage_s3_kao.txt s=0 t=28 dist=11 → d ∈ {11, 12, 13, 14}
+  5_blocks_sausage_3x3_kao.txt s=0 t=48 dist=18 → d ∈ {18, 19, 20, 21}
+  6_blocks_sausage_3x3_kao.txt s=0 t=58 dist=22 → d ∈ {22, 23, 24, 25}
+  6_blocks_sausage_s3_kao.txt s=0 t=42 dist=17 → d ∈ {17, 18, 19, 20}
+  Geant2004_kao.txt s=11 t=95 dist=6 → d ∈ {6, 7, 8, 9}
+  IEEE-118-node_kao.txt s=86 t=111 dist=9 → d ∈ {9, 10, 11, 12}
+  Geant2009_kao.txt s=107 t=264 dist=12 → d ∈ {12, 13, 14, 15}
+  UPS_of_Russia_composed_with_colored_cut_vertices_kao.txt s=4 t=62 dist=17 → d ∈ {17, 18, 19, 20}
+Total cells: 44
+Cross-check: 11 (graph,s,t) groups × 6 methods (m0,m1,m2,m3,m4,m5) (tiered timeouts m0=300 m1=300 m2=1800 m3=1800 m4=1800 m5=1800s)
+Per-(graph,method,d) isolated calls; methods iterate in reverse (m5..m0) within each cell.
+[1/11] 2_blocks_sausage_s3_kao.txt s=0 t=14 d ∈ {5, 6, 7, 8}
+    m5 d=5: [resumed, skipped]
+    m4 d=5: [resumed, skipped]
+    m3 d=5: [resumed, skipped]
+    m2 d=5: [resumed, skipped]
+    m1 d=5: [resumed, skipped]
+    m0 d=5: [resumed, skipped]
+    m5 d=6: [resumed, skipped]
+    m4 d=6: [resumed, skipped]
+    m3 d=6: [resumed, skipped]
+    m2 d=6: [resumed, skipped]
+    m1 d=6: [resumed, skipped]
+    m0 d=6: [resumed, skipped]
+    m5 d=7: [resumed, skipped]
+    m4 d=7: [resumed, skipped]
+    m3 d=7: [resumed, skipped]
+    m2 d=7: [resumed, skipped]
+    m1 d=7: [resumed, skipped]
+    m0 d=7: [resumed, skipped]
+    m5 d=8: [resumed, skipped]
+    m4 d=8: [resumed, skipped]
+    m3 d=8: [resumed, skipped]
+    m2 d=8: [resumed, skipped]
+    m1 d=8: [resumed, skipped]
+    m0 d=8: [resumed, skipped]
+    [1/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[2/11] 3_blocks_sausage_3x3_kao.txt s=0 t=28 d ∈ {10, 11, 12, 13}
+    m5 d=10: [resumed, skipped]
+    m4 d=10: [resumed, skipped]
+    m3 d=10: [resumed, skipped]
+    m2 d=10: [resumed, skipped]
+    m1 d=10: [resumed, skipped]
+    m0 d=10: [resumed, skipped]
+    m5 d=11: [resumed, skipped]
+    m4 d=11: [resumed, skipped]
+    m3 d=11: [resumed, skipped]
+    m2 d=11: [resumed, skipped]
+    m1 d=11: [resumed, skipped]
+    m0 d=11: [resumed, skipped]
+    m5 d=12: [resumed, skipped]
+    m4 d=12: [resumed, skipped]
+    m3 d=12: [resumed, skipped]
+    m2 d=12: [resumed, skipped]
+    m1 d=12: [resumed, skipped]
+    m0 d=12: [resumed, skipped]
+    m5 d=13: [resumed, skipped]
+    m4 d=13: [resumed, skipped]
+    m3 d=13: [resumed, skipped]
+    m2 d=13: [resumed, skipped]
+    m1 d=13: [resumed, skipped]
+    m0 d=13: [resumed, skipped]
+    [2/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[3/11] 4_blocks_sausage_3x3_kao.txt s=0 t=38 d ∈ {14, 15, 16, 17}
+    m5 d=14: [resumed, skipped]
+    m4 d=14: [resumed, skipped]
+    m3 d=14: [resumed, skipped]
+    m2 d=14: [resumed, skipped]
+    m1 d=14: [resumed, skipped]
+    m0 d=14: [resumed, skipped]
+    m5 d=15: [resumed, skipped]
+    m4 d=15: [resumed, skipped]
+    m3 d=15: [resumed, skipped]
+    m2 d=15: [resumed, skipped]
+    m1 d=15: [resumed, skipped]
+    m0 d=15: [resumed, skipped]
+    m5 d=16: [resumed, skipped]
+    m4 d=16: [resumed, skipped]
+    m3 d=16: [resumed, skipped]
+    m2 d=16: [resumed, skipped]
+    m1 d=16: [resumed, skipped]
+    m0 d=16: [resumed, skipped]
+    m5 d=17: [resumed, skipped]
+    m4 d=17: [resumed, skipped]
+    m3 d=17: [resumed, skipped]
+    m2 d=17: [resumed, skipped]
+    m1 d=17: [resumed, skipped]
+    m0 d=17: [resumed, skipped]
+    [3/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[4/11] 4_blocks_sausage_s3_kao.txt s=0 t=28 d ∈ {11, 12, 13, 14}
+    m5 d=11: [resumed, skipped]
+    m4 d=11: [resumed, skipped]
+    m3 d=11: [resumed, skipped]
+    m2 d=11: [resumed, skipped]
+    m1 d=11: [resumed, skipped]
+    m0 d=11: [resumed, skipped]
+    m5 d=12: [resumed, skipped]
+    m4 d=12: [resumed, skipped]
+    m3 d=12: [resumed, skipped]
+    m2 d=12: [resumed, skipped]
+    m1 d=12: [resumed, skipped]
+    m0 d=12: [resumed, skipped]
+    m5 d=13: [resumed, skipped]
+    m4 d=13: [resumed, skipped]
+    m3 d=13: [resumed, skipped]
+    m2 d=13: [resumed, skipped]
+    m1 d=13: [resumed, skipped]
+    m0 d=13: [resumed, skipped]
+    m5 d=14: [resumed, skipped]
+    m4 d=14: [resumed, skipped]
+    m3 d=14: [resumed, skipped]
+    m2 d=14: [resumed, skipped]
+    m1 d=14: [resumed, skipped]
+    m0 d=14: [resumed, skipped]
+    [4/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[5/11] 5_blocks_sausage_3x3_kao.txt s=0 t=48 d ∈ {18, 19, 20, 21}
+    m5 d=18: [resumed, skipped]
+    m4 d=18: [resumed, skipped]
+    m3 d=18: [resumed, skipped]
+    m2 d=18: [resumed, skipped]
+    m1 d=18: [resumed, skipped]
+    m0 d=18: [resumed, skipped]
+    m5 d=19: [resumed, skipped]
+    m4 d=19: [resumed, skipped]
+    m3 d=19: [resumed, skipped]
+    m2 d=19: [resumed, skipped]
+    m1 d=19: [resumed, skipped]
+    m0 d=19: [resumed, skipped]
+    m5 d=20: [resumed, skipped]
+    m4 d=20: [resumed, skipped]
+    m3 d=20: [resumed, skipped]
+    m2 d=20: [resumed, skipped]
+    m1 d=20: [resumed, skipped]
+    m0 d=20: [resumed, skipped]
+    m5 d=21: [resumed, skipped]
+    m4 d=21: [resumed, skipped]
+    m3 d=21: [resumed, skipped]
+    m2 d=21: [resumed, skipped]
+    m1 d=21: [resumed, skipped]
+    m0 d=21: [resumed, skipped]
+    [5/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[6/11] 6_blocks_sausage_3x3_kao.txt s=0 t=58 d ∈ {22, 23, 24, 25}
+    m5 d=22: [resumed, skipped]
+    m4 d=22: [resumed, skipped]
+    m3 d=22: [resumed, skipped]
+    m2 d=22: [resumed, skipped]
+    m1 d=22: [resumed, skipped]
+    m0 d=22: [resumed, skipped]
+    m5 d=23: [resumed, skipped]
+    m4 d=23: [resumed, skipped]
+    m3 d=23: [resumed, skipped]
+    m2 d=23: [resumed, skipped]
+    m1 d=23: [resumed, skipped]
+    m0 d=23: [resumed, skipped]
+    m5 d=24: [resumed, skipped]
+    m4 d=24: [resumed, skipped]
+    m3 d=24: [resumed, skipped]
+    m2 d=24: [resumed, skipped]
+    m1 d=24: [resumed, skipped]
+    m0 d=24: [resumed, skipped]
+    m5 d=25: [resumed, skipped]
+    m4 d=25: [resumed, skipped]
+    m3 d=25: [resumed, skipped]
+    m2 d=25: [resumed, skipped]
+    m1 d=25: [resumed, skipped]
+    m0 d=25: [resumed, skipped]
+    [6/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[7/11] 6_blocks_sausage_s3_kao.txt s=0 t=42 d ∈ {17, 18, 19, 20}
+    m5 d=17: [resumed, skipped]
+    m4 d=17: [resumed, skipped]
+    m3 d=17: [resumed, skipped]
+    m2 d=17: [resumed, skipped]
+    m1 d=17: [resumed, skipped]
+    m0 d=17: [resumed, skipped]
+    m5 d=18: [resumed, skipped]
+    m4 d=18: early-exit after 2/2 TIMEOUT
+    m4 d=18: TIMEOUT (>1800s)
+    m3 d=18: R=0.927278734799 (median=0.077s of 8/8)
+    m2 d=18: R=0.927278734799 (median=0.095s of 8/8)
+    m1 d=18: R=0.927278734799 (median=8.340s of 8/8)
+    m0 d=18: early-exit after 2/2 TIMEOUT
+    m0 d=18: TIMEOUT (>300s)
+    m5 d=19: R=0.972495069304 (median=0.109s of 8/8)
+Cross-check: timeout=30s, output=cross_check_v6.csv, real_networks=yes, d_count=4, d_step=1, repetitions=1
+[resume] 157 (graph,s,t,d,method) cells already in cross_check_v6.csv — they will be skipped
+Cell plan (d_count=4, d_step=1):
+  2_blocks_sausage_s3_kao.txt s=0 t=14 dist=5 → d ∈ {5, 6, 7, 8}
+  3_blocks_sausage_3x3_kao.txt s=0 t=28 dist=10 → d ∈ {10, 11, 12, 13}
+  4_blocks_sausage_3x3_kao.txt s=0 t=38 dist=14 → d ∈ {14, 15, 16, 17}
+  4_blocks_sausage_s3_kao.txt s=0 t=28 dist=11 → d ∈ {11, 12, 13, 14}
+  5_blocks_sausage_3x3_kao.txt s=0 t=48 dist=18 → d ∈ {18, 19, 20, 21}
+  6_blocks_sausage_3x3_kao.txt s=0 t=58 dist=22 → d ∈ {22, 23, 24, 25}
+  6_blocks_sausage_s3_kao.txt s=0 t=42 dist=17 → d ∈ {17, 18, 19, 20}
+  Geant2004_kao.txt s=11 t=95 dist=6 → d ∈ {6, 7, 8, 9}
+  IEEE-118-node_kao.txt s=86 t=111 dist=9 → d ∈ {9, 10, 11, 12}
+  Geant2009_kao.txt s=107 t=264 dist=12 → d ∈ {12, 13, 14, 15}
+  UPS_of_Russia_composed_with_colored_cut_vertices_kao.txt s=4 t=62 dist=17 → d ∈ {17, 18, 19, 20}
+Total cells: 44
+Cross-check: 11 (graph,s,t) groups × 6 methods (m0,m1,m2,m3,m4,m5) (tiered timeouts m0=300 m1=300 m2=1800 m3=1800 m4=1800 m5=1800s)
+Per-(graph,method,d) isolated calls; methods iterate in reverse (m5..m0) within each cell.
+[1/11] 2_blocks_sausage_s3_kao.txt s=0 t=14 d ∈ {5, 6, 7, 8}
+    m5 d=5: [resumed, skipped]
+    m4 d=5: [resumed, skipped]
+    m3 d=5: [resumed, skipped]
+    m2 d=5: [resumed, skipped]
+    m1 d=5: [resumed, skipped]
+    m0 d=5: [resumed, skipped]
+    m5 d=6: [resumed, skipped]
+    m4 d=6: [resumed, skipped]
+    m3 d=6: [resumed, skipped]
+    m2 d=6: [resumed, skipped]
+    m1 d=6: [resumed, skipped]
+    m0 d=6: [resumed, skipped]
+    m5 d=7: [resumed, skipped]
+    m4 d=7: [resumed, skipped]
+    m3 d=7: [resumed, skipped]
+    m2 d=7: [resumed, skipped]
+    m1 d=7: [resumed, skipped]
+    m0 d=7: [resumed, skipped]
+    m5 d=8: [resumed, skipped]
+    m4 d=8: [resumed, skipped]
+    m3 d=8: [resumed, skipped]
+    m2 d=8: [resumed, skipped]
+    m1 d=8: [resumed, skipped]
+    m0 d=8: [resumed, skipped]
+    [1/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[2/11] 3_blocks_sausage_3x3_kao.txt s=0 t=28 d ∈ {10, 11, 12, 13}
+    m5 d=10: [resumed, skipped]
+    m4 d=10: [resumed, skipped]
+    m3 d=10: [resumed, skipped]
+    m2 d=10: [resumed, skipped]
+    m1 d=10: [resumed, skipped]
+    m0 d=10: [resumed, skipped]
+    m5 d=11: [resumed, skipped]
+    m4 d=11: [resumed, skipped]
+    m3 d=11: [resumed, skipped]
+    m2 d=11: [resumed, skipped]
+    m1 d=11: [resumed, skipped]
+    m0 d=11: [resumed, skipped]
+    m5 d=12: [resumed, skipped]
+    m4 d=12: [resumed, skipped]
+    m3 d=12: [resumed, skipped]
+    m2 d=12: [resumed, skipped]
+    m1 d=12: [resumed, skipped]
+    m0 d=12: [resumed, skipped]
+    m5 d=13: [resumed, skipped]
+    m4 d=13: [resumed, skipped]
+    m3 d=13: [resumed, skipped]
+    m2 d=13: [resumed, skipped]
+    m1 d=13: [resumed, skipped]
+    m0 d=13: [resumed, skipped]
+    [2/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[3/11] 4_blocks_sausage_3x3_kao.txt s=0 t=38 d ∈ {14, 15, 16, 17}
+    m5 d=14: [resumed, skipped]
+    m4 d=14: [resumed, skipped]
+    m3 d=14: [resumed, skipped]
+    m2 d=14: [resumed, skipped]
+    m1 d=14: [resumed, skipped]
+    m0 d=14: [resumed, skipped]
+    m5 d=15: [resumed, skipped]
+    m4 d=15: [resumed, skipped]
+    m3 d=15: [resumed, skipped]
+    m2 d=15: [resumed, skipped]
+    m1 d=15: [resumed, skipped]
+    m0 d=15: [resumed, skipped]
+    m5 d=16: [resumed, skipped]
+    m4 d=16: [resumed, skipped]
+    m3 d=16: [resumed, skipped]
+    m2 d=16: [resumed, skipped]
+    m1 d=16: [resumed, skipped]
+    m0 d=16: [resumed, skipped]
+    m5 d=17: [resumed, skipped]
+    m4 d=17: [resumed, skipped]
+    m3 d=17: [resumed, skipped]
+    m2 d=17: [resumed, skipped]
+    m1 d=17: [resumed, skipped]
+    m0 d=17: [resumed, skipped]
+    [3/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[4/11] 4_blocks_sausage_s3_kao.txt s=0 t=28 d ∈ {11, 12, 13, 14}
+    m5 d=11: [resumed, skipped]
+    m4 d=11: [resumed, skipped]
+    m3 d=11: [resumed, skipped]
+    m2 d=11: [resumed, skipped]
+    m1 d=11: [resumed, skipped]
+    m0 d=11: [resumed, skipped]
+    m5 d=12: [resumed, skipped]
+    m4 d=12: [resumed, skipped]
+    m3 d=12: [resumed, skipped]
+    m2 d=12: [resumed, skipped]
+    m1 d=12: [resumed, skipped]
+    m0 d=12: [resumed, skipped]
+    m5 d=13: [resumed, skipped]
+    m4 d=13: [resumed, skipped]
+    m3 d=13: [resumed, skipped]
+    m2 d=13: [resumed, skipped]
+    m1 d=13: [resumed, skipped]
+    m0 d=13: [resumed, skipped]
+    m5 d=14: [resumed, skipped]
+    m4 d=14: [resumed, skipped]
+    m3 d=14: [resumed, skipped]
+    m2 d=14: [resumed, skipped]
+    m1 d=14: [resumed, skipped]
+    m0 d=14: [resumed, skipped]
+    [4/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[5/11] 5_blocks_sausage_3x3_kao.txt s=0 t=48 d ∈ {18, 19, 20, 21}
+    m5 d=18: [resumed, skipped]
+    m4 d=18: [resumed, skipped]
+    m3 d=18: [resumed, skipped]
+    m2 d=18: [resumed, skipped]
+    m1 d=18: [resumed, skipped]
+    m0 d=18: [resumed, skipped]
+    m5 d=19: [resumed, skipped]
+    m4 d=19: [resumed, skipped]
+    m3 d=19: [resumed, skipped]
+    m2 d=19: [resumed, skipped]
+    m1 d=19: [resumed, skipped]
+    m0 d=19: [resumed, skipped]
+    m5 d=20: [resumed, skipped]
+    m4 d=20: [resumed, skipped]
+    m3 d=20: [resumed, skipped]
+    m2 d=20: [resumed, skipped]
+    m1 d=20: [resumed, skipped]
+    m0 d=20: [resumed, skipped]
+    m5 d=21: [resumed, skipped]
+    m4 d=21: [resumed, skipped]
+    m3 d=21: [resumed, skipped]
+    m2 d=21: [resumed, skipped]
+    m1 d=21: [resumed, skipped]
+    m0 d=21: [resumed, skipped]
+    [5/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[6/11] 6_blocks_sausage_3x3_kao.txt s=0 t=58 d ∈ {22, 23, 24, 25}
+    m5 d=22: [resumed, skipped]
+    m4 d=22: [resumed, skipped]
+    m3 d=22: [resumed, skipped]
+    m2 d=22: [resumed, skipped]
+    m1 d=22: [resumed, skipped]
+    m0 d=22: [resumed, skipped]
+    m5 d=23: [resumed, skipped]
+    m4 d=23: [resumed, skipped]
+    m3 d=23: [resumed, skipped]
+    m2 d=23: [resumed, skipped]
+    m1 d=23: [resumed, skipped]
+    m0 d=23: [resumed, skipped]
+    m5 d=24: [resumed, skipped]
+    m4 d=24: [resumed, skipped]
+    m3 d=24: [resumed, skipped]
+    m2 d=24: [resumed, skipped]
+    m1 d=24: [resumed, skipped]
+    m0 d=24: [resumed, skipped]
+    m5 d=25: [resumed, skipped]
+    m4 d=25: [resumed, skipped]
+    m3 d=25: [resumed, skipped]
+    m2 d=25: [resumed, skipped]
+    m1 d=25: [resumed, skipped]
+    m0 d=25: [resumed, skipped]
+    [6/11 groups, elapsed=00:00, avg=0.0s/group, ETA=00:00]
+[7/11] 6_blocks_sausage_s3_kao.txt s=0 t=42 d ∈ {17, 18, 19, 20}
+    m5 d=17: [resumed, skipped]
+    m4 d=17: [resumed, skipped]
+    m3 d=17: [resumed, skipped]
+    m2 d=17: [resumed, skipped]
+    m1 d=17: [resumed, skipped]
+    m0 d=17: [resumed, skipped]
+    m5 d=18: [resumed, skipped]
+    m4 d=18: [resumed, skipped]
+    m3 d=18: [resumed, skipped]
+    m2 d=18: [resumed, skipped]
+    m1 d=18: [resumed, skipped]
+    m0 d=18: [resumed, skipped]
+    m5 d=19: [resumed, skipped]
+    m4 d=19: TIMEOUT (>1800s)
+    m3 d=19: R=0.972495069304 (median=0.064s of 1/1)
+    m2 d=19: R=0.972495069304 (median=0.174s of 1/1)
+    m1 d=19: R=0.972495069304 (median=10.609s of 1/1)
+    m0 d=19: TIMEOUT (>300s)
+    m5 d=20: R=0.977148599799 (median=0.096s of 1/1)
+    m4 d=20: TIMEOUT (>1800s)
+    m3 d=20: R=0.977148599798 (median=0.116s of 1/1)
+    m2 d=20: R=0.977148599798 (median=0.335s of 1/1)
+    m1 d=20: R=0.977148599798 (median=24.703s of 1/1)
+    m0 d=20: TIMEOUT (>300s)
+    [7/11 groups, elapsed=70:36, avg=605.2s/group, ETA=40:21]
+[8/11] Geant2004_kao.txt s=11 t=95 d ∈ {6, 7, 8, 9}
+    m5 d=6: R=0.632414790000 (median=0.002s of 1/1)
+    m4 d=6: R=0.632414790000 (median=0.000s of 1/1)
+    m3 d=6: R=0.632414790000 (median=0.007s of 1/1)
+    m2 d=6: R=0.632414790008 (median=23.323s of 1/1)
+    m1 d=6: R=0.632414790008 (median=76.235s of 1/1)
+    m0 d=6: TIMEOUT (>300s)
+    m5 d=7: R=0.699064984718 (median=0.001s of 1/1)
+    m4 d=7: R=0.699064984718 (median=0.000s of 1/1)
+    m3 d=7: R=0.699064984718 (median=0.010s of 1/1)
+    m2 d=7: R=0.699064984731 (median=52.101s of 1/1)
+    m1 d=7: R=0.699064984731 (median=163.685s of 1/1)
+    m0 d=7: TIMEOUT (>300s)
+    m5 d=8: R=0.765180873969 (median=0.003s of 1/1)
+    m4 d=8: R=0.765180873969 (median=0.000s of 1/1)
+    m3 d=8: R=0.765180873969 (median=0.037s of 1/1)
+    m2 d=8: R=0.765180873984 (median=73.758s of 1/1)
+    m1 d=8: R=0.765180873984 (median=269.666s of 1/1)
+    m0 d=8: TIMEOUT (>300s)
+    m5 d=9: R=0.776652881985 (median=0.003s of 1/1)
+    m4 d=9: R=0.776652881985 (median=0.002s of 1/1)
+    m3 d=9: R=0.776652881985 (median=0.322s of 1/1)
+    m2 d=9: R=0.776652882001 (median=116.525s of 1/1)
+    m1 d=9: TIMEOUT (>300s)
+    m0 d=9: TIMEOUT (>300s)
+    [8/11 groups, elapsed=108:32, avg=814.0s/group, ETA=40:42]
+[9/11] IEEE-118-node_kao.txt s=86 t=111 d ∈ {9, 10, 11, 12}
+    m5 d=9: R=0.387420489000 (median=0.002s of 1/1)
+    m4 d=9: R=0.387420489000 (median=0.000s of 1/1)
+    m3 d=9: R=0.387420489000 (median=10.909s of 1/1)
+    m2 d=9: TIMEOUT (>1800s)
+    m1 d=9: TIMEOUT (>300s)
+    m0 d=9: TIMEOUT (>300s)
+    m5 d=10: R=0.422288333010 (median=0.000s of 1/1)
+    m4 d=10: R=0.422288333010 (median=0.000s of 1/1)
+    m3 d=10: R=0.422288333010 (median=82.454s of 1/1)
+    m2 d=10: TIMEOUT (>1800s)
+    m1 d=10: TIMEOUT (>300s)
+    m0 d=10: TIMEOUT (>300s)
+    m5 d=11: R=0.594261307357 (median=0.018s of 1/1)
+    m4 d=11: R=0.594261307357 (median=0.003s of 1/1)
+    m3 d=11: R=0.594261307357 (median=1769.991s of 1/1)
+    m2 d=11: TIMEOUT (>1800s)
+    m1 d=11: TIMEOUT (>300s)
+    m0 d=11: TIMEOUT (>300s)
+    m5 d=12: R=0.660259359327 (median=1.532s of 1/1)
+    m4 d=12: R=0.660259359327 (median=0.022s of 1/1)
+    m3 d=12: TIMEOUT (>1800s)
+    m2 d=12: TIMEOUT (>1800s)
+    m1 d=12: TIMEOUT (>300s)
+    m0 d=12: TIMEOUT (>300s)
+    [9/11 groups, elapsed=329:37, avg=2197.5s/group, ETA=73:15]
+[10/11] Geant2009_kao.txt s=107 t=264 d ∈ {12, 13, 14, 15}
+    m5 d=12: R=0.282429536481 (median=0.001s of 1/1)
+    m4 d=12: R=0.282429536481 (median=0.000s of 1/1)
+    m3 d=12: TIMEOUT (>1800s)
+    m2 d=12: TIMEOUT (>1800s)
+    m1 d=12: TIMEOUT (>300s)
+    m0 d=12: TIMEOUT (>300s)
+    m5 d=13: R=0.363032101897 (median=0.001s of 1/1)
+    m4 d=13: R=0.363032101897 (median=0.000s of 1/1)
+    m3 d=13: TIMEOUT (>1800s)
+    m2 d=13: TIMEOUT (>1800s)
+    m1 d=13: TIMEOUT (>300s)
+    m0 d=13: TIMEOUT (>300s)
+    m5 d=14: R=0.526329872069 (median=0.028s of 1/1)
+    m4 d=14: R=0.526329872069 (median=0.002s of 1/1)
+    m3 d=14: TIMEOUT (>1800s)
+    m2 d=14: TIMEOUT (>1800s)
+    m1 d=14: TIMEOUT (>300s)
+    m0 d=14: TIMEOUT (>300s)
+    m5 d=15: R=0.567518331299 (median=0.081s of 1/1)
+    m4 d=15: R=0.567518331299 (median=0.005s of 1/1)
+    m3 d=15: TIMEOUT (>1800s)
+    m2 d=15: TIMEOUT (>1800s)
+    m1 d=15: TIMEOUT (>300s)
+    m0 d=15: TIMEOUT (>300s)
+    [10/11 groups, elapsed=609:40, avg=3658.0s/group, ETA=60:58]
+[11/11] UPS_of_Russia_composed_with_colored_cut_vertices_kao.txt s=4 t=62 d ∈ {17, 18, 19, 20}
+    m5 d=17: R=0.204478924820 (median=0.001s of 1/1)
+    m4 d=17: R=0.204478924820 (median=0.284s of 1/1)
+    m3 d=17: TIMEOUT (>1800s)
+    m2 d=17: TIMEOUT (>1800s)
+    m1 d=17: TIMEOUT (>300s)
+    m0 d=17: TIMEOUT (>300s)
+    m5 d=18: TIMEOUT (>1800s)
+    m4 d=18: R=0.358658867702 (median=0.626s of 1/1)
+    m3 d=18: ERROR (std::bad_alloc)
+    m2 d=18: TIMEOUT (>1800s)
+    m1 d=18: TIMEOUT (>300s)
+    m0 d=18: TIMEOUT (>300s)
+    m5 d=19: TIMEOUT (>1800s)
+    m4 d=19: R=0.407098601155 (median=33.606s of 1/1)
+    m3 d=19: ERROR (std::bad_alloc)
+    m2 d=19: TIMEOUT (>1800s)
+    m1 d=19: TIMEOUT (>300s)
+    m0 d=19: TIMEOUT (>300s)
+    m5 d=20: TIMEOUT (>1800s)
+    m4 d=20: TIMEOUT (>1800s)
+    m3 d=20: TIMEOUT (>1800s)
+    m2 d=20: TIMEOUT (>1800s)
+    m1 d=20: TIMEOUT (>300s)
+    m0 d=20: TIMEOUT (>300s)
+    [11/11 groups, elapsed=980:59, avg=5350.9s/group, ETA=00:00]
+
+Summary: total=107 OK=49 TIMEOUT=56 ERROR=2
+No discrepancies > 0.0.
+Cross-check results written to cross_check_v6.csv
+All methods agree within tolerance.

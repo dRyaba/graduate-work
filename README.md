@@ -420,6 +420,16 @@ See [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md) for the methodology
 (auto-ranged diameters, tiered timeouts, `--methods` filter) and the
 post-processor's outputs.
 
+## Browser viewer
+
+`graph_widget.html` at the repo root is a standalone HTML+JS viewer that
+renders KAO-format graphs with an interactive force-directed layout —
+double-click to open, paste the CSR rows from any
+[`graphs_data/*_kao.txt`](graphs_data/) file into the "Вставить CSR"
+textarea, and it draws. No build, no Node, no dependencies; everything
+runs inside the page. Complementary to `--visualize` (which emits
+static SVG/DOT from the C++ tool).
+
 ## Documentation
 
 ### User Documentation

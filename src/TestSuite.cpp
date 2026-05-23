@@ -18,6 +18,8 @@
 #include <cmath>
 #include <algorithm>
 #include <array>
+#include <set>
+#include <tuple>
 
 namespace graph_reliability {
 
@@ -362,98 +364,28 @@ std::vector<int> TestSuite::chooseDiameters(const ReliabilityGraph& graph,
     return out;
 }
 
-static const char* statusToString(CrossCheckStatus s) {
-    switch (s) {
-        case CrossCheckStatus::OK:      return "OK";
-        case CrossCheckStatus::TIMEOUT: return "TIMEOUT";
-        case CrossCheckStatus::ERROR:   return "ERROR";
-    }
-    return "UNKNOWN";
-}
-
-void TestSuite::writeCrossCheckCSV(const std::vector<CrossCheckRow>& rows,
-                                   const std::string& filename) {
-    std::ofstream file(filename);
-    if (!file) {
-        std::cerr << "Could not open output file: " << filename << std::endl;
-        return;
-    }
-    file << "Graph,S,T,D,MethodId,Method,Status,Reliability,TimeSec,Recursions,DiffFromBaseline,Error\n";
-    // Group by (graph, d) to compute DiffFromBaseline.
-    // Baseline = first successful method in order: 0, 3, 5, then any OK.
-    auto key = [](const CrossCheckRow& r) {
-        return r.graph + "|" + std::to_string(r.diameter);
-    };
-    std::map<std::string, double> baseline;
-    for (int preferred : {0, 3, 5}) {
-        for (const auto& r : rows) {
-            if (r.method_id != preferred) continue;
-            if (r.status != CrossCheckStatus::OK) continue;
-            baseline.emplace(key(r), r.reliability);
-        }
-    }
-    for (const auto& r : rows) {
-        if (r.status != CrossCheckStatus::OK) continue;
-        baseline.emplace(key(r), r.reliability);
-    }
-
-    for (const auto& r : rows) {
-        std::string diff_str;
-        if (r.status == CrossCheckStatus::OK) {
-            auto it = baseline.find(key(r));
-            if (it != baseline.end()) {
-                std::ostringstream oss;
-                oss << std::scientific << std::setprecision(3)
-                    << std::abs(r.reliability - it->second);
-                diff_str = oss.str();
-            }
-        }
-        std::string rel_str;
-        if (r.status == CrossCheckStatus::OK) {
-            std::ostringstream oss;
-            oss << std::fixed << std::setprecision(15) << r.reliability;
-            rel_str = oss.str();
-        }
-        std::string time_str;
-        if (r.status != CrossCheckStatus::TIMEOUT) {
-            std::ostringstream oss;
-            oss << std::fixed << std::setprecision(6) << r.time_seconds;
-            time_str = oss.str();
-        }
-        std::string err = r.error_message;
-        // CSV-escape: replace comma/quote with space for simplicity.
-        std::replace(err.begin(), err.end(), ',', ' ');
-        std::replace(err.begin(), err.end(), '"', ' ');
-        file << r.graph << ","
-             << r.s << ","
-             << r.t << ","
-             << r.diameter << ","
-             << r.method_id << ","
-             << r.method_name << ","
-             << statusToString(r.status) << ","
-             << rel_str << ","
-             << time_str << ","
-             << r.recursions << ","
-             << diff_str << ","
-             << err << "\n";
-    }
-    std::cout << "Cross-check results written to " << filename << std::endl;
-}
-
 namespace {
 
-// Per-method timeouts in seconds. Picked to match observed difficulty:
-// m0 is the reference but gets enough budget to clear sausage-3 d=10; m1 is
-// known-slow and we cap it tight; m3/m5 are the workhorses and get the most
-// budget; m2/m4 sit in the middle.
+// Per-method timeouts in seconds. Uniform 1800 s (30 min) per method so
+// every algorithm — including the heavy m0/m1/m2 baselines — gets a fair
+// chance on the larger graphs. Override selectively with --method-timeout
+// when running a tighter sweep.
 constexpr std::array<int, 6> kMethodTimeoutsSec = {
-    60,  // m0: Pure Factoring (baseline; only K4 finishes in 60s)
-    30,  // m1: Block + Pure Facto (heavy; mostly TIMEOUT outside K4/sausage-3)
-    120, // m2: Block + Conv + Simple Facto (mid-weight; finishes most sausage)
-    300, // m3: Block + Conv + Modified Facto (reference workhorse)
-    300, // m4: Cancela-Petingi (Nesterov) (path enumeration, may blow up)
-    300, // m5: Block + Conv + Modified Cancela-Petingi (no global fallback)
+    1800, // m0: Pure Factoring
+    1800, // m1: Block + Pure Facto
+    1800, // m2: Block + Conv + Simple Facto
+    1800, // m3: Block + Conv + Modified Facto
+    1800, // m4: Cancela-Petingi (Nesterov)
+    1800, // m5: Block + Conv + Modified Cancela-Petingi
 };
+
+double medianOfTimes(std::vector<double> xs) {
+    if (xs.empty()) return 0.0;
+    std::sort(xs.begin(), xs.end());
+    size_t n = xs.size();
+    if (n % 2 == 1) return xs[n / 2];
+    return 0.5 * (xs[n / 2 - 1] + xs[n / 2]);
+}
 
 std::string formatMMSS(double seconds) {
     int s = static_cast<int>(seconds + 0.5);
@@ -466,20 +398,30 @@ std::string formatMMSS(double seconds) {
 }
 
 // Serialize one CrossCheckRow to the open CSV stream and flush so the line
-// survives process kill. Keeps the same column layout as writeCrossCheckCSV
-// for the OK/TIMEOUT/ERROR cases, minus DiffFromBaseline (computed offline).
+// survives process kill. Columns (in order):
+//   Graph, S, T, D, MethodId, Method, Status, Reliability, TimeSec,
+//   Recursions, CompletedRuns, MinTimeSec, MaxTimeSec, Error
+// TimeSec is the median across CompletedRuns OK repetitions. Min/Max are
+// empty on non-OK rows. Error is always last (any trailing legacy parser
+// expecting `,Error` at end keeps working).
 void writeRowLine(std::ofstream& file, const CrossCheckRow& r) {
+    auto fmt_fixed = [](double v, int prec) {
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(prec) << v;
+        return oss.str();
+    };
     std::string rel_str;
     if (r.status == CrossCheckStatus::OK) {
-        std::ostringstream oss;
-        oss << std::fixed << std::setprecision(15) << r.reliability;
-        rel_str = oss.str();
+        rel_str = fmt_fixed(r.reliability, 15);
     }
     std::string time_str;
     if (r.status != CrossCheckStatus::TIMEOUT) {
-        std::ostringstream oss;
-        oss << std::fixed << std::setprecision(6) << r.time_seconds;
-        time_str = oss.str();
+        time_str = fmt_fixed(r.time_seconds, 6);
+    }
+    std::string min_str, max_str;
+    if (r.status == CrossCheckStatus::OK) {
+        min_str = fmt_fixed(r.min_time_seconds, 6);
+        max_str = fmt_fixed(r.max_time_seconds, 6);
     }
     std::string err = r.error_message;
     std::replace(err.begin(), err.end(), ',', ' ');
@@ -502,6 +444,10 @@ void writeRowLine(std::ofstream& file, const CrossCheckRow& r) {
          << rel_str << ","
          << time_str << ","
          << r.recursions << ","
+         << r.completed_runs << ","
+         << min_str << ","
+         << max_str << ","
+         << r.timeout_budget_sec << ","
          << err << "\n";
     file.flush();
 }
@@ -515,7 +461,53 @@ bool TestSuite::runCrossCheck(int timeout_sec,
                               int d_count,
                               int d_step,
                               const std::vector<int>& active_methods,
-                              const std::array<int, 6>& method_timeouts_override) {
+                              const std::array<int, 6>& method_timeouts_override,
+                              int repetitions,
+                              bool resume_from_existing) {
+    if (repetitions < 1) repetitions = 1;
+
+    // --resume support: read the existing CSV (if any) and remember which
+    // (graph, s, t, d, method_id) cells are already done, so we append to
+    // the same file instead of redoing 13 hours of work.
+    std::set<std::tuple<std::string, int, int, int, int>> done_cells;
+    if (resume_from_existing) {
+        std::ifstream existing(output_filename);
+        if (existing) {
+            std::string line;
+            bool header_skipped = false;
+            while (std::getline(existing, line)) {
+                if (!header_skipped) { header_skipped = true; continue; }
+                if (line.empty()) continue;
+                // Parse first 5 comma-separated tokens: Graph, S, T, D, MethodId
+                std::string tokens[5];
+                size_t pos = 0;
+                int idx = 0;
+                while (idx < 5 && pos != std::string::npos) {
+                    size_t next = line.find(',', pos);
+                    tokens[idx++] = (next == std::string::npos)
+                                        ? line.substr(pos)
+                                        : line.substr(pos, next - pos);
+                    pos = (next == std::string::npos) ? next : next + 1;
+                }
+                if (idx < 5) continue;
+                try {
+                    done_cells.emplace(tokens[0],
+                                       std::stoi(tokens[1]),
+                                       std::stoi(tokens[2]),
+                                       std::stoi(tokens[3]),
+                                       std::stoi(tokens[4]));
+                } catch (...) {
+                    // Skip malformed lines silently.
+                }
+            }
+            std::cout << "[resume] " << done_cells.size()
+                      << " (graph,s,t,d,method) cells already in "
+                      << output_filename << " — they will be skipped\n";
+        } else {
+            std::cout << "[resume] " << output_filename
+                      << " not found — starting fresh\n";
+        }
+    }
     // Resolve effective per-method timeouts: tiered defaults overlaid by any
     // user-provided overrides (positive values in the override array win).
     std::array<int, 6> effective_method_timeouts = kMethodTimeoutsSec;
@@ -678,15 +670,19 @@ bool TestSuite::runCrossCheck(int timeout_sec,
     std::cout << "Per-(graph,method,d) isolated calls; "
                  "methods iterate in reverse (m5..m0) within each cell.\n";
 
-    // Incremental CSV: open once, write header, flush after each row. Any
-    // progress survives a kill.
-    std::ofstream csv(output_filename);
+    // Incremental CSV: open once, write header (only on fresh runs), flush
+    // after each row. Any progress survives a kill.
+    const bool append_mode = resume_from_existing && !done_cells.empty();
+    std::ofstream csv(output_filename, append_mode ? std::ios::app : std::ios::out);
     if (!csv) {
         std::cerr << "Could not open output file: " << output_filename << "\n";
         return false;
     }
-    csv << "Graph,S,T,D,MethodId,Method,Status,Reliability,TimeSec,Recursions,Error\n";
-    csv.flush();
+    if (!append_mode) {
+        csv << "Graph,S,T,D,MethodId,Method,Status,Reliability,TimeSec,Recursions,"
+            << "CompletedRuns,MinTimeSec,MaxTimeSec,TimeoutBudgetSec,Error\n";
+        csv.flush();
+    }
 
     std::vector<CrossCheckRow> rows;
     rows.reserve(cells.size() * active_methods.size());
@@ -727,53 +723,139 @@ bool TestSuite::runCrossCheck(int timeout_sec,
 
         ReliabilityGraph* tmpl = &graph_templates.at(g.graph);
 
-        // d ascending, method descending. One isolated single-d call per
-        // (graph, method, d) so each row is an independent measurement —
-        // same methodology as run_benchmarks.sh / benchmark_results.csv.
+        // d ascending, method descending. For each (graph, method, d) cell
+        // run up to `repetitions` isolated invocations and report the median
+        // wall time. Early exit: if the first two consecutive runs both
+        // TIMEOUT, abort the remaining repetitions — the method is clearly
+        // not competitive in this cell.
         for (int d : g.d_values) {
             for (int method_id : methods_reverse) {
+                // Resume mode: skip cells already on disk.
+                if (resume_from_existing &&
+                    done_cells.count(std::make_tuple(g.graph, g.s, g.t, d, method_id))) {
+                    std::cout << "    m" << method_id << " d=" << d
+                              << ": [resumed, skipped]\n";
+                    continue;
+                }
                 const int cell_timeout = use_tiered
                     ? effective_method_timeouts[method_id]
                     : timeout_sec;
 
-                auto graph = std::make_unique<ReliabilityGraph>(*tmpl);
-                auto* gp = graph.get();
                 int s = g.s, t = g.t;
-                std::function<ReliabilityResult()> calc;
-                switch (method_id) {
-                    case 0: calc = [gp, s, t, d]() { return gp->calculateReliabilityBetweenVertices(s, t, d); }; break;
-                    case 1: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithRecursiveDecomposition(s, t, d); }; break;
-                    case 2: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithDecomposition(s, t, d); }; break;
-                    case 3: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithMDecomposition(s, t, d); }; break;
-                    case 4: calc = [gp, s, t, d]() { return gp->calculateReliabilityCancelaPetingi(s, t, d); }; break;
-                    case 5: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithMDecompositionCPFM(s, t, d); }; break;
-                }
-                auto graph_keeper = std::make_shared<std::unique_ptr<ReliabilityGraph>>(std::move(graph));
-                std::function<ReliabilityResult()> calc_wrapped =
-                    [calc, graph_keeper]() { return calc(); };
 
-                std::string err;
-                auto t0 = std::chrono::steady_clock::now();
-                auto opt = runWithTimeout(calc_wrapped, cell_timeout, &err);
-                auto t1 = std::chrono::steady_clock::now();
+                std::vector<double> ok_times;
+                ok_times.reserve(repetitions);
+                long long first_ok_recursions = 0;
+                double first_ok_reliability = 0.0;
+                int timeouts_in_a_row = 0;
+                std::string err_msg;
+                bool got_error = false;
+                double last_rep_wall = 0.0;
+
+                // Adaptive cap: long-running cells don't need many reps. After
+                // the first OK run we shrink `rep_budget` based on its elapsed
+                // time — fast cells stay at the full `repetitions`, but slow
+                // ones cut the series to 2 (medium) or 1 (slow), avoiding
+                // hours wasted on a 25-minute cell × 8 repetitions = 3.3 h.
+                int rep_budget = repetitions;
+                bool budget_adapted = false;
+                constexpr double kAdaptShortSec  = 300.0;   //  5 min
+                constexpr double kAdaptLongSec   = 1800.0;  // 30 min
+
+                for (int rep = 0; rep < rep_budget; ++rep) {
+                    auto graph = std::make_unique<ReliabilityGraph>(*tmpl);
+                    auto* gp = graph.get();
+                    std::function<ReliabilityResult()> calc;
+                    switch (method_id) {
+                        case 0: calc = [gp, s, t, d]() { return gp->calculateReliabilityBetweenVertices(s, t, d); }; break;
+                        case 1: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithRecursiveDecomposition(s, t, d); }; break;
+                        case 2: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithDecomposition(s, t, d); }; break;
+                        case 3: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithMDecomposition(s, t, d); }; break;
+                        case 4: calc = [gp, s, t, d]() { return gp->calculateReliabilityCancelaPetingi(s, t, d); }; break;
+                        case 5: calc = [gp, s, t, d]() { return gp->calculateReliabilityWithMDecompositionCPFM(s, t, d); }; break;
+                    }
+                    auto graph_keeper = std::make_shared<std::unique_ptr<ReliabilityGraph>>(std::move(graph));
+                    std::function<ReliabilityResult()> calc_wrapped =
+                        [calc, graph_keeper]() { return calc(); };
+
+                    std::string err;
+                    auto t0 = std::chrono::steady_clock::now();
+                    auto opt = runWithTimeout(calc_wrapped, cell_timeout, &err);
+                    auto t1 = std::chrono::steady_clock::now();
+                    last_rep_wall = std::chrono::duration<double>(t1 - t0).count();
+
+                    if (opt.has_value()) {
+                        if (ok_times.empty()) {
+                            first_ok_reliability = opt->reliability;
+                            first_ok_recursions  = opt->recursions;
+                        }
+                        ok_times.push_back(opt->execution_time_sec);
+                        timeouts_in_a_row = 0;
+
+                        // Adapt rep_budget once based on the first OK's time.
+                        if (!budget_adapted) {
+                            budget_adapted = true;
+                            const double t_ok = opt->execution_time_sec;
+                            int new_budget = repetitions;
+                            const char* reason = "no cap";
+                            if (t_ok >= kAdaptLongSec) {
+                                new_budget = rep + 1;       // ≥30 min → single shot
+                                reason = "≥30min, single-shot";
+                            } else if (t_ok >= kAdaptShortSec) {
+                                new_budget = std::min(repetitions, rep + 2); // 5..30 min → +1 more
+                                reason = "5..30min, 2-shot cap";
+                            }
+                            if (new_budget < rep_budget) {
+                                std::cout << "      [adaptive] m" << method_id
+                                          << " d=" << d << " first OK="
+                                          << std::fixed << std::setprecision(2)
+                                          << t_ok << "s → "
+                                          << "cap reps to " << new_budget
+                                          << " (" << reason << ")\n";
+                                rep_budget = new_budget;
+                            }
+                        }
+                    } else if (!err.empty()) {
+                        err_msg = err;
+                        got_error = true;
+                        break;  // an exception is not a measurement; stop the series.
+                    } else {
+                        ++timeouts_in_a_row;
+                    }
+
+                    // Early exit: two consecutive TIMEOUTs at the very start
+                    // and still no OK measurement — give up on this cell.
+                    if (rep == 1 && ok_times.empty() && timeouts_in_a_row == 2) {
+                        std::cout << "    m" << method_id << " d=" << d
+                                  << ": early-exit after 2/2 TIMEOUT\n";
+                        break;
+                    }
+                }
 
                 CrossCheckRow row = build_row(g.graph, g.s, g.t, d, method_id);
-                if (opt.has_value()) {
-                    row.status       = CrossCheckStatus::OK;
-                    row.reliability  = opt->reliability;
-                    row.time_seconds = opt->execution_time_sec;
-                    row.recursions   = opt->recursions;
+                row.completed_runs = static_cast<int>(ok_times.size());
+                row.timeout_budget_sec = cell_timeout;
+
+                if (!ok_times.empty()) {
+                    row.status            = CrossCheckStatus::OK;
+                    row.reliability       = first_ok_reliability;
+                    row.recursions        = first_ok_recursions;
+                    row.time_seconds      = medianOfTimes(ok_times);
+                    row.min_time_seconds  = *std::min_element(ok_times.begin(), ok_times.end());
+                    row.max_time_seconds  = *std::max_element(ok_times.begin(), ok_times.end());
                     std::cout << "    m" << method_id << " d=" << d
                               << ": R=" << std::fixed << std::setprecision(12)
                               << row.reliability
-                              << " (" << std::setprecision(3)
-                              << row.time_seconds << "s)\n";
-                } else if (!err.empty()) {
+                              << " (median=" << std::setprecision(3)
+                              << row.time_seconds << "s of "
+                              << row.completed_runs << "/" << rep_budget
+                              << (rep_budget < repetitions ? "*" : "") << ")\n";
+                } else if (got_error) {
                     row.status = CrossCheckStatus::ERROR;
-                    row.error_message = err;
-                    row.time_seconds = std::chrono::duration<double>(t1 - t0).count();
+                    row.error_message = err_msg;
+                    row.time_seconds = last_rep_wall;
                     std::cout << "    m" << method_id << " d=" << d
-                              << ": ERROR (" << err << ")\n";
+                              << ": ERROR (" << err_msg << ")\n";
                 } else {
                     row.status = CrossCheckStatus::TIMEOUT;
                     std::cout << "    m" << method_id << " d=" << d
